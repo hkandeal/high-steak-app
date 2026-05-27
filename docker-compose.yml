@@ -1,0 +1,54 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: high-steak-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: high_steak
+      MYSQL_USER: high_steak
+      MYSQL_PASSWORD: high_steak
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/high-steak-api
+      dockerfile: Dockerfile
+    container_name: high-steak-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/high_steak?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: high_steak
+      SPRING_DATASOURCE_PASSWORD: high_steak
+      JWT_SECRET: dev-secret-change-in-production-min-32-chars
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      UPLOADS_DIR: /app/uploads
+    ports:
+      - "8080:8080"
+    volumes:
+      - api_uploads:/app/uploads
+
+  web:
+    build:
+      context: ./apps/high-steak-web
+      dockerfile: Dockerfile
+    container_name: high-steak-web
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "5173:5173"
+
+volumes:
+  mysql_data:
+  api_uploads:

@@ -1,0 +1,28 @@
+.star-rating {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.star-rating .star {
+  background: none;
+  border: none;
+  font-size: 1.35rem;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.15s, color 0.15s;
+}
+
+.star-rating:not(.readonly) .star:hover {
+  transform: scale(1.15);
+}
+
+.star-rating .star.filled {
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(212, 160, 84, 0.6);
+}
+
+.star-rating.readonly .star {
+  cursor: default;
+}

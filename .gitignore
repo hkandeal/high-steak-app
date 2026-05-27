@@ -1,0 +1,39 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# Env
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+
+# Web
+apps/high-steak-web/node_modules/
+apps/high-steak-web/dist/
+
+# API
+apps/high-steak-api/target/
+apps/high-steak-api/.mvn/
+apps/high-steak-api/uploads/
+
+# Flutter
+apps/high-steak-mobile/.dart_tool/
+apps/high-steak-mobile/.flutter-plugins
+apps/high-steak-mobile/.flutter-plugins-dependencies
+apps/high-steak-mobile/.packages
+apps/high-steak-mobile/build/
+apps/high-steak-mobile/.pub-cache/
+apps/high-steak-mobile/.pub/
+apps/high-steak-mobile/**/ios/Pods/
+apps/high-steak-mobile/**/ios/.symlinks/
+apps/high-steak-mobile/**/android/.gradle/
+apps/high-steak-mobile/**/android/local.properties

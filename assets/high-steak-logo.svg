@@ -1,0 +1,10 @@
+<svg width="960" height="260" viewBox="0 0 960 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="260" rx="24" fill="#1E1E1E"/>
+  <g transform="translate(44,38)">
+    <path d="M91 12C63 12 38 24 24 45C7 71 8 106 26 132C39 150 61 166 89 171C108 175 130 173 148 163C165 153 176 136 177 118C178 102 171 88 159 78C145 66 126 58 118 42C112 30 102 12 91 12Z" fill="#C84A3A"/>
+    <path d="M90 26C67 26 47 35 35 52C22 71 22 98 35 117C45 132 61 143 81 148C96 151 113 150 127 142C139 135 147 124 148 113C148 102 143 93 135 86C124 77 109 71 102 58C98 50 95 40 90 26Z" fill="#F4E8D6"/>
+    <path d="M91 50L96 62L109 64L99 73L101 86L91 79L80 86L82 73L72 64L85 62L91 50Z" fill="#C84A3A"/>
+  </g>
+  <text x="260" y="115" fill="#F4E8D6" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="700">High Steak</text>
+  <text x="262" y="162" fill="#C84A3A" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="500" letter-spacing="2">COOK " RATE " SHARE</text>
+</svg>

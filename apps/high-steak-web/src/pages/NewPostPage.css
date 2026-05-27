@@ -1,0 +1,87 @@
+.new-post-page header {
+  margin-bottom: 1.5rem;
+}
+
+.new-post-page h1 {
+  margin: 0 0 0.35rem;
+}
+
+.new-post-page header p {
+  margin: 0;
+  color: var(--cream-muted);
+}
+
+.new-post-form {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 560px;
+}
+
+.upload-zone {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 2px dashed rgba(212, 160, 84, 0.35);
+  background: rgba(0, 0, 0, 0.25);
+  min-height: 220px;
+}
+
+.preview-image {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  display: block;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  color: var(--cream-muted);
+}
+
+.upload-placeholder span {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-btn {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background: var(--ember);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--cream-muted);
+}
+
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--cream-muted);
+  margin-bottom: 0.35rem;
+}
+
+.form-fields textarea {
+  resize: vertical;
+  min-height: 100px;
+}

@@ -1,0 +1,12 @@
+{
+  "name": "high-steak-app",
+  "private": true,
+  "description": "Monorepo for High Steak — steak meal rating social network",
+  "scripts": {
+    "web:dev": "npm run dev --prefix apps/high-steak-web",
+    "web:build": "npm run build --prefix apps/high-steak-web",
+    "api:build": "mvn -f apps/high-steak-api/pom.xml -DskipTests package",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  }
+}
