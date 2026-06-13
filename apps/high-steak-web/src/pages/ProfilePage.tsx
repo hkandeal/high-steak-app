@@ -18,6 +18,8 @@ import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
 import { listItemBackState } from '../navigation'
 import { displayInitials } from '../utils/displayInitials'
+import { validateImageFile, validateProfileForm } from '../utils/validation'
+import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
 import './ProfilePage.css'
 
 export function ProfilePage() {
@@ -76,6 +78,12 @@ export function ProfilePage() {
 
   function handleAvatarPick(file: File | null) {
     if (!file) return
+    const imageError = validateImageFile(file)
+    if (imageError) {
+      setError(imageError)
+      return
+    }
+    setError(null)
     if (cropImageSrc) URL.revokeObjectURL(cropImageSrc)
     setCropImageSrc(URL.createObjectURL(file))
   }
@@ -96,6 +104,11 @@ export function ProfilePage() {
   async function handleSaveProfile(e: FormEvent) {
     e.preventDefault()
     if (!token) return
+    const validationError = validateProfileForm({ displayName, email, avatar: avatarFile })
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -209,6 +222,7 @@ export function ProfilePage() {
             </div>
             <label className="btn ghost small">
               Change avatar
+              <span className="field-hint">Max {MAX_IMAGE_MB} MB</span>
               <input
                 type="file"
                 accept="image/*"
@@ -225,6 +239,8 @@ export function ProfilePage() {
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              minLength={API_CONSTRAINTS.displayName.min}
+              maxLength={API_CONSTRAINTS.displayName.max}
               required
             />
           </label>
@@ -234,6 +250,7 @@ export function ProfilePage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              maxLength={API_CONSTRAINTS.email.max}
               required
             />
           </label>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
-import { fetchPost, updatePost } from '../api/client'
+import { fetchPost, updatePost, type PostVisibility } from '../api/client'
 import { PageBackLink } from '../components/BackLink'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { PostForm, type PostFormHandle, type PostFormSubmitData } from '../components/PostForm'
@@ -26,6 +26,7 @@ export function EditPostPage() {
     restaurantLocation: string
     tagIds: string[]
     imageUrls: string[]
+    visibility: PostVisibility
   } | null>(null)
 
   const shouldBlockLeave = useCallback(() => isDirty, [isDirty])
@@ -68,6 +69,7 @@ export function EditPostPage() {
           restaurantLocation: post.restaurantLocation ?? '',
           tagIds: (post.tags ?? []).map((tag) => tag.id),
           imageUrls: [...new Set(post.imageUrls)],
+          visibility: post.visibility ?? 'PUBLIC',
         })
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load post'))
@@ -82,6 +84,7 @@ export function EditPostPage() {
       rating: data.rating,
       restaurantName: data.restaurantName,
       restaurantLocation: data.restaurantLocation,
+      visibility: data.visibility,
       keepImageUrls: data.keepImageUrls,
       newImages: data.newImages,
       tagIds: data.tagIds,
@@ -146,6 +149,7 @@ export function EditPostPage() {
           initialRestaurantLocation={initial.restaurantLocation}
           initialTagIds={initial.tagIds}
           initialImageUrls={initial.imageUrls}
+          initialVisibility={initial.visibility}
           submitLabel="Save changes"
           pendingLabel="Saving…"
           onDirtyChange={setIsDirty}

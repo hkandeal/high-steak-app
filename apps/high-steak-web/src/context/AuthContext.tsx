@@ -9,6 +9,7 @@ import {
 } from 'react'
 import {
   getMe,
+  mergeUserWithToken,
   parseUserFromToken,
   setUnauthorizedHandler,
   type AuthResponse,
@@ -77,7 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     if (!auth?.token) return
     try {
-      const user = await getMe(auth.token)
+      const profile = await getMe(auth.token)
+      const user = mergeUserWithToken(auth.token, profile)
       const next = { token: auth.token, user }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
       setAuth(next)

@@ -1,6 +1,7 @@
 package com.highsteak.api.controller;
 
 import com.highsteak.api.dto.AuthDtos;
+import com.highsteak.api.domain.PostVisibility;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.service.SteakPostService;
 import com.highsteak.api.service.UserAdminService;
@@ -56,7 +57,7 @@ class ControllerSecurityIntegrationTest {
     @Test
     @WithMockUser(authorities = {"posts:write"})
     void createPostAllowedWithWriteScope() throws Exception {
-        when(steakPostService.createPost(any(), anyString(), any(), anyInt(), any(), any(), any(), any()))
+        when(steakPostService.createPost(any(), anyString(), any(), anyInt(), any(), any(), any(), any(), any()))
                 .thenReturn(samplePost());
 
         mockMvc.perform(multipart("/posts")
@@ -131,6 +132,6 @@ class ControllerSecurityIntegrationTest {
                 "Chef");
         return new PostDtos.PostResponse(
                 POST_ID, "Ribeye", "Great sear", 5, List.of("/uploads/steak.jpg"),
-                null, null, Instant.now(), false, author, List.of());
+                null, null, Instant.now(), false, PostVisibility.PUBLIC, author, List.of());
     }
 }

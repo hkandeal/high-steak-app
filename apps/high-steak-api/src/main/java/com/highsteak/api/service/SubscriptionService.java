@@ -1,5 +1,6 @@
 package com.highsteak.api.service;
 
+import com.highsteak.api.domain.PostVisibility;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.domain.UserSubscription;
 import com.highsteak.api.domain.UserSubscriptionId;
@@ -79,18 +80,26 @@ public class SubscriptionService {
         Set<UUID> subscribedIds = viewerId == null
                 ? Set.of()
                 : subscriptionRepository.findTargetUserIdsBySubscriberId(viewerId);
-        return toPublicProfile(user, subscribedIds);
+        return toPublicProfile(user, subscribedIds, viewerId);
     }
 
     @Transactional(readOnly = true)
-    public SubscriptionDtos.UserPublicProfile toPublicProfile(User user, Set<UUID> subscribedIds) {
+    public SubscriptionDtos.UserPublicProfile toPublicProfile(User user, Set<UUID> subscribedIds, UUID viewerId) {
         return new SubscriptionDtos.UserPublicProfile(
                 user.getId(),
                 user.getUsername(),
                 user.getDisplayName(),
                 user.getAvatarUrl(),
-                steakPostRepository.countByUserIdAndHiddenFalse(user.getId()),
+                countVisiblePosts(user.getId(), viewerId),
                 subscribedIds.contains(user.getId()));
+    }
+
+    private long countVisiblePosts(UUID profileUserId, UUID viewerId) {
+        if (viewerId == null) {
+            return steakPostRepository.countByUserIdAndHiddenFalseAndVisibility(
+                    profileUserId, PostVisibility.PUBLIC);
+        }
+        return steakPostRepository.countVisiblePostsForProfile(profileUserId, viewerId);
     }
 
     private SubscriptionDtos.SubscriptionSummary toSummary(
@@ -99,7 +108,7 @@ public class SubscriptionService {
         User target = userRepository.findById(subscription.getId().getTargetUserId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
         return new SubscriptionDtos.SubscriptionSummary(
-                toPublicProfile(target, subscribedIds),
+                toPublicProfile(target, subscribedIds, subscription.getId().getSubscriberId()),
                 subscription.getCreatedAt());
     }
 }

@@ -1,10 +1,10 @@
 package com.highsteak.api.dto;
 
+import com.highsteak.api.validation.ApiConstraints;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.List;
 import java.util.UUID;
 
 public final class AuthDtos {
@@ -12,15 +12,15 @@ public final class AuthDtos {
     private AuthDtos() {}
 
     public record RegisterRequest(
-            @NotBlank @Size(min = 3, max = 50) String username,
-            @NotBlank @Email String email,
-            @NotBlank @Size(min = 8, max = 100) String password,
-            @NotBlank @Size(min = 2, max = 100) String displayName
+            @NotBlank @Size(min = ApiConstraints.USERNAME_MIN, max = ApiConstraints.USERNAME_MAX) String username,
+            @NotBlank @Email @Size(max = ApiConstraints.EMAIL_MAX) String email,
+            @NotBlank @Size(min = ApiConstraints.PASSWORD_MIN, max = ApiConstraints.PASSWORD_MAX) String password,
+            @NotBlank @Size(min = ApiConstraints.DISPLAY_NAME_MIN, max = ApiConstraints.DISPLAY_NAME_MAX) String displayName
     ) {}
 
     public record LoginRequest(
-            @NotBlank String username,
-            @NotBlank String password
+            @NotBlank @Size(max = ApiConstraints.USERNAME_MAX) String username,
+            @NotBlank @Size(max = ApiConstraints.PASSWORD_MAX) String password
     ) {}
 
     public record AuthResponse(
@@ -32,9 +32,7 @@ public final class AuthDtos {
             String username,
             String email,
             String displayName,
-            String avatarUrl,
-            String role,
-            List<String> scopes
+            String avatarUrl
     ) {}
 
     public record UpdateUserRoleRequest(
@@ -42,12 +40,17 @@ public final class AuthDtos {
     ) {}
 
     public record UpdateProfileRequest(
-            @Size(min = 2, max = 100) String displayName,
-            @Email String email
+            @Size(min = ApiConstraints.DISPLAY_NAME_MIN, max = ApiConstraints.DISPLAY_NAME_MAX) String displayName,
+            @Email @Size(max = ApiConstraints.EMAIL_MAX) String email
     ) {}
 
     public record UpdateProfileResponse(
             String token,
             UserSummary user
+    ) {}
+
+    public record AvailabilityResponse(
+            boolean available,
+            String message
     ) {}
 }

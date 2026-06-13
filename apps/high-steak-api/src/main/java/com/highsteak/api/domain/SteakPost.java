@@ -58,6 +58,11 @@ public class SteakPost {
     @Builder.Default
     private boolean hidden = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    @Builder.Default
+    private PostVisibility visibility = PostVisibility.PUBLIC;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

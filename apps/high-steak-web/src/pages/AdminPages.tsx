@@ -7,7 +7,7 @@ import {
   primaryPostImage,
   updateUserRole,
   type SteakPost,
-  type UserSummary,
+  type UserProfile,
 } from '../api/client'
 import { StarRating } from '../components/StarRating'
 import { useAuth } from '../context/AuthContext'
@@ -80,7 +80,8 @@ export function ModerationPage() {
 
 export function AdminUsersPage() {
   const { token } = useAuth()
-  const [users, setUsers] = useState<UserSummary[]>([])
+  const [users, setUsers] = useState<UserProfile[]>([])
+  const [assignedRoles, setAssignedRoles] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -94,8 +95,8 @@ export function AdminUsersPage() {
 
   async function handleRoleChange(userId: string, role: string) {
     if (!token) return
-    const updated = await updateUserRole(token, userId, role)
-    setUsers((current) => current.map((user) => (user.id === userId ? updated : user)))
+    await updateUserRole(token, userId, role)
+    setAssignedRoles((current) => ({ ...current, [userId]: role }))
   }
 
   return (
@@ -103,7 +104,7 @@ export function AdminUsersPage() {
       <header className="feed-header">
         <div>
           <h1>User management</h1>
-          <p>Assign roles to control API scopes and UI access.</p>
+          <p>Assign roles to control API scopes and UI access. Current roles are not returned by the API — pick a role to assign.</p>
         </div>
       </header>
 
@@ -127,7 +128,7 @@ export function AdminUsersPage() {
                   <td>{user.email}</td>
                   <td>
                     <select
-                      value={user.role}
+                      value={assignedRoles[user.id] ?? 'USER'}
                       onChange={(e) => handleRoleChange(user.id, e.target.value)}
                     >
                       <option value="USER">USER</option>

@@ -1,0 +1,41 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-field-label {
+  font-size: 0.85rem;
+  color: var(--cream-muted);
+}
+
+.form-field-hint {
+  font-size: 0.75rem;
+  color: var(--cream-muted);
+  opacity: 0.85;
+}
+
+.form-field-feedback {
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.form-field-feedback.is-checking {
+  color: var(--cream-muted);
+}
+
+.form-field-feedback.is-success {
+  color: #8fd4a8;
+}
+
+.form-field-feedback.is-error {
+  color: var(--error-text);
+}
+
+.form-field.tone-error input {
+  border-color: rgba(196, 58, 42, 0.55);
+}
+
+.form-field.tone-success input {
+  border-color: rgba(143, 212, 168, 0.45);
+}

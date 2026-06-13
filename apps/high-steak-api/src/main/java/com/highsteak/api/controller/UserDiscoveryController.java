@@ -36,7 +36,9 @@ public class UserDiscoveryController {
 
     @GetMapping("/{id}/posts")
     @PreAuthorize("hasAuthority('posts:read')")
-    public List<PostDtos.PostResponse> getUserPosts(@PathVariable UUID id) {
-        return userDiscoveryService.getUserPublicPosts(id);
+    public List<PostDtos.PostResponse> getUserPosts(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return userDiscoveryService.getUserPublicPosts(id, principal);
     }
 }

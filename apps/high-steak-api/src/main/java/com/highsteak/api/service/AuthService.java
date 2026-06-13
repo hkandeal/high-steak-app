@@ -4,6 +4,11 @@ import com.highsteak.api.domain.Role;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.AuthDtos;
 import com.highsteak.api.dto.PostDtos;
+import com.highsteak.api.validation.ApiConstraints;
+import com.highsteak.api.validation.EmailValidation;
+import com.highsteak.api.validation.TextValidation;
+import com.highsteak.api.validation.UploadValidation;
+import com.highsteak.api.validation.UsernameValidation;
 import com.highsteak.api.repository.RoleRepository;
 import com.highsteak.api.repository.UserRepository;
 import com.highsteak.api.security.JwtService;
@@ -46,10 +51,23 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.AuthResponse register(AuthDtos.RegisterRequest request) {
-        if (userRepository.existsByUsername(request.username())) {
+        String username = UsernameValidation.require(request.username());
+        String email = EmailValidation.require(request.email());
+        String displayName = TextValidation.bounded(
+                request.displayName().trim(),
+                "Display name",
+                ApiConstraints.DISPLAY_NAME_MIN,
+                ApiConstraints.DISPLAY_NAME_MAX);
+        TextValidation.bounded(
+                request.password(),
+                "Password",
+                ApiConstraints.PASSWORD_MIN,
+                ApiConstraints.PASSWORD_MAX);
+
+        if (userRepository.existsByUsername(username)) {
             throw new ResponseStatusException(CONFLICT, "Username already taken");
         }
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(CONFLICT, "Email already registered");
         }
 
@@ -57,10 +75,10 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Default role not configured"));
 
         User user = User.builder()
-                .username(request.username())
-                .email(request.email())
+                .username(username)
+                .email(email)
                 .passwordHash(passwordEncoder.encode(request.password()))
-                .displayName(request.displayName())
+                .displayName(displayName)
                 .role(defaultRole)
                 .build();
         user = userRepository.save(user);
@@ -69,6 +87,32 @@ public class AuthService {
         UserPrincipal principal = new UserPrincipal(user);
         String token = jwtService.generateToken(principal);
         return new AuthDtos.AuthResponse(token);
+    }
+
+    @Transactional(readOnly = true)
+    public AuthDtos.AvailabilityResponse checkUsernameAvailability(String username) {
+        String formatError = UsernameValidation.formatError(username);
+        if (formatError != null) {
+            return new AuthDtos.AvailabilityResponse(false, formatError);
+        }
+        String trimmed = username.trim();
+        if (userRepository.existsByUsername(trimmed)) {
+            return new AuthDtos.AvailabilityResponse(false, "Username is already taken");
+        }
+        return new AuthDtos.AvailabilityResponse(true, "Username is available");
+    }
+
+    @Transactional(readOnly = true)
+    public AuthDtos.AvailabilityResponse checkEmailAvailability(String email) {
+        String formatError = EmailValidation.formatError(email);
+        if (formatError != null) {
+            return new AuthDtos.AvailabilityResponse(false, formatError);
+        }
+        String trimmed = email.trim();
+        if (userRepository.existsByEmail(trimmed)) {
+            return new AuthDtos.AvailabilityResponse(false, "Email is already registered");
+        }
+        return new AuthDtos.AvailabilityResponse(true, "Email is available");
     }
 
     public AuthDtos.AuthResponse login(AuthDtos.LoginRequest request) {
@@ -104,11 +148,11 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
 
         if (displayName != null) {
-            String normalized = displayName.trim();
-            if (normalized.length() < 2 || normalized.length() > 100) {
-                throw new ResponseStatusException(BAD_REQUEST, "Display name must be between 2 and 100 characters");
-            }
-            user.setDisplayName(normalized);
+            user.setDisplayName(TextValidation.bounded(
+                    displayName.trim(),
+                    "Display name",
+                    ApiConstraints.DISPLAY_NAME_MIN,
+                    ApiConstraints.DISPLAY_NAME_MAX));
         }
 
         if (email != null) {
@@ -116,6 +160,7 @@ public class AuthService {
             if (normalized.isEmpty()) {
                 throw new ResponseStatusException(BAD_REQUEST, "Email is required");
             }
+            TextValidation.bounded(normalized, "Email", 1, ApiConstraints.EMAIL_MAX);
             if (!normalized.equals(user.getEmail()) && userRepository.existsByEmail(normalized)) {
                 throw new ResponseStatusException(CONFLICT, "Email already registered");
             }
@@ -123,6 +168,7 @@ public class AuthService {
         }
 
         if (avatar != null && !avatar.isEmpty()) {
+            UploadValidation.validateImage(avatar);
             user.setAvatarUrl(storeAvatar(avatar));
         }
 
@@ -140,9 +186,7 @@ public class AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getDisplayName(),
-                user.getAvatarUrl(),
-                user.getRole().getName(),
-                permissionService.scopesForUser(user));
+                user.getAvatarUrl());
     }
 
     public PostDtos.AuthorSummary toAuthorSummary(User user) {

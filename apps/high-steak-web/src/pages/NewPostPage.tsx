@@ -27,6 +27,7 @@ export function NewPostPage() {
             rating: data.rating,
             restaurantName: data.restaurantName,
             restaurantLocation: data.restaurantLocation,
+            visibility: data.visibility,
             images: data.newImages,
             tagIds: data.tagIds,
           })

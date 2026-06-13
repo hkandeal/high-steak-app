@@ -54,8 +54,10 @@ public class SteakPostController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('posts:read')")
-    public PostDtos.PostResponse getPost(@PathVariable UUID id) {
-        return steakPostService.getPost(id);
+    public PostDtos.PostResponse getPost(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id) {
+        return steakPostService.getPost(id, principal);
     }
 
     @PostMapping(consumes = "multipart/form-data")
@@ -68,10 +70,12 @@ public class SteakPostController {
             @RequestParam int rating,
             @RequestParam(required = false) String restaurantName,
             @RequestParam(required = false) String restaurantLocation,
+            @RequestParam(required = false) String visibility,
             @RequestParam("images") MultipartFile[] images,
             @RequestParam(required = false) List<UUID> tagIds) {
         return steakPostService.createPost(
-                principal, title, comment, rating, restaurantName, restaurantLocation, images, tagIds);
+                principal, title, comment, rating, restaurantName, restaurantLocation,
+                visibility, images, tagIds);
     }
 
     @PatchMapping(path = "/{id}", consumes = "multipart/form-data")
@@ -84,12 +88,13 @@ public class SteakPostController {
             @RequestParam int rating,
             @RequestParam(required = false) String restaurantName,
             @RequestParam(required = false) String restaurantLocation,
+            @RequestParam(required = false) String visibility,
             @RequestParam(required = false) List<String> keepImageUrls,
             @RequestParam(required = false) MultipartFile[] images,
             @RequestParam(required = false) List<UUID> tagIds) {
         return steakPostService.updatePost(
                 principal, id, title, comment, rating, restaurantName, restaurantLocation,
-                keepImageUrls, images, tagIds);
+                visibility, keepImageUrls, images, tagIds);
     }
 
     @DeleteMapping("/{id}")

@@ -1,7 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useState, type FormEvent } from 'react'
-import { postImageUrl } from '../api/client'
+import { postImageUrl, type PostVisibility } from '../api/client'
+import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
+import { validateImageFiles, validatePostForm } from '../utils/validation'
 import { ReviewTagPicker } from './ReviewTagPicker'
 import { StarRating } from './StarRating'
+import { VisibilityPicker } from './VisibilityPicker'
 import './PostForm.css'
 
 export type PostFormSubmitData = {
@@ -10,6 +13,7 @@ export type PostFormSubmitData = {
   rating: number
   restaurantName?: string
   restaurantLocation?: string
+  visibility: PostVisibility
   tagIds: string[]
   newImages: File[]
   keepImageUrls: string[]
@@ -26,6 +30,7 @@ type PostFormProps = {
   initialRating?: number
   initialRestaurantName?: string
   initialRestaurantLocation?: string
+  initialVisibility?: PostVisibility
   initialTagIds?: string[]
   initialImageUrls?: string[]
   submitLabel: string
@@ -54,6 +59,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
     initialRating = 5,
     initialRestaurantName = '',
     initialRestaurantLocation = '',
+    initialVisibility = 'PUBLIC',
     initialTagIds = [],
     initialImageUrls = [],
     submitLabel,
@@ -69,6 +75,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   const [rating, setRating] = useState(initialRating)
   const [restaurantName, setRestaurantName] = useState(initialRestaurantName)
   const [restaurantLocation, setRestaurantLocation] = useState(initialRestaurantLocation)
+  const [visibility, setVisibility] = useState<PostVisibility>(initialVisibility)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(initialTagIds)
   const [keepImageUrls, setKeepImageUrls] = useState<string[]>(initialImageUrls)
   const [newImages, setNewImages] = useState<File[]>([])
@@ -85,6 +92,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       rating !== initialRating ||
       restaurantName !== initialRestaurantName ||
       restaurantLocation !== initialRestaurantLocation ||
+      visibility !== initialVisibility ||
       !tagIdsEqual(selectedTagIds, initialTagIds) ||
       !urlsEqual(keepImageUrls, initialImageUrls) ||
       newImages.length > 0)
@@ -101,6 +109,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       rating,
       restaurantName: restaurantName || undefined,
       restaurantLocation: restaurantLocation || undefined,
+      visibility,
       tagIds: selectedTagIds,
       newImages,
       keepImageUrls,
@@ -110,6 +119,20 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   async function save(runComplete: boolean): Promise<boolean> {
     const data = buildSubmitData()
     if (!data) return false
+
+    const validationError = validatePostForm({
+      title,
+      comment,
+      restaurantName,
+      restaurantLocation,
+      newImages,
+      totalImages,
+    })
+    if (validationError) {
+      setError(validationError)
+      return false
+    }
+
     setLoading(true)
     setError(null)
     try {
@@ -132,6 +155,12 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   function handleNewImagesChange(files: FileList | null) {
     if (!files?.length) return
     const picked = Array.from(files)
+    const imageError = validateImageFiles(picked)
+    if (imageError) {
+      setError(imageError)
+      return
+    }
+    setError(null)
     setNewImages((current) => [...current, ...picked])
     setNewPreviews((current) => [...current, ...picked.map((file) => URL.createObjectURL(file))])
   }
@@ -179,19 +208,22 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             <p>{mode === 'create' ? 'Add one or more steak photos' : 'Keep at least one photo on your post'}</p>
           </div>
         )}
-        <label className="upload-btn">
-          {totalImages > 0 ? 'Add more photos' : 'Choose photos'}
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              handleNewImagesChange(e.target.files)
-              e.target.value = ''
-            }}
-          />
-        </label>
+        <div className="upload-footer">
+          <p className="upload-hint">JPEG, PNG, or WebP · max {MAX_IMAGE_MB} MB each</p>
+          <label className="upload-btn">
+            {totalImages > 0 ? 'Add more' : 'Choose photos'}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                handleNewImagesChange(e.target.files)
+                e.target.value = ''
+              }}
+            />
+          </label>
+        </div>
       </div>
 
       <div className="form-fields">
@@ -201,6 +233,8 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Ribeye night"
+            minLength={API_CONSTRAINTS.postTitle.min}
+            maxLength={API_CONSTRAINTS.postTitle.max}
             required
           />
         </label>
@@ -218,6 +252,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             value={restaurantName}
             onChange={(e) => setRestaurantName(e.target.value)}
             placeholder="e.g. The Prime Cut"
+            maxLength={API_CONSTRAINTS.restaurantName.max}
           />
         </label>
 
@@ -227,6 +262,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             value={restaurantLocation}
             onChange={(e) => setRestaurantLocation(e.target.value)}
             placeholder="e.g. Austin, TX"
+            maxLength={API_CONSTRAINTS.restaurantLocation.max}
           />
         </label>
 
@@ -237,8 +273,11 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             onChange={(e) => setComment(e.target.value)}
             rows={4}
             placeholder="Cut, seasoning, grill temp, doneness…"
+            maxLength={API_CONSTRAINTS.postComment.max}
           />
         </label>
+
+        <VisibilityPicker value={visibility} onChange={setVisibility} />
       </div>
 
       {error && <p className="form-error">{error}</p>}

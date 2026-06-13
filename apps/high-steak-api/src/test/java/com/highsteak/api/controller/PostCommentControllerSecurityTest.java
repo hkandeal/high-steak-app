@@ -45,7 +45,7 @@ class PostCommentControllerSecurityTest {
     @Test
     @WithMockUser(authorities = {"posts:read"})
     void listCommentsAllowedWithReadScope() throws Exception {
-        when(commentService.listComments(POST_ID)).thenReturn(List.of());
+        when(commentService.listComments(any(), eq(POST_ID))).thenReturn(List.of());
         mockMvc.perform(get("/posts/" + POST_ID + "/comments"))
                 .andExpect(status().isOk());
     }

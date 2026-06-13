@@ -27,12 +27,13 @@ public class PostCommentService {
     private final SteakPostRepository steakPostRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final SteakPostService steakPostService;
 
     @Transactional(readOnly = true)
-    public List<PostDtos.CommentResponse> listComments(UUID postId) {
+    public List<PostDtos.CommentResponse> listComments(UserPrincipal viewer, UUID postId) {
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
-        if (post.isHidden()) {
+        if (!steakPostService.canViewPost(viewer, post)) {
             throw new ResponseStatusException(NOT_FOUND, "Post not found");
         }
         return commentRepository.findByPost_IdOrderByCreatedAtAsc(postId).stream()
@@ -49,7 +50,7 @@ public class PostCommentService {
 
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
-        if (post.isHidden()) {
+        if (!steakPostService.canViewPost(principal, post)) {
             throw new ResponseStatusException(NOT_FOUND, "Post not found");
         }
 

@@ -2,6 +2,7 @@ package com.highsteak.api.service;
 
 import com.highsteak.api.domain.PostImage;
 import com.highsteak.api.domain.PostReviewTag;
+import com.highsteak.api.domain.PostVisibility;
 import com.highsteak.api.domain.ReviewTag;
 import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.domain.User;
@@ -9,7 +10,11 @@ import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.repository.ReviewTagRepository;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
+import com.highsteak.api.repository.UserSubscriptionRepository;
 import com.highsteak.api.security.UserPrincipal;
+import com.highsteak.api.validation.ApiConstraints;
+import com.highsteak.api.validation.TextValidation;
+import com.highsteak.api.validation.UploadValidation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -39,6 +44,7 @@ public class SteakPostService {
 
     private final SteakPostRepository steakPostRepository;
     private final UserRepository userRepository;
+    private final UserSubscriptionRepository subscriptionRepository;
     private final ReviewTagRepository reviewTagRepository;
     private final ReviewTagService reviewTagService;
     private final AuthService authService;
@@ -49,19 +55,39 @@ public class SteakPostService {
 
     @Transactional(readOnly = true)
     public List<PostDtos.PostResponse> getFeed() {
-        return steakPostRepository.findAllByHiddenFalseOrderByCreatedAtDesc().stream()
+        return steakPostRepository.findByHiddenFalseAndVisibilityOrderByCreatedAtDesc(PostVisibility.PUBLIC).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public PostDtos.PostResponse getPost(UUID postId) {
+    public PostDtos.PostResponse getPost(UUID postId, UserPrincipal viewer) {
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
-        if (post.isHidden()) {
+        if (!canViewPost(viewer, post)) {
             throw new ResponseStatusException(NOT_FOUND, "Post not found");
         }
         return toResponse(post);
+    }
+
+    public boolean canViewPost(UserPrincipal viewer, SteakPost post) {
+        if (post.isHidden()) {
+            return viewer != null && viewer.hasScope("posts:moderate");
+        }
+        if (viewer != null && viewer.getId().equals(post.getUser().getId())) {
+            return true;
+        }
+        if (post.getVisibility() == PostVisibility.PUBLIC) {
+            return true;
+        }
+        if (viewer != null && viewer.hasScope("posts:moderate")) {
+            return true;
+        }
+        if (viewer == null) {
+            return false;
+        }
+        return subscriptionRepository.existsByIdSubscriberIdAndIdTargetUserId(
+                viewer.getId(), post.getUser().getId());
     }
 
     @Transactional(readOnly = true)
@@ -89,6 +115,31 @@ public class SteakPostService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<PostDtos.PostResponse> getVisiblePostsForProfile(UUID profileUserId, UserPrincipal viewer) {
+        if (!userRepository.existsById(profileUserId)) {
+            throw new ResponseStatusException(NOT_FOUND, "User not found");
+        }
+        UUID viewerId = viewer != null ? viewer.getId() : null;
+        List<SteakPost> posts;
+        if (viewerId == null) {
+            posts = steakPostRepository.findByUserIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
+                    profileUserId, PostVisibility.PUBLIC);
+        } else {
+            posts = steakPostRepository.findVisiblePostsForProfile(profileUserId, viewerId);
+        }
+        return posts.stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long countVisiblePostsForProfile(UUID profileUserId, UUID viewerId) {
+        if (viewerId == null) {
+            return steakPostRepository.countByUserIdAndHiddenFalseAndVisibility(
+                    profileUserId, PostVisibility.PUBLIC);
+        }
+        return steakPostRepository.countVisiblePostsForProfile(profileUserId, viewerId);
+    }
+
     @Transactional
     public PostDtos.PostResponse createPost(
             UserPrincipal principal,
@@ -97,14 +148,14 @@ public class SteakPostService {
             int rating,
             String restaurantName,
             String restaurantLocation,
+            String visibility,
             MultipartFile[] images,
             List<UUID> tagIds) {
-        if (rating < 1 || rating > 5) {
-            throw new ResponseStatusException(BAD_REQUEST, "Rating must be between 1 and 5");
-        }
+        ValidatedPostFields fields = validatePostFields(title, comment, rating, restaurantName, restaurantLocation);
         if (images == null || images.length == 0) {
             throw new ResponseStatusException(BAD_REQUEST, "At least one image is required");
         }
+        UploadValidation.validateImages(images);
 
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
@@ -127,11 +178,12 @@ public class SteakPostService {
 
         SteakPost post = SteakPost.builder()
                 .user(user)
-                .title(title)
-                .comment(comment)
-                .rating((byte) rating)
-                .restaurantName(blankToNull(restaurantName))
-                .restaurantLocation(blankToNull(restaurantLocation))
+                .title(fields.title())
+                .comment(fields.comment())
+                .rating(fields.rating())
+                .restaurantName(fields.restaurantName())
+                .restaurantLocation(fields.restaurantLocation())
+                .visibility(parseVisibility(visibility))
                 .images(postImages)
                 .build();
 
@@ -152,12 +204,12 @@ public class SteakPostService {
             int rating,
             String restaurantName,
             String restaurantLocation,
+            String visibility,
             List<String> keepImageUrls,
             MultipartFile[] newImages,
             List<UUID> tagIds) {
-        if (rating < 1 || rating > 5) {
-            throw new ResponseStatusException(BAD_REQUEST, "Rating must be between 1 and 5");
-        }
+        ValidatedPostFields fields = validatePostFields(title, comment, rating, restaurantName, restaurantLocation);
+        UploadValidation.validateImages(newImages);
 
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
@@ -165,11 +217,14 @@ public class SteakPostService {
             throw new ResponseStatusException(FORBIDDEN, "Not allowed to edit this post");
         }
 
-        post.setTitle(title);
-        post.setComment(comment);
-        post.setRating((byte) rating);
-        post.setRestaurantName(blankToNull(restaurantName));
-        post.setRestaurantLocation(blankToNull(restaurantLocation));
+        post.setTitle(fields.title());
+        post.setComment(fields.comment());
+        post.setRating(fields.rating());
+        post.setRestaurantName(fields.restaurantName());
+        post.setRestaurantLocation(fields.restaurantLocation());
+        if (visibility != null && !visibility.isBlank()) {
+            post.setVisibility(parseVisibility(visibility));
+        }
 
         syncImages(post, keepImageUrls, newImages);
         replaceReviewTags(post, tagIds);
@@ -221,8 +276,8 @@ public class SteakPostService {
             return;
         }
         LinkedHashSet<UUID> uniqueTagIds = new LinkedHashSet<>(tagIds);
-        if (uniqueTagIds.size() > 12) {
-            throw new ResponseStatusException(BAD_REQUEST, "You can select up to 12 tags");
+        if (uniqueTagIds.size() > ApiConstraints.MAX_REVIEW_TAGS) {
+            throw new ResponseStatusException(BAD_REQUEST, "You can select up to " + ApiConstraints.MAX_REVIEW_TAGS + " tags");
         }
         List<ReviewTag> tags = reviewTagRepository.findByIdInAndActiveTrue(uniqueTagIds);
         if (tags.size() != uniqueTagIds.size()) {
@@ -237,8 +292,8 @@ public class SteakPostService {
         LinkedHashSet<UUID> desired = tagIds != null && !tagIds.isEmpty()
                 ? new LinkedHashSet<>(tagIds)
                 : new LinkedHashSet<>();
-        if (desired.size() > 12) {
-            throw new ResponseStatusException(BAD_REQUEST, "You can select up to 12 tags");
+        if (desired.size() > ApiConstraints.MAX_REVIEW_TAGS) {
+            throw new ResponseStatusException(BAD_REQUEST, "You can select up to " + ApiConstraints.MAX_REVIEW_TAGS + " tags");
         }
 
         post.getReviewTags().removeIf(link -> !desired.contains(link.getTagId()));
@@ -293,6 +348,7 @@ public class SteakPostService {
                 post.getRestaurantLocation(),
                 post.getCreatedAt(),
                 post.isHidden(),
+                post.getVisibility(),
                 authService.toAuthorSummary(post.getUser()),
                 tags);
     }
@@ -306,6 +362,7 @@ public class SteakPostService {
     }
 
     private String storeImage(MultipartFile image) {
+        UploadValidation.validateImage(image);
         String original = image.getOriginalFilename();
         String extension = original != null && original.contains(".")
                 ? original.substring(original.lastIndexOf('.'))
@@ -330,4 +387,37 @@ public class SteakPostService {
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
+
+    private ValidatedPostFields validatePostFields(
+            String title,
+            String comment,
+            int rating,
+            String restaurantName,
+            String restaurantLocation) {
+        TextValidation.requireRating(rating);
+        return new ValidatedPostFields(
+                TextValidation.require(title, "Title", ApiConstraints.POST_TITLE_MIN, ApiConstraints.POST_TITLE_MAX),
+                TextValidation.optional(comment, "Comment", ApiConstraints.POST_COMMENT_MAX),
+                (byte) rating,
+                TextValidation.optional(restaurantName, "Restaurant name", ApiConstraints.RESTAURANT_NAME_MAX),
+                TextValidation.optional(restaurantLocation, "Restaurant location", ApiConstraints.RESTAURANT_LOCATION_MAX));
+    }
+
+    private PostVisibility parseVisibility(String visibility) {
+        if (visibility == null || visibility.isBlank()) {
+            return PostVisibility.PUBLIC;
+        }
+        try {
+            return PostVisibility.valueOf(visibility.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(BAD_REQUEST, "Invalid visibility");
+        }
+    }
+
+    private record ValidatedPostFields(
+            String title,
+            String comment,
+            byte rating,
+            String restaurantName,
+            String restaurantLocation) {}
 }

@@ -211,6 +211,9 @@ export function FeedPage() {
                       {post.imageUrls.length > 1 && (
                         <span className="photo-count">+{post.imageUrls.length - 1}</span>
                       )}
+                      {post.visibility === 'FOLLOWERS_ONLY' && (
+                        <span className="visibility-badge">Followers only</span>
+                      )}
                     </div>
                   </Link>
                   {menuItems.length > 0 && (

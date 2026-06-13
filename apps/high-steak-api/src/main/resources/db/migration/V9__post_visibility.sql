@@ -1,0 +1,2 @@
+ALTER TABLE steak_posts
+    ADD COLUMN visibility VARCHAR(32) NOT NULL DEFAULT 'PUBLIC';

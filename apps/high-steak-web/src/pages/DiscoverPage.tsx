@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import { BackLink } from '../components/BackLink'
 import { displayInitials } from '../utils/displayInitials'
 import { listItemBackState } from '../navigation'
+import { API_CONSTRAINTS } from '../api/constraints'
 import './DiscoverPage.css'
 
 export function DiscoverPage() {
@@ -86,6 +87,8 @@ export function DiscoverPage() {
           placeholder="Search by username or display name…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          minLength={API_CONSTRAINTS.searchQuery.min}
+          maxLength={API_CONSTRAINTS.searchQuery.max}
           autoFocus
         />
       </div>

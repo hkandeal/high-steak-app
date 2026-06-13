@@ -72,4 +72,8 @@ public class UserPrincipal implements UserDetails {
     public boolean isEnabled() {
         return true;
     }
+
+    public boolean hasScope(String scope) {
+        return scopes.contains(scope);
+    }
 }

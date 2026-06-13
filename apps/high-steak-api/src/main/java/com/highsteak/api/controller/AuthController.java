@@ -29,6 +29,16 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @GetMapping("/check-username")
+    public AuthDtos.AvailabilityResponse checkUsername(@RequestParam String username) {
+        return authService.checkUsernameAvailability(username);
+    }
+
+    @GetMapping("/check-email")
+    public AuthDtos.AvailabilityResponse checkEmailAvailability(@RequestParam String email) {
+        return authService.checkEmailAvailability(email);
+    }
+
     @GetMapping("/me")
     public AuthDtos.UserSummary me(@AuthenticationPrincipal UserPrincipal principal) {
         return authService.getCurrentUser(principal);

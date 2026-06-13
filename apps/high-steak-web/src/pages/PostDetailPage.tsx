@@ -12,6 +12,8 @@ import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { PageBackLink } from '../components/BackLink'
 import { useAuth } from '../context/AuthContext'
+import { API_CONSTRAINTS } from '../api/constraints'
+import { validateCommentBody } from '../utils/validation'
 import './PostDetailPage.css'
 
 export function PostDetailPage() {
@@ -45,6 +47,11 @@ export function PostDetailPage() {
   async function handleSubmitComment(e: FormEvent) {
     e.preventDefault()
     if (!token || !post || !commentBody.trim()) return
+    const validationError = validateCommentBody(commentBody)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -132,6 +139,7 @@ export function PostDetailPage() {
                   onChange={(e) => setCommentBody(e.target.value)}
                   rows={3}
                   placeholder="Share your thoughts…"
+                  maxLength={API_CONSTRAINTS.commentBody.max}
                   required
                 />
                 <button type="submit" className="btn primary" disabled={submitting || !commentBody.trim()}>

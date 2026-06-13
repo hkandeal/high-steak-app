@@ -57,7 +57,10 @@ public class SecurityConfig {
                                 "/health",
                                 "/auth/register",
                                 "/auth/login",
+                                "/auth/check-username",
+                                "/auth/check-email",
                                 "/v3/api-docs/**",
+                                "/openapi.yaml",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()

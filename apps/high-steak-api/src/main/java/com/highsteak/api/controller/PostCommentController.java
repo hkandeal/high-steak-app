@@ -22,8 +22,10 @@ public class PostCommentController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('posts:read')")
-    public List<PostDtos.CommentResponse> listComments(@PathVariable UUID postId) {
-        return commentService.listComments(postId);
+    public List<PostDtos.CommentResponse> listComments(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID postId) {
+        return commentService.listComments(principal, postId);
     }
 
     @PostMapping

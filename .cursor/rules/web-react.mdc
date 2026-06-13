@@ -18,7 +18,7 @@ All HTTP goes through `src/api/client.ts`:
 
 - Login/register return `{ token }` only
 - User profile parsed from JWT via `parseUserFromToken(token)`
-- Full profile refresh: `getMe(token)` → `GET /auth/me`
+- Full profile refresh: `getMe(token)` → `GET /auth/me` (profile fields only; role/scopes from JWT via `parseUserFromToken` / `mergeUserWithToken`)
 - State: `AuthContext` — `hasRole`, `hasScope`, `hasAnyRole`
 - UI gates: `RoleGate`, `ProtectedRoute`
 

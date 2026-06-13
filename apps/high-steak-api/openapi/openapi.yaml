@@ -1,7 +1,14 @@
 openapi: 3.0.3
 info:
   title: High Steak API
-  description: REST API for the High Steak social steak-rating app.
+  description: |
+    REST API for the High Steak social steak-rating app.
+
+    ## Authorization
+
+    Most endpoints require `Authorization: Bearer <JWT>`. Each operation lists required permission scopes in **`x-required-scopes`**. The JWT must include those values in its `scopes` claim (see login/register token).
+
+    **Role and scopes are never returned in JSON responses** — clients must read `roles` and `scopes` from the JWT payload only.
   version: 1.0.0
   contact:
     name: High Steak
@@ -84,11 +91,55 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /auth/check-username:
+    get:
+      tags: [Auth]
+      summary: Check username availability
+      description: |
+        Validates username format (letters, digits, `_`, `-`; must start with a letter)
+        and reports whether the handle is already taken. Public — no auth required.
+      operationId: checkUsername
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Username'
+      responses:
+        '200':
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+
+  /auth/check-email:
+    get:
+      tags: [Auth]
+      summary: Check email availability
+      description: Validates email format and reports whether it is already registered.
+      operationId: checkEmail
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Email'
+      responses:
+        '200':
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+
   /auth/me:
     get:
       tags: [Auth]
       summary: Get current user profile
       operationId: getMe
+      x-required-scopes: []
+      description: Valid JWT required. No specific scope. Role/scopes are not returned — read from token.
       security:
         - bearerAuth: []
       responses:
@@ -104,6 +155,8 @@ paths:
       tags: [Auth]
       summary: Update current user profile
       operationId: updateMe
+      x-required-scopes: []
+      description: Valid JWT required. No specific scope. Returns refreshed JWT; role/scopes are not in the response body.
       security:
         - bearerAuth: []
       requestBody:
@@ -114,16 +167,7 @@ paths:
               $ref: '#/components/schemas/UpdateProfileRequest'
           multipart/form-data:
             schema:
-              type: object
-              properties:
-                displayName:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                avatar:
-                  type: string
-                  format: binary
+              $ref: '#/components/schemas/UpdateProfileMultipartForm'
       responses:
         '200':
           description: Updated profile with refreshed JWT
@@ -139,6 +183,8 @@ paths:
       tags: [Posts]
       summary: Authenticated feed (non-hidden posts)
       operationId: getFeed
+      x-required-scopes:
+        - posts:read
       security:
         - bearerAuth: []
       responses:
@@ -158,6 +204,8 @@ paths:
       tags: [Posts]
       summary: Create a post
       operationId: createPost
+      x-required-scopes:
+        - posts:write
       security:
         - bearerAuth: []
       requestBody:
@@ -165,32 +213,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              type: object
-              required: [title, rating, images]
-              properties:
-                title:
-                  type: string
-                comment:
-                  type: string
-                rating:
-                  type: integer
-                  minimum: 1
-                  maximum: 5
-                restaurantName:
-                  type: string
-                restaurantLocation:
-                  type: string
-                images:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-                tagIds:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
-                  description: Optional quick-review tags (max 12)
+              $ref: '#/components/schemas/CreatePostForm'
       responses:
         '201':
           description: Post created
@@ -208,6 +231,8 @@ paths:
       tags: [Posts]
       summary: List predefined quick-review tags
       operationId: getReviewTags
+      x-required-scopes:
+        - posts:read
       security:
         - bearerAuth: []
       responses:
@@ -227,6 +252,8 @@ paths:
       tags: [Posts]
       summary: List current user's posts
       operationId: getMyPosts
+      x-required-scopes:
+        - posts:read:own
       security:
         - bearerAuth: []
       responses:
@@ -248,6 +275,8 @@ paths:
       tags: [Posts]
       summary: List hidden posts (moderators)
       operationId: getHiddenPosts
+      x-required-scopes:
+        - posts:moderate
       security:
         - bearerAuth: []
       responses:
@@ -268,7 +297,12 @@ paths:
     get:
       tags: [Posts]
       summary: Get a single post
+      description: |
+        Returns a post if the caller may view it. Followers-only posts return 404 for
+        non-followers (and non-moderators) to avoid leaking existence.
       operationId: getPost
+      x-required-scopes:
+        - posts:read
       security:
         - bearerAuth: []
       parameters:
@@ -290,6 +324,8 @@ paths:
       tags: [Posts]
       summary: Update own post
       operationId: updatePost
+      x-required-scopes:
+        - posts:write
       security:
         - bearerAuth: []
       parameters:
@@ -299,35 +335,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              type: object
-              required: [title, rating]
-              properties:
-                title:
-                  type: string
-                comment:
-                  type: string
-                rating:
-                  type: integer
-                  minimum: 1
-                  maximum: 5
-                restaurantName:
-                  type: string
-                restaurantLocation:
-                  type: string
-                keepImageUrls:
-                  type: array
-                  items:
-                    type: string
-                images:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-                tagIds:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
+              $ref: '#/components/schemas/UpdatePostForm'
       responses:
         '200':
           description: Post updated
@@ -344,8 +352,12 @@ paths:
     delete:
       tags: [Posts]
       summary: Delete a post
-      description: Allowed for post owner or users with posts:delete:any scope.
+      description: Post owner needs posts:delete:own; moderators/admins may use posts:delete:any.
       operationId: deletePost
+      x-required-scopes:
+        - posts:delete:own
+        - posts:delete:any
+      x-required-scopes-one-of: true
       security:
         - bearerAuth: []
       parameters:
@@ -365,6 +377,8 @@ paths:
       tags: [Posts]
       summary: Hide a post (moderators)
       operationId: hidePost
+      x-required-scopes:
+        - posts:moderate
       security:
         - bearerAuth: []
       parameters:
@@ -388,6 +402,8 @@ paths:
       tags: [Posts]
       summary: List comments on a post
       operationId: listPostComments
+      x-required-scopes:
+        - posts:read
       security:
         - bearerAuth: []
       parameters:
@@ -411,6 +427,8 @@ paths:
       tags: [Posts]
       summary: Add a comment to a post
       operationId: addPostComment
+      x-required-scopes:
+        - comments:write
       security:
         - bearerAuth: []
       parameters:
@@ -440,6 +458,8 @@ paths:
       tags: [Posts]
       summary: Feed from subscribed users
       operationId: getFollowingFeed
+      x-required-scopes:
+        - subscriptions:read
       security:
         - bearerAuth: []
       responses:
@@ -461,15 +481,20 @@ paths:
       tags: [Users]
       summary: Search users to follow
       operationId: searchUsers
+      x-required-scopes:
+        - users:discover
       security:
         - bearerAuth: []
       parameters:
         - name: q
           in: query
           required: true
+          description: Search term matched against username and display name.
           schema:
             type: string
             minLength: 2
+            maxLength: 100
+          example: ribeye
       responses:
         '200':
           description: Matching user profiles
@@ -510,9 +535,14 @@ paths:
 
   /users/{id}/posts:
     get:
-      tags: [Users]
+      tags: [Posts]
       summary: Posts by user (authenticated)
+      description: |
+        Lists posts visible to the authenticated viewer on this profile. Followers-only
+        posts are included only when the viewer follows the author or is the author.
       operationId: getUserPosts
+      x-required-scopes:
+        - posts:read
       security:
         - bearerAuth: []
       parameters:
@@ -539,6 +569,8 @@ paths:
       tags: [Users]
       summary: List all users (admin)
       operationId: listUsers
+      x-required-scopes:
+        - users:read
       security:
         - bearerAuth: []
       responses:
@@ -560,6 +592,9 @@ paths:
       tags: [Users]
       summary: Change a user's role (admin)
       operationId: updateUserRole
+      x-required-scopes:
+        - users:manage
+      description: Assigns a role server-side. Role/scopes are not returned in the response — affected users must re-login for a new JWT.
       security:
         - bearerAuth: []
       parameters:
@@ -594,6 +629,8 @@ paths:
       tags: [Subscriptions]
       summary: List users I follow
       operationId: listSubscriptions
+      x-required-scopes:
+        - subscriptions:read
       security:
         - bearerAuth: []
       responses:
@@ -615,6 +652,8 @@ paths:
       tags: [Subscriptions]
       summary: Subscribe to a user
       operationId: subscribeToUser
+      x-required-scopes:
+        - subscriptions:write
       security:
         - bearerAuth: []
       parameters:
@@ -645,6 +684,8 @@ paths:
       tags: [Subscriptions]
       summary: Unsubscribe from a user
       operationId: unsubscribeFromUser
+      x-required-scopes:
+        - subscriptions:write
       security:
         - bearerAuth: []
       parameters:
@@ -670,37 +711,156 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT from POST /auth/login or /auth/register
+      description: |
+        JWT from `POST /auth/login` or `POST /auth/register`.
+
+        Decode the payload to read authorization data (never returned in JSON bodies):
+        - `roles` — array with one role name (e.g. `USER`, `MODERATOR`, `ADMIN`)
+        - `scopes` — permission strings checked by the API (see `x-required-scopes` on each operation)
+
+        Known scopes:
+        - `posts:read`, `posts:read:own`, `posts:write`, `posts:delete:own`, `posts:delete:any`, `posts:moderate`
+        - `comments:write`
+        - `users:discover`, `users:read`, `users:manage`
+        - `subscriptions:read`, `subscriptions:write`
+
+  x-scope-definitions:
+    "posts:read": View non-hidden posts and comments
+    "posts:read:own": View own posts including via /posts/mine
+    "posts:write": Create and edit own posts
+    "posts:delete:own": Delete own posts
+    "posts:delete:any": Delete any post
+    "posts:moderate": Hide posts from public feeds
+    "comments:write": Add comments to posts
+    "users:discover": Search users to follow
+    "users:read": List all users (admin)
+    "users:manage": Change user roles (admin)
+    "subscriptions:read": View following feed and subscription list
+    "subscriptions:write": Follow and unfollow users
 
   parameters:
     PostId:
       name: id
       in: path
       required: true
+      description: Steak post UUID.
       schema:
         type: string
         format: uuid
+      example: b2c3d4e5-f6a7-8901-bcde-f12345678901
 
   schemas:
+    Username:
+      type: string
+      minLength: 3
+      maxLength: 50
+      pattern: '^[a-zA-Z][a-zA-Z0-9_-]*$'
+      description: |
+        Unique login handle (`users.username`). Letters, digits, underscores, and hyphens only;
+        must start with a letter (not a number).
+      example: steak_lover
+
+    AvailabilityResponse:
+      type: object
+      required: [available, message]
+      properties:
+        available:
+          type: boolean
+          description: True when the value is valid and not already taken.
+        message:
+          type: string
+          description: Human-readable validation or availability message.
+          example: Username is available
+
+    Email:
+      type: string
+      format: email
+      maxLength: 255
+      description: Account email stored in `users.email` (VARCHAR 255).
+      example: chef@example.com
+
+    Password:
+      type: string
+      format: password
+      minLength: 8
+      maxLength: 100
+      description: Plain-text password for login/register (stored hashed server-side).
+      example: s3cur3Pass!
+
+    DisplayName:
+      type: string
+      minLength: 2
+      maxLength: 100
+      description: Public name shown on posts and profiles (`users.display_name`).
+      example: Hossam Kandel
+
+    PostTitle:
+      type: string
+      minLength: 1
+      maxLength: 120
+      description: Short headline for the steak post (`steak_posts.title`).
+      example: Perfect medium-rare ribeye
+
+    PostComment:
+      type: string
+      maxLength: 65535
+      description: Optional long-form caption (`steak_posts.comment`, TEXT).
+      example: 28-day dry-aged ribeye, reverse seared, finished with rosemary butter.
+
+    RestaurantName:
+      type: string
+      maxLength: 120
+      description: Optional venue name (`steak_posts.restaurant_name`).
+      example: The Prime Cut
+
+    RestaurantLocation:
+      type: string
+      maxLength: 255
+      description: Optional city or address hint (`steak_posts.restaurant_location`).
+      example: Austin, TX
+
+    SteakRating:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 5
+      description: Overall score from 1 (poor) to 5 (exceptional).
+      example: 5
+
+    PostVisibility:
+      type: string
+      enum: [PUBLIC, FOLLOWERS_ONLY]
+      default: PUBLIC
+      description: |
+        Who can see the post. `PUBLIC` appears in the everyone feed.
+        `FOLLOWERS_ONLY` is visible to the author, their followers, and moderators only.
+      example: PUBLIC
+
+    ImageUpload:
+      type: string
+      format: binary
+      description: Image file (JPEG, PNG, WebP, etc.). Each file must be ≤ 1 MB.
+
+    TagIdList:
+      type: array
+      maxItems: 12
+      items:
+        type: string
+        format: uuid
+      description: Quick-review tag IDs from `GET /posts/review-tags` (max 12).
+
     RegisterRequest:
       type: object
       required: [username, email, password, displayName]
       properties:
         username:
-          type: string
-          minLength: 3
-          maxLength: 50
+          $ref: '#/components/schemas/Username'
         email:
-          type: string
-          format: email
+          $ref: '#/components/schemas/Email'
         password:
-          type: string
-          minLength: 8
-          maxLength: 100
+          $ref: '#/components/schemas/Password'
         displayName:
-          type: string
-          minLength: 2
-          maxLength: 100
+          $ref: '#/components/schemas/DisplayName'
 
     LoginRequest:
       type: object
@@ -708,8 +868,11 @@ components:
       properties:
         username:
           type: string
+          maxLength: 50
+          description: Registered username.
+          example: steaklover42
         password:
-          type: string
+          $ref: '#/components/schemas/Password'
 
     AuthResponse:
       type: object
@@ -717,18 +880,84 @@ components:
       properties:
         token:
           type: string
-          description: JWT access token
+          description: "JWT access token used as `Authorization: Bearer <token>`."
+          example: eyJhbGciOiJIUzI1NiJ9...
 
     UpdateProfileRequest:
       type: object
+      description: At least one field should be provided when updating profile.
       properties:
         displayName:
-          type: string
-          minLength: 2
-          maxLength: 100
+          $ref: '#/components/schemas/DisplayName'
         email:
-          type: string
-          format: email
+          $ref: '#/components/schemas/Email'
+
+    UpdateProfileMultipartForm:
+      type: object
+      description: Multipart alternative to JSON profile update. All fields optional.
+      properties:
+        displayName:
+          $ref: '#/components/schemas/DisplayName'
+        email:
+          $ref: '#/components/schemas/Email'
+        avatar:
+          $ref: '#/components/schemas/ImageUpload'
+
+    CreatePostForm:
+      type: object
+      required: [title, rating, images]
+      properties:
+        title:
+          $ref: '#/components/schemas/PostTitle'
+        comment:
+          $ref: '#/components/schemas/PostComment'
+        rating:
+          $ref: '#/components/schemas/SteakRating'
+        restaurantName:
+          $ref: '#/components/schemas/RestaurantName'
+        restaurantLocation:
+          $ref: '#/components/schemas/RestaurantLocation'
+        images:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ImageUpload'
+          description: One or more steak photos. At least one required; each ≤ 1 MB.
+        tagIds:
+          $ref: '#/components/schemas/TagIdList'
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
+
+    UpdatePostForm:
+      type: object
+      required: [title, rating]
+      properties:
+        title:
+          $ref: '#/components/schemas/PostTitle'
+        comment:
+          $ref: '#/components/schemas/PostComment'
+        rating:
+          $ref: '#/components/schemas/SteakRating'
+        restaurantName:
+          $ref: '#/components/schemas/RestaurantName'
+        restaurantLocation:
+          $ref: '#/components/schemas/RestaurantLocation'
+        keepImageUrls:
+          type: array
+          items:
+            type: string
+            maxLength: 512
+          description: Existing image URLs to retain, in display order.
+          example: [/uploads/abc123.jpg]
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageUpload'
+          description: New photos to append. Each ≤ 1 MB. Combined with kept URLs, at least one image must remain.
+        tagIds:
+          $ref: '#/components/schemas/TagIdList'
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
 
     UpdateProfileResponse:
       type: object
@@ -736,32 +965,33 @@ components:
       properties:
         token:
           type: string
+          description: Refreshed JWT reflecting updated profile claims.
         user:
           $ref: '#/components/schemas/UserSummary'
 
     UserSummary:
       type: object
+      required: [id, username, email, displayName]
+      description: |
+        Public account profile. Does **not** include role or scopes — read those from the JWT `roles` and `scopes` claims.
       properties:
         id:
           type: string
           format: uuid
+          description: User UUID.
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         username:
-          type: string
+          $ref: '#/components/schemas/Username'
         email:
-          type: string
-          format: email
+          $ref: '#/components/schemas/Email'
         displayName:
-          type: string
+          $ref: '#/components/schemas/DisplayName'
         avatarUrl:
           type: string
           nullable: true
-        role:
-          type: string
-          enum: [USER, MODERATOR, ADMIN]
-        scopes:
-          type: array
-          items:
-            type: string
+          maxLength: 512
+          description: Relative URL to profile photo, or null if unset.
+          example: /uploads/avatar-abc.jpg
 
     UpdateUserRoleRequest:
       type: object
@@ -770,75 +1000,103 @@ components:
         role:
           type: string
           enum: [USER, MODERATOR, ADMIN]
+          description: New role to assign (admin only).
+          example: MODERATOR
 
     UserPublicProfile:
       type: object
+      required: [id, username, displayName, postCount, subscribed]
       properties:
         id:
           type: string
           format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         username:
-          type: string
+          $ref: '#/components/schemas/Username'
         displayName:
-          type: string
+          $ref: '#/components/schemas/DisplayName'
         avatarUrl:
           type: string
           nullable: true
+          maxLength: 512
+          example: /uploads/avatar-abc.jpg
         postCount:
           type: integer
           format: int64
+          minimum: 0
+          description: Count of public, non-hidden posts.
+          example: 12
         subscribed:
           type: boolean
+          description: Whether the authenticated viewer follows this user.
+          example: true
 
     SubscriptionSummary:
       type: object
+      required: [user, subscribedAt]
       properties:
         user:
           $ref: '#/components/schemas/UserPublicProfile'
         subscribedAt:
           type: string
           format: date-time
+          description: When the subscription was created (ISO-8601 UTC).
+          example: '2026-05-30T18:30:00Z'
 
     AuthorSummary:
       type: object
+      required: [id, displayName]
       properties:
         id:
           type: string
           format: uuid
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         displayName:
-          type: string
+          $ref: '#/components/schemas/DisplayName'
 
     PostResponse:
       type: object
+      required: [id, title, rating, imageUrls, createdAt, hidden, visibility, author, tags]
       properties:
         id:
           type: string
           format: uuid
+          example: b2c3d4e5-f6a7-8901-bcde-f12345678901
         title:
-          type: string
+          $ref: '#/components/schemas/PostTitle'
         comment:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/PostComment'
           nullable: true
         rating:
-          type: integer
-          minimum: 1
-          maximum: 5
+          $ref: '#/components/schemas/SteakRating'
         imageUrls:
           type: array
+          minItems: 1
           items:
             type: string
-          example: [/uploads/abc123.jpg]
+            maxLength: 512
+          description: Ordered photo URLs for the post.
+          example: [/uploads/abc123.jpg, /uploads/def456.jpg]
         restaurantName:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/RestaurantName'
           nullable: true
         restaurantLocation:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/RestaurantLocation'
           nullable: true
         createdAt:
           type: string
           format: date-time
+          description: When the post was published (ISO-8601 UTC).
+          example: '2026-05-30T18:30:00Z'
         hidden:
           type: boolean
+          description: True if moderators hid the post from public feeds.
+          example: false
+        visibility:
+          $ref: '#/components/schemas/PostVisibility'
         author:
           $ref: '#/components/schemas/AuthorSummary'
         tags:
@@ -848,19 +1106,25 @@ components:
 
     ReviewTagSummary:
       type: object
+      required: [id, label, sentiment]
       properties:
         id:
           type: string
           format: uuid
+          example: c3d4e5f6-a7b8-9012-cdef-123456789012
         label:
           type: string
+          maxLength: 80
+          description: Human-readable tag label.
           example: Juicy
         sentiment:
           type: string
           enum: [POSITIVE, NEGATIVE]
+          example: POSITIVE
 
     ReviewTagCatalog:
       type: object
+      required: [positive, negative]
       properties:
         positive:
           type: array
@@ -873,15 +1137,21 @@ components:
 
     CommentResponse:
       type: object
+      required: [id, body, createdAt, author]
       properties:
         id:
           type: string
           format: uuid
+          example: d4e5f6a7-b8c9-0123-def0-234567890123
         body:
           type: string
+          maxLength: 2000
+          description: Comment text (`post_comments.body`, TEXT capped at 2000 in API).
+          example: That crust looks incredible!
         createdAt:
           type: string
           format: date-time
+          example: '2026-05-30T19:00:00Z'
         author:
           $ref: '#/components/schemas/AuthorSummary'
 
@@ -891,25 +1161,35 @@ components:
       properties:
         body:
           type: string
+          minLength: 1
           maxLength: 2000
+          description: Comment text (1–2000 characters).
+          example: What temperature did you pull it at?
 
     ApiError:
       type: object
+      required: [timestamp, status, error, message]
       properties:
         timestamp:
           type: string
           format: date-time
+          example: '2026-05-30T19:00:00Z'
         status:
           type: integer
+          example: 400
         error:
           type: string
+          example: Bad Request
         message:
           type: string
+          example: Title must be at most 120 characters
         fieldErrors:
           type: object
           additionalProperties:
             type: string
           nullable: true
+          example:
+            title: must not be blank
 
   responses:
     BadRequest:

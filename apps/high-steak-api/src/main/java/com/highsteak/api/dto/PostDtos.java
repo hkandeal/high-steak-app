@@ -1,6 +1,7 @@
 package com.highsteak.api.dto;
 
-import jakarta.validation.constraints.Email;
+import com.highsteak.api.domain.PostVisibility;
+import com.highsteak.api.validation.ApiConstraints;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -38,6 +39,7 @@ public final class PostDtos {
             String restaurantLocation,
             Instant createdAt,
             boolean hidden,
+            PostVisibility visibility,
             AuthorSummary author,
             List<ReviewTagSummary> tags
     ) {}
@@ -50,6 +52,6 @@ public final class PostDtos {
     ) {}
 
     public record CreateCommentRequest(
-            @NotBlank @Size(max = 2000) String body
+            @NotBlank @Size(max = ApiConstraints.COMMENT_BODY_MAX) String body
     ) {}
 }

@@ -1,11 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
-export type UserSummary = {
+export type UserProfile = {
   id: string
   username: string
   email: string
   displayName: string
   avatarUrl: string | null
+}
+
+/** Client-side user: profile fields plus role/scopes from JWT only. */
+export type UserSummary = UserProfile & {
   role: string
   scopes: string[]
 }
@@ -38,6 +42,16 @@ export function parseUserFromToken(token: string): UserSummary {
   }
 }
 
+/** Merge API profile with authorization claims from the JWT. */
+export function mergeUserWithToken(token: string, profile: UserProfile): UserSummary {
+  const claims = parseUserFromToken(token)
+  return {
+    ...profile,
+    role: claims.role,
+    scopes: claims.scopes,
+  }
+}
+
 export type AuthResponse = {
   token: string
 }
@@ -58,6 +72,8 @@ export type ReviewTagCatalog = {
   negative: ReviewTag[]
 }
 
+export type PostVisibility = 'PUBLIC' | 'FOLLOWERS_ONLY'
+
 export type SteakPost = {
   id: string
   title: string
@@ -68,6 +84,7 @@ export type SteakPost = {
   restaurantLocation: string | null
   createdAt: string
   hidden: boolean
+  visibility: PostVisibility
   author: PostAuthor
   tags: ReviewTag[]
 }
@@ -166,13 +183,28 @@ export async function login(payload: {
   })
 }
 
-export async function getMe(token: string): Promise<UserSummary> {
+export type AvailabilityResponse = {
+  available: boolean
+  message: string
+}
+
+export async function checkUsernameAvailability(username: string): Promise<AvailabilityResponse> {
+  const params = new URLSearchParams({ username })
+  return apiFetch(`/auth/check-username?${params}`)
+}
+
+export async function checkEmailAvailability(email: string): Promise<AvailabilityResponse> {
+  const params = new URLSearchParams({ email })
+  return apiFetch(`/auth/check-email?${params}`)
+}
+
+export async function getMe(token: string): Promise<UserProfile> {
   return apiFetch('/auth/me', { token })
 }
 
 export type UpdateProfileResponse = {
   token: string
-  user: UserSummary
+  user: UserProfile
 }
 
 export async function updateProfile(
@@ -280,6 +312,7 @@ export async function createPost(
     rating: number
     restaurantName?: string
     restaurantLocation?: string
+    visibility?: PostVisibility
     images: File[]
     tagIds?: string[]
   },
@@ -290,6 +323,7 @@ export async function createPost(
   form.append('rating', String(data.rating))
   if (data.restaurantName) form.append('restaurantName', data.restaurantName)
   if (data.restaurantLocation) form.append('restaurantLocation', data.restaurantLocation)
+  if (data.visibility) form.append('visibility', data.visibility)
   data.images.forEach((image) => form.append('images', image))
   data.tagIds?.forEach((tagId) => form.append('tagIds', tagId))
 
@@ -309,6 +343,7 @@ export async function updatePost(
     rating: number
     restaurantName?: string
     restaurantLocation?: string
+    visibility?: PostVisibility
     keepImageUrls: string[]
     newImages: File[]
     tagIds?: string[]
@@ -320,6 +355,7 @@ export async function updatePost(
   form.append('rating', String(data.rating))
   if (data.restaurantName) form.append('restaurantName', data.restaurantName)
   if (data.restaurantLocation) form.append('restaurantLocation', data.restaurantLocation)
+  if (data.visibility) form.append('visibility', data.visibility)
   data.keepImageUrls.forEach((url) => form.append('keepImageUrls', url))
   data.newImages.forEach((image) => form.append('images', image))
   data.tagIds?.forEach((tagId) => form.append('tagIds', tagId))
@@ -345,7 +381,7 @@ export async function hidePost(token: string, postId: string): Promise<SteakPost
   })
 }
 
-export async function listUsers(token: string): Promise<UserSummary[]> {
+export async function listUsers(token: string): Promise<UserProfile[]> {
   return apiFetch('/users', { token })
 }
 
@@ -353,7 +389,7 @@ export async function updateUserRole(
   token: string,
   userId: string,
   role: string,
-): Promise<UserSummary> {
+): Promise<UserProfile> {
   return apiFetch(`/users/${userId}/role`, {
     method: 'PATCH',
     token,
