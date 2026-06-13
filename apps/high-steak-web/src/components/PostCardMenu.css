@@ -1,0 +1,101 @@
+.post-card-menu {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+}
+
+.post-card-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 999px;
+  background: rgba(255, 252, 248, 0.94);
+  color: #2a1510;
+  cursor: pointer;
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.post-card-menu-trigger:hover,
+.post-card-menu-trigger:focus-visible {
+  background: #fff;
+  transform: scale(1.06);
+  box-shadow:
+    0 3px 14px rgba(0, 0, 0, 0.5),
+    0 0 0 2px var(--gold);
+  outline: none;
+}
+
+.post-card-menu-trigger[aria-expanded='true'] {
+  background: #fff;
+  box-shadow:
+    0 3px 14px rgba(0, 0, 0, 0.5),
+    0 0 0 2px var(--gold);
+}
+
+.post-card-menu-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.post-card-menu-dots span {
+  display: block;
+  width: 0.26rem;
+  height: 0.26rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.post-card-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: 148px;
+  padding: 0.3rem 0;
+  border-radius: 0.55rem;
+  border: 1px solid var(--card-border);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-md);
+  z-index: 3;
+}
+
+.post-card-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--cream);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.post-card-menu-item:hover,
+.post-card-menu-item:focus-visible {
+  background: var(--menu-hover);
+  outline: none;
+}
+
+.post-card-menu-item.danger {
+  color: var(--ember);
+}
+
+.post-card-menu-item.danger:hover,
+.post-card-menu-item.danger:focus-visible {
+  background: var(--logout-hover);
+}

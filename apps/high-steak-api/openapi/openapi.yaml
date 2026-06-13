@@ -1,0 +1,938 @@
+openapi: 3.0.3
+info:
+  title: High Steak API
+  description: REST API for the High Steak social steak-rating app.
+  version: 1.0.0
+  contact:
+    name: High Steak
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development
+
+tags:
+  - name: Health
+    description: Service health checks
+  - name: Auth
+    description: Registration, login, and current user profile
+  - name: Posts
+    description: Steak post feed and moderation
+  - name: Users
+    description: User administration (admin)
+  - name: Subscriptions
+    description: Follow users and subscription feeds
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Username or email already taken
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Auth]
+      summary: Update current user profile
+      operationId: updateMe
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated profile with refreshed JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /posts:
+    get:
+      tags: [Posts]
+      summary: Authenticated feed (non-hidden posts)
+      operationId: getFeed
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Posts]
+      summary: Create a post
+      operationId: createPost
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, rating, images]
+              properties:
+                title:
+                  type: string
+                comment:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                restaurantName:
+                  type: string
+                restaurantLocation:
+                  type: string
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Optional quick-review tags (max 12)
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /posts/review-tags:
+    get:
+      tags: [Posts]
+      summary: List predefined quick-review tags
+      operationId: getReviewTags
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Positive and negative tag catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewTagCatalog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /posts/mine:
+    get:
+      tags: [Posts]
+      summary: List current user's posts
+      operationId: getMyPosts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User's posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /posts/hidden:
+    get:
+      tags: [Posts]
+      summary: List hidden posts (moderators)
+      operationId: getHiddenPosts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Hidden posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /posts/{id}:
+    get:
+      tags: [Posts]
+      summary: Get a single post
+      operationId: getPost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Post details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Posts]
+      summary: Update own post
+      operationId: updatePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, rating]
+              properties:
+                title:
+                  type: string
+                comment:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                restaurantName:
+                  type: string
+                restaurantLocation:
+                  type: string
+                keepImageUrls:
+                  type: array
+                  items:
+                    type: string
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Post updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Delete a post
+      description: Allowed for post owner or users with posts:delete:any scope.
+      operationId: deletePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '204':
+          description: Post deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/hide:
+    patch:
+      tags: [Posts]
+      summary: Hide a post (moderators)
+      operationId: hidePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Post hidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/comments:
+    get:
+      tags: [Posts]
+      summary: List comments on a post
+      operationId: listPostComments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200':
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Posts]
+      summary: Add a comment to a post
+      operationId: addPostComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/following:
+    get:
+      tags: [Posts]
+      summary: Feed from subscribed users
+      operationId: getFollowingFeed
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Posts from followed users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Search users to follow
+      operationId: searchUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+      responses:
+        '200':
+          description: Matching user profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPublicProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Public user profile
+      operationId: getUserProfile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublicProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{id}/posts:
+    get:
+      tags: [Users]
+      summary: Posts by user (authenticated)
+      operationId: getUserPosts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: List all users (admin)
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/{id}/role:
+    patch:
+      tags: [Users]
+      summary: Change a user's role (admin)
+      operationId: updateUserRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRoleRequest'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /subscriptions:
+    get:
+      tags: [Subscriptions]
+      summary: List users I follow
+      operationId: listSubscriptions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubscriptionSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /subscriptions/{userId}:
+    post:
+      tags: [Subscriptions]
+      summary: Subscribe to a user
+      operationId: subscribeToUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Subscribed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already subscribed
+    delete:
+      tags: [Subscriptions]
+      summary: Unsubscribe from a user
+      operationId: unsubscribeFromUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Unsubscribed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from POST /auth/login or /auth/register
+
+  parameters:
+    PostId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [username, email, password, displayName]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: JWT access token
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+
+    UpdateProfileResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [USER, MODERATOR, ADMIN]
+        scopes:
+          type: array
+          items:
+            type: string
+
+    UpdateUserRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [USER, MODERATOR, ADMIN]
+
+    UserPublicProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        postCount:
+          type: integer
+          format: int64
+        subscribed:
+          type: boolean
+
+    SubscriptionSummary:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserPublicProfile'
+        subscribedAt:
+          type: string
+          format: date-time
+
+    AuthorSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+
+    PostResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        comment:
+          type: string
+          nullable: true
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        imageUrls:
+          type: array
+          items:
+            type: string
+          example: [/uploads/abc123.jpg]
+        restaurantName:
+          type: string
+          nullable: true
+        restaurantLocation:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        hidden:
+          type: boolean
+        author:
+          $ref: '#/components/schemas/AuthorSummary'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewTagSummary'
+
+    ReviewTagSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          example: Juicy
+        sentiment:
+          type: string
+          enum: [POSITIVE, NEGATIVE]
+
+    ReviewTagCatalog:
+      type: object
+      properties:
+        positive:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewTagSummary'
+        negative:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewTagSummary'
+
+    CommentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        author:
+          $ref: '#/components/schemas/AuthorSummary'
+
+    CreateCommentRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          maxLength: 2000
+
+    ApiError:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'

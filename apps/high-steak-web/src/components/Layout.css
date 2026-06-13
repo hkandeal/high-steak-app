@@ -13,8 +13,8 @@
   justify-content: space-between;
   padding: 1rem 2rem;
   backdrop-filter: blur(12px);
-  background: rgba(18, 8, 6, 0.85);
-  border-bottom: 1px solid rgba(212, 160, 84, 0.2);
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--card-border-strong);
 }
 
 .brand {
@@ -55,11 +55,6 @@
   color: var(--gold);
 }
 
-.nav-user {
-  color: var(--cream-muted);
-  font-size: 0.9rem;
-}
-
 .page-content {
   flex: 1;
   width: min(1100px, 100%);
@@ -72,7 +67,7 @@
   padding: 1.5rem;
   color: var(--cream-muted);
   font-size: 0.85rem;
-  border-top: 1px solid rgba(212, 160, 84, 0.12);
+  border-top: 1px solid var(--footer-border);
 }
 
 @media (max-width: 720px) {

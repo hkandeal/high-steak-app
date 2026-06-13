@@ -4,6 +4,9 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+import java.util.UUID;
+
 public final class AuthDtos {
 
     private AuthDtos() {}
@@ -21,15 +24,30 @@ public final class AuthDtos {
     ) {}
 
     public record AuthResponse(
-            String token,
-            UserSummary user
+            String token
     ) {}
 
     public record UserSummary(
-            Long id,
+            UUID id,
             String username,
             String email,
             String displayName,
-            String avatarUrl
+            String avatarUrl,
+            String role,
+            List<String> scopes
+    ) {}
+
+    public record UpdateUserRoleRequest(
+            @NotBlank String role
+    ) {}
+
+    public record UpdateProfileRequest(
+            @Size(min = 2, max = 100) String displayName,
+            @Email String email
+    ) {}
+
+    public record UpdateProfileResponse(
+            String token,
+            UserSummary user
     ) {}
 }

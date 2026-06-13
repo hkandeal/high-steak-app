@@ -1,28 +1,38 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { RoleGate } from './RoleGate'
+import { ThemeToggle } from './ThemeToggle'
+import { UserMenu } from './UserMenu'
 import { useAuth } from '../context/AuthContext'
 import './Layout.css'
 
 export function Layout() {
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated } = useAuth()
 
   return (
     <div className="app-shell">
       <header className="top-nav">
-        <Link to="/" className="brand">
+        <Link to={isAuthenticated ? '/feed' : '/'} className="brand">
           <span className="brand-mark">🥩</span>
           <span>
             High <em>Steak</em>
           </span>
         </Link>
         <nav className="nav-links">
-          <NavLink to="/feed">Feed</NavLink>
+          <ThemeToggle />
           {isAuthenticated ? (
             <>
+              <NavLink to="/feed">Feed</NavLink>
               <NavLink to="/post/new">Rate a steak</NavLink>
-              <span className="nav-user">@{user?.username}</span>
-              <button type="button" className="btn ghost" onClick={logout}>
-                Log out
-              </button>
+              <RoleGate scope="users:discover">
+                <NavLink to="/discover">Steak lovers</NavLink>
+              </RoleGate>
+              <RoleGate roles={['MODERATOR', 'ADMIN']}>
+                <NavLink to="/moderation">Moderation</NavLink>
+              </RoleGate>
+              <RoleGate role="ADMIN">
+                <NavLink to="/admin/users">Admin</NavLink>
+              </RoleGate>
+              <UserMenu />
             </>
           ) : (
             <>

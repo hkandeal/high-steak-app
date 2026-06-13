@@ -1,0 +1,76 @@
+package com.highsteak.api.service;
+
+import com.highsteak.api.domain.PostComment;
+import com.highsteak.api.domain.SteakPost;
+import com.highsteak.api.domain.User;
+import com.highsteak.api.dto.PostDtos;
+import com.highsteak.api.repository.PostCommentRepository;
+import com.highsteak.api.repository.SteakPostRepository;
+import com.highsteak.api.repository.UserRepository;
+import com.highsteak.api.security.UserPrincipal;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+
+@Service
+@RequiredArgsConstructor
+public class PostCommentService {
+
+    private final PostCommentRepository commentRepository;
+    private final SteakPostRepository steakPostRepository;
+    private final UserRepository userRepository;
+    private final AuthService authService;
+
+    @Transactional(readOnly = true)
+    public List<PostDtos.CommentResponse> listComments(UUID postId) {
+        SteakPost post = steakPostRepository.findWithDetailsById(postId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
+        if (post.isHidden()) {
+            throw new ResponseStatusException(NOT_FOUND, "Post not found");
+        }
+        return commentRepository.findByPost_IdOrderByCreatedAtAsc(postId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public PostDtos.CommentResponse addComment(UserPrincipal principal, UUID postId, String body) {
+        String normalized = body == null ? "" : body.trim();
+        if (normalized.isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Comment body is required");
+        }
+
+        SteakPost post = steakPostRepository.findWithDetailsById(postId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
+        if (post.isHidden()) {
+            throw new ResponseStatusException(NOT_FOUND, "Post not found");
+        }
+
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+
+        PostComment comment = PostComment.builder()
+                .post(post)
+                .user(user)
+                .body(normalized)
+                .build();
+
+        comment = commentRepository.save(comment);
+        return toResponse(comment);
+    }
+
+    private PostDtos.CommentResponse toResponse(PostComment comment) {
+        return new PostDtos.CommentResponse(
+                comment.getId(),
+                comment.getBody(),
+                comment.getCreatedAt(),
+                authService.toAuthorSummary(comment.getUser()));
+    }
+}

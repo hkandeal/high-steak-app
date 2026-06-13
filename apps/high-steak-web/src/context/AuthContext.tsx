@@ -2,11 +2,18 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
-import type { AuthResponse, UserSummary } from '../api/client'
+import {
+  getMe,
+  parseUserFromToken,
+  setUnauthorizedHandler,
+  type AuthResponse,
+  type UserSummary,
+} from '../api/client'
 
 const STORAGE_KEY = 'high-steak-auth'
 
@@ -20,7 +27,12 @@ type AuthContextValue = {
   token: string | null
   isAuthenticated: boolean
   login: (response: AuthResponse) => void
+  applyToken: (token: string) => void
   logout: () => void
+  refreshUser: () => Promise<void>
+  hasRole: (role: string) => boolean
+  hasAnyRole: (...roles: string[]) => boolean
+  hasScope: (scope: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -29,7 +41,12 @@ function loadStored(): AuthState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as AuthState
+    const stored = JSON.parse(raw) as AuthState
+    if (!stored.token) return null
+    return {
+      token: stored.token,
+      user: parseUserFromToken(stored.token),
+    }
   } catch {
     return null
   }
@@ -38,16 +55,62 @@ function loadStored(): AuthState | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState | null>(() => loadStored())
 
-  const login = useCallback((response: AuthResponse) => {
-    const next = { token: response.token, user: response.user }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    setAuth(next)
-  }, [])
-
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     setAuth(null)
   }, [])
+
+  const login = useCallback((response: AuthResponse) => {
+    const user = parseUserFromToken(response.token)
+    const next = { token: response.token, user }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    setAuth(next)
+  }, [])
+
+  const applyToken = useCallback((token: string) => {
+    const user = parseUserFromToken(token)
+    const next = { token, user }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    setAuth(next)
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    if (!auth?.token) return
+    try {
+      const user = await getMe(auth.token)
+      const next = { token: auth.token, user }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      setAuth(next)
+    } catch {
+      logout()
+    }
+  }, [auth?.token, logout])
+
+  useEffect(() => {
+    setUnauthorizedHandler(logout)
+    return () => setUnauthorizedHandler(() => {})
+  }, [logout])
+
+  useEffect(() => {
+    if (auth?.token) {
+      refreshUser()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hasRole = useCallback(
+    (role: string) => auth?.user?.role === role,
+    [auth?.user?.role],
+  )
+
+  const hasAnyRole = useCallback(
+    (...roles: string[]) => (auth?.user?.role ? roles.includes(auth.user.role) : false),
+    [auth?.user?.role],
+  )
+
+  const hasScope = useCallback(
+    (scope: string) => auth?.user?.scopes?.includes(scope) ?? false,
+    [auth?.user?.scopes],
+  )
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -55,9 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: auth?.token ?? null,
       isAuthenticated: Boolean(auth?.token),
       login,
+      applyToken,
       logout,
+      refreshUser,
+      hasRole,
+      hasAnyRole,
+      hasScope,
     }),
-    [auth, login, logout],
+    [auth, login, applyToken, logout, refreshUser, hasRole, hasAnyRole, hasScope],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

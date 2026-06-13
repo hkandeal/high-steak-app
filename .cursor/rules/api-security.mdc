@@ -1,0 +1,73 @@
+---
+description: Spring Security, JWT, and RBAC patterns for the High Steak API
+globs: apps/high-steak-api/**/SecurityConfig.java,apps/high-steak-api/**/controller/**,apps/high-steak-api/**/security/**
+alwaysApply: false
+---
+
+# API Security Rules
+
+Context path is `/api`. Security matchers and `@RequestMapping` paths are **servlet-relative** (no `/api` prefix).
+
+## Filter chain
+
+- Stateless JWT via `JwtAuthFilter` (before `UsernamePasswordAuthenticationFilter`)
+- JSON 401/403 via `JsonAuthenticationEntryPoint` / `JsonAccessDeniedHandler`
+- Method security enabled: `@EnableMethodSecurity` + `@PreAuthorize`
+
+## Public routes (SecurityConfig)
+
+Must stay in sync when adding endpoints:
+
+- `/`, `/health`, `/auth/register`, `/auth/login`
+- `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`
+- `GET /posts`, `/uploads/**`
+
+Everything else requires authentication unless explicitly added to `permitAll`.
+
+## Authorization patterns
+
+```java
+// Scope-based
+@PreAuthorize("hasAuthority('posts:write')")
+
+// Resource ownership (generic)
+@PreAuthorize("@resourceAuth.can('posts', #id, 'delete', 'delete', authentication)")
+```
+
+Scopes come from the database via `PermissionService` — never add Java enum permission mappers.
+
+## JWT
+
+- Issued by `JwtService` on login/register
+- Claims: `sub`, `uid`, `email`, `displayName`, `avatarUrl`, `roles`, `scopes`
+- Login response is `{ "token" }` only — no user body
+
+## Adding a protected endpoint — checklist
+
+1. `@PreAuthorize` on controller method
+2. If public, add to `SecurityConfig.requestMatchers`
+3. Integration test in `ControllerSecurityIntegrationTest` (401/403/200 cases)
+4. Update `openapi/openapi.yaml` security scheme
+
+## Examples
+
+```java
+// BAD — new public route forgotten in SecurityConfig (returns 401)
+@GetMapping("/stats")
+public Stats getStats() { ... }
+
+// GOOD — either secure it or permitAll in SecurityConfig
+@GetMapping("/stats")
+@PreAuthorize("hasAuthority('posts:read')")
+public Stats getStats() { ... }
+```
+
+```java
+// BAD — hardcoded role check
+if (!user.getRole().equals("ADMIN")) ...
+
+// GOOD — scope from DB
+@PreAuthorize("hasAuthority('users:manage')")
+```
+
+Reference: `docs/architecture.md` (auth flow), `docs/decisions/002-db-backed-rbac.md`.

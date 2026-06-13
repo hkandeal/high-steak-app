@@ -1,0 +1,11 @@
+.back-link {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  color: var(--cream-muted);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--gold);
+}

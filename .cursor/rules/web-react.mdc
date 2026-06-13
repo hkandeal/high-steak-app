@@ -1,0 +1,55 @@
+---
+description: React, TypeScript, and API client patterns for High Steak web
+globs: apps/high-steak-web/**
+alwaysApply: false
+---
+
+# Web React Rules
+
+## API client
+
+All HTTP goes through `src/api/client.ts`:
+
+- Base URL: `import.meta.env.VITE_API_URL` (must include `/api`, e.g. `http://localhost:8080/api`)
+- Paths are servlet-relative: `/auth/login`, `/posts`, `/users`
+- Auth header: `Authorization: Bearer ${token}` via `apiFetch(..., { token })`
+
+## Authentication
+
+- Login/register return `{ token }` only
+- User profile parsed from JWT via `parseUserFromToken(token)`
+- Full profile refresh: `getMe(token)` → `GET /auth/me`
+- State: `AuthContext` — `hasRole`, `hasScope`, `hasAnyRole`
+- UI gates: `RoleGate`, `ProtectedRoute`
+
+Do not expect a `user` object in login/register responses.
+
+## Components
+
+- Functional components + hooks
+- Colocate page components in `src/pages/`
+- Post images: `postImageUrl()` from client (resolves against `VITE_API_URL`)
+- List → detail navigation: see `.cursor/rules/web-navigation.mdc` (`BackLink`, `PageBackLink`, `listItemBackState`)
+- Themes: `ThemeProvider` + `ThemeToggle` in nav. Use CSS variables from `index.css` (`--card-bg`, `--flame-glow`, etc.); themes are `ember` (dark) and `steam` (light). Never hardcode colors in page CSS.
+
+## Examples
+
+```typescript
+// BAD — duplicate fetch logic
+const res = await fetch(`${API_URL}/api/posts`, { headers: { Authorization: `Bearer ${t}` } })
+
+// GOOD
+await apiFetch('/posts', { token })
+```
+
+```tsx
+// BAD — role string check scattered in JSX
+{user?.role === 'ADMIN' && <AdminPanel />}
+
+// GOOD — scope-aware gate
+<RoleGate scope="users:read">
+  <AdminPanel />
+</RoleGate>
+```
+
+Reference: `docs/architecture.md`, `.env.example`.

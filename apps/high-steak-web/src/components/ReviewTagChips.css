@@ -1,0 +1,45 @@
+.review-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-tag-chips.compact {
+  margin-top: 0.45rem;
+  gap: 0.3rem;
+}
+
+.review-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.review-tag-chips.compact .review-tag-chip {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.review-tag-chip.positive {
+  color: var(--gold);
+  background: var(--accent-selected-bg);
+  border-color: var(--card-border-strong);
+}
+
+.review-tag-chip.negative {
+  color: var(--ember);
+  background: var(--error-bg);
+  border-color: rgba(196, 58, 42, 0.25);
+}
+
+[data-theme='steam'] .review-tag-chip.negative {
+  border-color: rgba(212, 70, 42, 0.22);
+}

@@ -1,0 +1,103 @@
+.discover-header {
+  margin-bottom: 1.5rem;
+}
+
+.discover-header h1 {
+  margin: 0 0 0.25rem;
+}
+
+.discover-header p {
+  margin: 0;
+  color: var(--cream-muted);
+}
+
+.discover-search input {
+  width: 100%;
+  max-width: 480px;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--card-border-strong);
+  background: var(--input-bg);
+  color: inherit;
+  font-size: 1rem;
+}
+
+.discover-search input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.discover-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--cream-muted);
+}
+
+.discover-results {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.discover-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+}
+
+.discover-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--avatar-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.discover-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.discover-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.discover-profile-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.discover-profile-link:hover strong {
+  color: var(--gold);
+}
+
+.discover-username {
+  color: var(--gold);
+  font-size: 0.9rem;
+}
+
+.discover-meta {
+  font-size: 0.85rem;
+  color: var(--cream-muted);
+}

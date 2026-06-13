@@ -1,0 +1,55 @@
+---
+description: Flyway migration rules for High Steak API
+globs: apps/high-steak-api/**/db/migration/**,apps/high-steak-api/**/FlywayConfig.java
+alwaysApply: false
+---
+
+# Flyway Migration Rules
+
+Schema changes **only** via Flyway. JPA `ddl-auto: validate` — Hibernate must not alter tables.
+
+## File locations
+
+- SQL: `src/main/resources/db/migration/V{N}__description.sql`
+- Java: `src/main/java/com/highsteak/api/db/migration/V{N}__Name.java`
+
+## Java migrations
+
+Must be registered in `FlywayConfig.java`:
+
+```java
+configuration.javaMigrations(new V5__MyMigration());
+```
+
+Flyway does not auto-discover Java migrations in this project without that registration.
+
+## Versioning
+
+- Increment `N` sequentially; never reuse or edit applied migrations
+- Use descriptive snake_case suffix: `V5__add_comments_table.sql`
+
+## MySQL gotchas
+
+- Cannot `DROP PRIMARY KEY` on an `AUTO_INCREMENT` column alone — combine: `DROP PRIMARY KEY, DROP COLUMN id`
+- After breaking schema changes on existing Docker volumes: `docker compose down -v`
+
+## RBAC seeds
+
+New permissions: insert into `permissions`, link in `role_permissions`. Do not add Java enums for scopes.
+
+## Primary keys
+
+New entity PKs must be `CHAR(36)` UUID — see `api-ids.mdc`. Do not add `AUTO_INCREMENT` for new tables.
+
+## Examples
+
+```sql
+-- BAD — modifying V3 after it has been applied in any environment
+-- edit V3__rbac_tables.sql
+
+-- GOOD — new forward migration
+-- V5__add_comments_permission.sql
+INSERT INTO permissions (name) VALUES ('comments:write');
+```
+
+Reference: skill `.cursor/skills/flyway-migration/`, ADR `docs/decisions/002-db-backed-rbac.md`.

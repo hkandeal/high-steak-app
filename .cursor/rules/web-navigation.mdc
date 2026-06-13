@@ -1,0 +1,47 @@
+---
+description: Back navigation for list-to-detail flows in the web app
+globs: apps/high-steak-web/**
+alwaysApply: false
+---
+
+# List → detail back navigation
+
+Whenever a page shows a **list of items** and each item links to a **detail view**, you must add back navigation in both directions.
+
+## Rules
+
+1. **List pages** — Add a `BackLink` at the top of the page (above the title) pointing to the logical parent route (e.g. `/feed`).
+2. **Detail pages** — Add a `PageBackLink` at the top that returns to the list the user came from.
+3. **Pass navigation state** on every list-item link so the detail page knows where to go back.
+
+## Implementation
+
+Use shared helpers in `src/navigation.ts` and `src/components/BackLink.tsx`:
+
+```tsx
+import { BackLink, PageBackLink } from '../components/BackLink'
+import { listItemBackState } from '../navigation'
+
+// List page
+<BackLink to="/feed" label="Back to feed" />
+
+// List item link
+<Link
+  to={`/users/${user.id}`}
+  state={listItemBackState('/following', 'Back to following')}
+>
+
+// Detail page
+<PageBackLink defaultTo="/feed" defaultLabel="Back to feed" />
+```
+
+## Checklist for new list → detail flows
+
+- [ ] List page has `BackLink` to parent
+- [ ] Item links include `state={listItemBackState(backTo, backLabel)}`
+- [ ] Detail page renders `PageBackLink` with sensible defaults
+- [ ] Back control is the first element inside the page `<section>`
+
+Do not rely on browser history (`navigate(-1)`); use explicit routes via `listItemBackState`.
+
+Reference: `FollowingPage`, `DiscoverPage`, `ProfilePage`, `PostDetailPage`, `FeedPage`.

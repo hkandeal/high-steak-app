@@ -1,0 +1,106 @@
+---
+description: Core High Steak standards and agent behavior (Karpathy-inspired guidelines merged)
+alwaysApply: true
+---
+
+# High Steak — Core Rules
+
+Read `AGENTS.md` first for the project map.
+
+Behavioral guidelines adapted from [Karpathy-inspired LLM coding practices](https://github.com/multica-ai/andrej-karpathy-skills).
+
+## Product
+
+High Steak is a social app for posting and rating steak meals. Monorepo: `apps/high-steak-api`, `apps/high-steak-web`, `apps/high-steak-mobile`.
+
+## Agent behavior
+
+**Tradeoff:** Bias toward caution over speed. For trivial one-liners, use judgment.
+
+### Think before coding
+
+- State assumptions explicitly. If uncertain, ask — do not guess silently.
+- If multiple interpretations exist, present them before picking one.
+- If a simpler approach exists, say so. Push back when warranted.
+- If requirements are unclear, stop and ask.
+
+### Simplicity first
+
+- Minimum code that solves the problem. No speculative features or abstractions.
+- No extra flexibility, config, or error handling that was not requested.
+- If the solution feels overcomplicated, simplify before finishing.
+
+### Surgical changes
+
+- Every changed line should trace to the user's request.
+- Do not refactor, reformat, or "improve" adjacent code you were not asked to touch.
+- Match existing style. Mention unrelated dead code — do not delete it unless asked.
+- Remove only orphans **your** changes created (unused imports, etc.).
+
+### Goal-driven execution
+
+- Define verifiable success criteria, then loop until met.
+- "Add endpoint" → implement, test, update openapi, restart docker, health check.
+- "Fix bug" → reproduce (test if possible), fix, verify tests pass.
+- Use project skills (`.cursor/skills/`) for multi-step workflows.
+
+## Project constraints
+
+- **Match conventions** — Read surrounding code before adding new code.
+- **Targeted exploration** — Grep or read specific files; avoid scanning the whole repo.
+- **No secrets** — Never commit `.env`, credentials, or JWT secrets.
+- **UUID IDs** — New tables and public resource IDs use UUID only; no DB sequences. See `api-ids.mdc`.
+- **Do not edit plan files** — Leave `.cursor/plans/` unchanged unless explicitly asked.
+
+## Source of truth
+
+- API contract: `apps/high-steak-api/openapi/openapi.yaml`
+- Schema: `apps/high-steak-api/src/main/resources/db/migration/`
+- Architecture: `docs/architecture.md`
+- Decisions: `docs/decisions/`
+
+Do not duplicate long tables from these files — link instead.
+
+## Verification (required)
+
+**API changes:** `npm run api:test`
+
+**Any app code change** (`apps/**`, `docker-compose.yml`, `Dockerfile`):
+
+```bash
+npm run docker:restart
+```
+
+Do not mark a coding task complete until Docker is healthy (unless the user skips verification).
+
+Docs-only or `.cursor/` edits do not require Docker restart unless the user asks to verify.
+
+## Commits and PRs
+
+Only commit when the user asks. Follow existing commit message style.
+
+## Examples
+
+```java
+// BAD — business logic in controller
+@PostMapping
+public PostResponse create(...) {
+    if (rating < 1 || rating > 5) throw ...
+    return repo.save(...);
+}
+
+// GOOD — delegate to service
+@PostMapping
+@PreAuthorize("hasAuthority('posts:write')")
+public PostResponse create(...) {
+    return steakPostService.createPost(...);
+}
+```
+
+```typescript
+// BAD — hardcoded API host
+fetch('http://localhost:8080/api/posts')
+
+// GOOD — use client.ts with VITE_API_URL base
+apiFetch('/posts')
+```

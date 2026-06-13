@@ -18,7 +18,7 @@ class ApiService {
     required String displayName,
   }) async {
     final res = await _client.post(
-      _uri('/api/auth/register'),
+      _uri('/auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'username': username,
@@ -35,7 +35,7 @@ class ApiService {
     required String password,
   }) async {
     final res = await _client.post(
-      _uri('/api/auth/login'),
+      _uri('/auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'username': username, 'password': password}),
     );
@@ -43,7 +43,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> fetchPosts() async {
-    final res = await _client.get(_uri('/api/posts'));
+    final res = await _client.get(_uri('/posts'));
     if (res.statusCode >= 400) {
       _decode(res);
     }

@@ -1,0 +1,66 @@
+---
+description: API request and error logging conventions
+globs: apps/high-steak-api/**/*.java
+alwaysApply: false
+---
+
+# API Logging Rules
+
+Centralized logging via `ApiRequestLoggingFilter` and `GlobalExceptionHandler`. Do not duplicate request logging in controllers.
+
+## Log levels
+
+| Event | Level | Location |
+|-------|-------|----------|
+| HTTP request summary (method, path, status, duration) | INFO | `ApiRequestLoggingFilter` |
+| Query string, user id, JSON/text req/res bodies (truncated) | DEBUG | `ApiRequestLoggingFilter` |
+| 4xx (`ResponseStatusException`, validation, 403, 401) | WARN | `GlobalExceptionHandler` |
+| Unhandled 5xx | ERROR + stack | `GlobalExceptionHandler` |
+
+## Configuration
+
+`application.yml`:
+
+- `logging.level.com.highsteak.api` — `${APP_LOG_LEVEL:INFO}`
+- `logging.level.com.highsteak.api.config.ApiRequestLoggingFilter` — `${APP_HTTP_LOG_LEVEL:INFO}`
+- `app.logging.http-access-enabled` — `${HTTP_ACCESS_LOG_ENABLED:true}`
+- `app.logging.skip-paths` — `/health`, `/swagger-ui`, `/v3/api-docs`, `/uploads`
+
+Spring Boot override: `LOGGING_LEVEL_COM_HIGHSTEAK_API=DEBUG`
+
+## Never log (even at DEBUG)
+
+- JWT tokens or `Authorization` headers
+- Request/response bodies on `/auth/*` (tokens and passwords)
+- Multipart file bytes (logged as `[multipart omitted]`)
+
+## Service-level logs
+
+Add `@Slf4j` DEBUG logs in services only for non-obvious business events (e.g. failed external call). Do not log every CRUD operation.
+
+## Examples
+
+```java
+// BAD — per-controller request logging
+@GetMapping
+public List<PostResponse> getFeed(HttpServletRequest request) {
+    log.info("GET /posts from {}", request.getRemoteAddr());
+    return steakPostService.getFeed();
+}
+
+// GOOD — filter handles it; controller stays thin
+@GetMapping
+public List<PostResponse> getFeed() {
+    return steakPostService.getFeed();
+}
+```
+
+```java
+// BAD
+System.out.println("User logged in: " + password);
+
+// GOOD
+log.debug("Registered user {}", username);
+```
+
+Reference: `docs/runbook.md` (logging section), `docs/decisions/004-api-request-logging.md`.

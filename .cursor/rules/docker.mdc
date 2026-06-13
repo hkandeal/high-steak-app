@@ -1,0 +1,76 @@
+---
+description: Docker Compose and container conventions for High Steak
+globs: docker-compose.yml,**/Dockerfile
+alwaysApply: false
+---
+
+# Docker Rules
+
+## Required after code changes
+
+After any change to `apps/**`, `docker-compose.yml`, or a `Dockerfile`, restart the full stack:
+
+```bash
+npm run docker:restart
+```
+
+Equivalent manual steps:
+
+```bash
+npm run docker:down
+docker compose up --build -d
+npm run docker:health
+```
+
+Do not finish a coding task without a successful health check unless the user opts out.
+
+## Stack
+
+`docker-compose.yml` at repo root:
+
+| Service | Build context | Port |
+|---------|---------------|------|
+| mysql | mysql:8.4 image | 3306 |
+| api | `apps/high-steak-api` | 8080 |
+| web | `apps/high-steak-web` | 5173 |
+
+## Key env vars
+
+**API container:** `SPRING_DATASOURCE_*`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `UPLOADS_DIR`
+
+**Web container:** `VITE_API_URL=http://localhost:8080/api`
+
+## Verification after rebuild
+
+```bash
+npm run docker:health
+curl -s http://localhost:8080/api/health
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/swagger-ui.html
+```
+
+## When to reset volumes
+
+After incompatible Flyway migrations on an existing dev DB:
+
+```bash
+docker compose down -v
+docker compose up --build -d
+```
+
+## Rebuild triggers
+
+Rebuild API container when changing: `pom.xml`, `Dockerfile`, Java source, `application.yml`.
+
+Rebuild web when changing: `Dockerfile`, env vars baked at build time for Vite.
+
+## Examples
+
+```yaml
+# BAD — web pointing at host root without /api context
+VITE_API_URL: http://localhost:8080
+
+# GOOD
+VITE_API_URL: http://localhost:8080/api
+```
+
+Reference: skill `.cursor/skills/docker-dev-loop/`, `docs/runbook.md`.

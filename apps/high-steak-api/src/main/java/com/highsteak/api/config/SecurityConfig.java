@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -28,11 +29,15 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final ApiRequestLoggingFilter apiRequestLoggingFilter;
     private final UserDetailsService userDetailsService;
+    private final JsonAccessDeniedHandler accessDeniedHandler;
+    private final JsonAuthenticationEntryPoint authenticationEntryPoint;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -43,14 +48,24 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/health", "/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/posts", "/uploads/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/posts").authenticated()
-                        .requestMatchers("/api/posts/mine").authenticated()
+                        .requestMatchers(
+                                "/",
+                                "/health",
+                                "/auth/register",
+                                "/auth/login",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/{userId:[0-9a-fA-F\\-]{36}}").permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(apiRequestLoggingFilter, JwtAuthFilter.class);
 
         return http.build();
     }

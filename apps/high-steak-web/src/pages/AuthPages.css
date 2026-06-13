@@ -6,11 +6,11 @@
 
 .auth-card {
   width: min(420px, 100%);
-  background: linear-gradient(160deg, rgba(40, 18, 12, 0.95), rgba(24, 10, 8, 0.98));
-  border: 1px solid rgba(212, 160, 84, 0.25);
+  background: var(--auth-card-bg);
+  border: 1px solid var(--card-border-strong);
   border-radius: 1.25rem;
   padding: 2rem;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-lg);
 }
 
 .auth-card h1 {
@@ -47,14 +47,4 @@
 
 .auth-footer a {
   color: var(--gold);
-}
-
-.form-error {
-  background: rgba(196, 58, 42, 0.2);
-  border: 1px solid var(--ember);
-  color: #ffb4a8;
-  padding: 0.65rem 0.85rem;
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
 }

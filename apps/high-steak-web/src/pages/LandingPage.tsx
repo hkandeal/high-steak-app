@@ -1,9 +1,13 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import './LandingPage.css'
 
 export function LandingPage() {
   const { isAuthenticated } = useAuth()
+
+  if (isAuthenticated) {
+    return <Navigate to="/feed" replace />
+  }
 
   return (
     <section className="hero-section">
@@ -18,20 +22,9 @@ export function LandingPage() {
           every cut. Follow fellow carnivores and discover what&apos;s sizzling.
         </p>
         <div className="hero-actions">
-          {isAuthenticated ? (
-            <Link to="/feed" className="btn primary">
-              Open your feed
-            </Link>
-          ) : (
-            <>
-              <Link to="/register" className="btn primary">
-                Create free account
-              </Link>
-              <Link to="/feed" className="btn ghost">
-                Browse the grill
-              </Link>
-            </>
-          )}
+          <Link to="/register" className="btn primary">
+            Create free account
+          </Link>
         </div>
       </div>
       <div className="hero-cards">

@@ -1,0 +1,64 @@
+.avatar-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+}
+
+.avatar-crop-dialog {
+  width: min(100%, 420px);
+  padding: 1.25rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-border-strong);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.avatar-crop-header h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.avatar-crop-header p {
+  margin: 0;
+  color: var(--cream-muted);
+  font-size: 0.9rem;
+}
+
+.avatar-crop-stage {
+  position: relative;
+  height: 280px;
+  margin: 1rem 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--surface-darker);
+}
+
+.avatar-crop-zoom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--cream-muted);
+}
+
+.avatar-crop-zoom input[type='range'] {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
+.avatar-crop-error {
+  margin: 0 0 0.75rem;
+}
+
+.avatar-crop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

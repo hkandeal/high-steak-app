@@ -6,7 +6,10 @@
     "web:dev": "npm run dev --prefix apps/high-steak-web",
     "web:build": "npm run build --prefix apps/high-steak-web",
     "api:build": "mvn -f apps/high-steak-api/pom.xml -DskipTests package",
+    "api:test": "mvn -f apps/high-steak-api/pom.xml test",
     "docker:up": "docker compose up --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "docker:restart": "docker compose down && docker compose up --build -d && sleep 8 && npm run docker:health",
+    "docker:health": "curl -sf http://localhost:8080/api/health && echo"
   }
 }

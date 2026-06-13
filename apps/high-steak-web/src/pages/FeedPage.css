@@ -15,16 +15,40 @@
   color: var(--cream-muted);
 }
 
-.muted {
+.feed-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.feed-tab {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border-strong);
+  background: transparent;
   color: var(--cream-muted);
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.feed-tab:hover {
+  color: inherit;
+  border-color: var(--gold);
+}
+
+.feed-tab.active {
+  background: var(--accent-selected-bg);
+  color: var(--gold);
+  border-color: var(--gold);
 }
 
 .empty-feed {
   text-align: center;
   padding: 3rem 1rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--card-bg);
   border-radius: 1rem;
-  border: 1px dashed rgba(212, 160, 84, 0.3);
+  border: 1px dashed var(--dashed-border);
 }
 
 .empty-feed p {
@@ -39,8 +63,8 @@
 }
 
 .post-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(212, 160, 84, 0.15);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 1rem;
   overflow: hidden;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -48,13 +72,77 @@
 
 .post-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-md);
 }
 
 .post-image-wrap {
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: #1a0a08;
+  background: var(--surface-dark);
+  position: relative;
+}
+
+.photo-count {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  font-size: 0.75rem;
+  color: var(--gold);
+}
+
+.post-card-media-wrap {
+  position: relative;
+}
+
+.post-card-media-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 0 1rem 0 0;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.2) 45%, transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.post-card-media {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.post-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.post-title-link h2 {
+  transition: color 0.2s;
+}
+
+.post-title-link:hover h2 {
+  color: var(--gold);
+}
+
+.post-meta .author {
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.post-meta .author:hover {
+  text-decoration: underline;
+}
+
+.post-restaurant {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--cream-muted);
 }
 
 .post-image-wrap img {
@@ -75,11 +163,6 @@
   margin-bottom: 0.5rem;
 }
 
-.post-meta .author {
-  color: var(--gold);
-  font-weight: 600;
-}
-
 .post-body h2 {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;
@@ -90,4 +173,37 @@
   color: var(--cream-muted);
   font-size: 0.95rem;
   line-height: 1.5;
+}
+
+.post-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.admin-table select {
+  background: var(--input-bg);
+  color: inherit;
+  border: 1px solid var(--input-border);
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.5rem;
 }

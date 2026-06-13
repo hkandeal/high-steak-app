@@ -1,36 +1,41 @@
-.new-post-page header {
-  margin-bottom: 1.5rem;
-}
-
-.new-post-page h1 {
-  margin: 0 0 0.35rem;
-}
-
-.new-post-page header p {
-  margin: 0;
-  color: var(--cream-muted);
-}
-
-.new-post-form {
-  display: grid;
-  gap: 1.5rem;
-  max-width: 560px;
-}
-
 .upload-zone {
   position: relative;
   border-radius: 1rem;
   overflow: hidden;
-  border: 2px dashed rgba(212, 160, 84, 0.35);
-  background: rgba(0, 0, 0, 0.25);
+  border: 2px dashed var(--dashed-border);
+  background: var(--dashed-bg);
   min-height: 220px;
 }
 
-.preview-image {
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.preview-item {
+  position: relative;
+}
+
+.preview-item .preview-image {
   width: 100%;
-  max-height: 320px;
+  height: 140px;
   object-fit: cover;
-  display: block;
+  border-radius: 0.5rem;
+}
+
+.preview-remove {
+  position: absolute;
+  bottom: 0.35rem;
+  right: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
 .upload-placeholder {
@@ -84,4 +89,27 @@
 .form-fields textarea {
   resize: vertical;
   min-height: 100px;
+}
+
+.post-form {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 560px;
+}
+
+.post-editor-page header {
+  margin-bottom: 1.5rem;
+}
+
+.post-editor-page h1 {
+  margin: 0 0 0.35rem;
+}
+
+.post-editor-page header p {
+  margin: 0;
+  color: var(--cream-muted);
+}
+
+.post-editor-actions {
+  margin-bottom: 1rem;
 }

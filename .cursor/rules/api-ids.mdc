@@ -1,0 +1,76 @@
+---
+description: All new entity and API identifiers must be UUID (GUID), never DB sequences
+globs: apps/high-steak-api/**/*.java,apps/high-steak-api/**/db/migration/**,apps/high-steak-api/openapi/**,apps/high-steak-web/src/api/**,apps/high-steak-mobile/**
+alwaysApply: true
+---
+
+# Identifier Policy — UUID Only
+
+All **new** primary keys and public resource IDs in High Steak must be **UUIDs** (Java `UUID`, MySQL `CHAR(36)`). Do not introduce `BIGINT AUTO_INCREMENT`, `IDENTITY`, or sequential integer IDs for new tables or new columns.
+
+## Rationale
+
+- Safe to expose in URLs and JSON without enumeration
+- Consistent with existing `users`, `steak_posts`, and `post_comments`
+- Works across services and clients without coordination
+
+## Database (Flyway)
+
+```sql
+-- BAD — new table with auto-increment PK
+CREATE TABLE widgets (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ...
+);
+
+-- GOOD
+CREATE TABLE widgets (
+    id CHAR(36) NOT NULL PRIMARY KEY,
+    ...
+);
+```
+
+Migrate existing integer PKs with a **new** forward migration (Java migration if FKs/data exist), never edit applied versions.
+
+## JPA entity
+
+```java
+// BAD
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+
+// GOOD
+@Id
+@JdbcTypeCode(SqlTypes.VARCHAR)
+@Column(columnDefinition = "CHAR(36)", nullable = false, updatable = false, length = 36)
+private UUID id;
+
+@PrePersist
+void onCreate() {
+    if (id == null) {
+        id = UUID.randomUUID();
+    }
+}
+```
+
+Match `User.java` / `SteakPost.java` — do not rely on the database to generate IDs.
+
+## API layer
+
+- Path variables, DTO fields, and OpenAPI schemas: `type: string`, `format: uuid`
+- Repository: `JpaRepository<Entity, UUID>`
+- Web/mobile client types: `id: string`
+
+## Exceptions (do not change without explicit request)
+
+Legacy tables still using `BIGINT` for internal join tables only (e.g. `roles`, `permissions`, `post_images.id`) — **do not add new** integer PKs; prefer UUID for any new entity.
+
+## Checklist for new features
+
+- [ ] Migration uses `CHAR(36)` PK, not `AUTO_INCREMENT`
+- [ ] Entity uses `UUID` + `@PrePersist` assignment
+- [ ] DTOs, controllers, repositories use `UUID`
+- [ ] OpenAPI and `client.ts` use string UUIDs
+
+Reference: `V4__UserUuid.java`, `V7__PostUuid.java`, `docs/decisions/` (if an ADR exists for this policy).

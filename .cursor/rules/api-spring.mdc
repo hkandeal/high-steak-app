@@ -1,0 +1,65 @@
+---
+description: Spring Boot layering and conventions for High Steak API
+globs: apps/high-steak-api/**/*.java
+alwaysApply: false
+---
+
+# API Spring Rules
+
+Package root: `com.highsteak.api`.
+
+## Layering
+
+```
+controller → service → repository → domain
+dto/         (records for HTTP I/O, separate from entities)
+```
+
+- Controllers: mapping, `@Valid`, `@PreAuthorize`, delegate to services
+- Services: business logic, `@Transactional` where needed
+- Repositories: Spring Data interfaces only
+- Domain: JPA entities in `domain/`
+- DTOs: Java records in `dto/` (e.g. `AuthDtos`, `PostDtos`)
+
+## Conventions
+
+- Use Lombok `@RequiredArgsConstructor` for constructor injection
+- Global errors: `GlobalExceptionHandler` → `ApiError` record
+- File uploads: multipart in controller, storage in service, URLs as `/uploads/...`
+- User IDs are `UUID`; post and comment IDs are `UUID` (see `api-ids.mdc`)
+
+## Context path
+
+`server.servlet.context-path=/api`. Controller mappings:
+
+```java
+@RequestMapping("/auth")   // → http://host:8080/api/auth
+```
+
+## Examples
+
+```java
+// BAD — entity returned directly from controller
+@GetMapping("/{id}")
+public User getUser(@PathVariable UUID id) {
+    return userRepository.findById(id).orElseThrow();
+}
+
+// GOOD — DTO from service
+@GetMapping("/{id}")
+public AuthDtos.UserSummary getUser(@PathVariable UUID id) {
+    return userAdminService.getUser(id);
+}
+```
+
+```java
+// BAD — duplicate validation in service and DTO
+public void create(String title) {
+    if (title == null || title.isBlank()) throw ...
+}
+
+// GOOD — @NotBlank on DTO record, @Valid on controller param
+public record CreateRequest(@NotBlank String title) {}
+```
+
+Reference: `openapi/openapi.yaml`, skill `.cursor/skills/add-api-endpoint/`.
