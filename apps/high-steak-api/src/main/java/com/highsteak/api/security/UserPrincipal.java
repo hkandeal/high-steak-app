@@ -22,6 +22,7 @@ public class UserPrincipal implements UserDetails {
     private final String avatarUrl;
     private final String passwordHash;
     private final String roleName;
+    private final boolean blocked;
     private final List<String> scopes;
 
     public UserPrincipal(User user) {
@@ -32,6 +33,7 @@ public class UserPrincipal implements UserDetails {
         this.avatarUrl = user.getAvatarUrl();
         this.passwordHash = user.getPasswordHash();
         this.roleName = user.getRole().getName();
+        this.blocked = user.isBlocked();
         this.scopes = user.getRole().getPermissions().stream()
                 .map(Permission::getScope)
                 .sorted()
@@ -70,7 +72,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return !blocked;
     }
 
     public boolean hasScope(String scope) {

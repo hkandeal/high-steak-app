@@ -4,16 +4,19 @@ import {
   deletePost,
   fetchFollowingPosts,
   fetchPosts,
+  FEED_PAGE_SIZE,
   hidePost,
   postImageUrl,
   primaryPostImage,
   type SteakPost,
 } from '../api/client'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { HidePostDialog } from '../components/HidePostDialog'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
+import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
 import { listItemBackState } from '../navigation'
 import './FeedPage.css'
 
@@ -22,47 +25,37 @@ type FeedTab = 'everyone' | 'following'
 export function FeedPage() {
   const { isAuthenticated, user, token, hasScope } = useAuth()
   const [tab, setTab] = useState<FeedTab>('everyone')
-  const [posts, setPosts] = useState<SteakPost[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<SteakPost | null>(null)
+  const [hideTarget, setHideTarget] = useState<SteakPost | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [hiding, setHiding] = useState(false)
 
   const showFollowingTab = isAuthenticated && hasScope('subscriptions:read')
-
-  const loadPosts = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      if (tab === 'following') {
-        if (!token) {
-          setPosts([])
-          return
-        }
-        const followingPosts = await fetchFollowingPosts(token)
-        setPosts(followingPosts)
-      } else {
-        if (!token) {
-          setPosts([])
-          return
-        }
-        const everyonePosts = await fetchPosts(token)
-        setPosts(everyonePosts)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load feed')
-    } finally {
-      setLoading(false)
-    }
-  }, [tab, token])
 
   useEffect(() => {
     if (tab === 'following' && !showFollowingTab) {
       setTab('everyone')
-      return
     }
-    loadPosts()
-  }, [tab, showFollowingTab, loadPosts])
+  }, [tab, showFollowingTab])
+
+  const loadPage = useCallback(
+    async (page: number) => {
+      if (!token) {
+        return { content: [], page: 0, size: FEED_PAGE_SIZE, totalElements: 0, totalPages: 0 }
+      }
+      if (tab === 'following') {
+        return fetchFollowingPosts(token, { page, size: FEED_PAGE_SIZE })
+      }
+      return fetchPosts(token, { page, size: FEED_PAGE_SIZE })
+    },
+    [tab, token],
+  )
+
+  const { posts, setPosts, loading, loadingMore, error, hasMore, sentinelRef } = useInfinitePostFeed(
+    loadPage,
+    `${tab}:${token ?? 'anon'}`,
+  )
+  const [actionError, setActionError] = useState<string | null>(null)
 
   async function handleDelete(postId: string) {
     if (!token) return
@@ -77,16 +70,25 @@ export function FeedPage() {
       await handleDelete(deleteTarget.id)
       setDeleteTarget(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete post')
+      setActionError(err instanceof Error ? err.message : 'Failed to delete post')
     } finally {
       setDeleting(false)
     }
   }
 
-  async function handleHide(postId: string) {
-    if (!token) return
-    await hidePost(token, postId)
-    setPosts((current) => current.filter((post) => post.id !== postId))
+  async function confirmHide(reason: string) {
+    if (!token || !hideTarget) return
+    setHiding(true)
+    setActionError(null)
+    try {
+      await hidePost(token, hideTarget.id, reason)
+      setPosts((current) => current.filter((post) => post.id !== hideTarget.id))
+      setHideTarget(null)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to hide post')
+    } finally {
+      setHiding(false)
+    }
   }
 
   function canDeletePost(post: SteakPost) {
@@ -107,10 +109,9 @@ export function FeedPage() {
     if (hasScope('posts:moderate')) {
       items.push({
         kind: 'action',
-        label: 'Hide post',
-        onSelect: () => {
-          void handleHide(post.id)
-        },
+        label: 'Block from feed',
+        tone: 'danger',
+        onSelect: () => setHideTarget(post),
       })
     }
     if (canDeletePost(post)) {
@@ -164,7 +165,7 @@ export function FeedPage() {
       )}
 
       {loading && <p className="muted">Loading sizzling posts…</p>}
-      {error && <p className="form-error">{error}</p>}
+      {(error || actionError) && <p className="form-error">{error ?? actionError}</p>}
 
       {emptyFollowing && (
         <div className="empty-feed">
@@ -250,6 +251,24 @@ export function FeedPage() {
           })}
         </div>
       )}
+
+      {hasMore && !loading && (
+        <div ref={sentinelRef} className="infinite-scroll-sentinel">
+          {loadingMore && <p className="muted">Loading more posts…</p>}
+        </div>
+      )}
+
+      <HidePostDialog
+        open={hideTarget !== null}
+        postTitle={hideTarget?.title ?? ''}
+        loading={hiding}
+        onConfirm={(reason) => {
+          void confirmHide(reason)
+        }}
+        onCancel={() => {
+          if (!hiding) setHideTarget(null)
+        }}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}

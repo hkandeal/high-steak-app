@@ -35,6 +35,11 @@ services:
       APP_LOG_LEVEL: DEBUG
       APP_HTTP_LOG_LEVEL: DEBUG
       HTTP_ACCESS_LOG_ENABLED: "true"
+      BOOTSTRAP_ADMIN_ENABLED: "true"
+      BOOTSTRAP_ADMIN_USERNAME: admin
+      BOOTSTRAP_ADMIN_PASSWORD: AdminPass123!
+      BOOTSTRAP_ADMIN_EMAIL: admin@high-steak.local
+      BOOTSTRAP_ADMIN_DISPLAY_NAME: System Admin
     ports:
       - "8080:8080"
     volumes:

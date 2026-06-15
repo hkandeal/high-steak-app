@@ -14,6 +14,12 @@ export type UserSummary = UserProfile & {
   scopes: string[]
 }
 
+/** Admin list entry from GET /users (includes role; not used for /auth/me). */
+export type AdminUser = UserProfile & {
+  role: string
+  blocked: boolean
+}
+
 type JwtPayload = {
   sub?: string
   uid?: string
@@ -84,6 +90,8 @@ export type SteakPost = {
   restaurantLocation: string | null
   createdAt: string
   hidden: boolean
+  moderationReason?: string | null
+  moderationRestoredAt?: string | null
   visibility: PostVisibility
   author: PostAuthor
   tags: ReviewTag[]
@@ -103,6 +111,16 @@ export type UserPublicProfile = {
   avatarUrl: string | null
   postCount: number
   subscribed: boolean
+  blocked?: boolean | null
+  role?: string | null
+}
+
+export type PageResponse<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
 }
 
 export type SubscriptionSummary = {
@@ -233,20 +251,40 @@ export async function updateProfile(
   })
 }
 
-export async function fetchPosts(token: string): Promise<SteakPost[]> {
-  return apiFetch('/posts', { token })
+export const FEED_PAGE_SIZE = 20
+
+function paginationQuery(options: { page?: number; size?: number } = {}) {
+  const params = new URLSearchParams()
+  if (options.page != null) params.set('page', String(options.page))
+  if (options.size != null) params.set('size', String(options.size))
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export async function fetchPosts(
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  return apiFetch(`/posts${paginationQuery(options)}`, { token })
 }
 
 export async function fetchReviewTags(token: string): Promise<ReviewTagCatalog> {
   return apiFetch('/posts/review-tags', { token })
 }
 
-export async function fetchFollowingPosts(token: string): Promise<SteakPost[]> {
-  return apiFetch('/posts/following', { token })
+export async function fetchFollowingPosts(
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  return apiFetch(`/posts/following${paginationQuery(options)}`, { token })
 }
 
-export async function fetchUserPosts(userId: string, token: string): Promise<SteakPost[]> {
-  return apiFetch(`/users/${userId}/posts`, { token })
+export async function fetchUserPosts(
+  userId: string,
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  return apiFetch(`/users/${userId}/posts${paginationQuery(options)}`, { token })
 }
 
 export async function fetchUserProfile(
@@ -260,8 +298,12 @@ export async function fetchPost(postId: string, token: string): Promise<SteakPos
   return apiFetch(`/posts/${postId}`, { token })
 }
 
-export async function fetchPostComments(postId: string, token: string): Promise<PostComment[]> {
-  return apiFetch(`/posts/${postId}/comments`, { token })
+export async function fetchPostComments(
+  postId: string,
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<PostComment>> {
+  return apiFetch(`/posts/${postId}/comments${paginationQuery(options)}`, { token })
 }
 
 export async function addPostComment(
@@ -300,8 +342,31 @@ export async function unsubscribeFromUser(token: string, userId: string): Promis
   })
 }
 
-export async function fetchHiddenPosts(token: string): Promise<SteakPost[]> {
-  return apiFetch('/posts/hidden', { token })
+export async function fetchHiddenPosts(
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  return apiFetch(`/posts/hidden${paginationQuery(options)}`, { token })
+}
+
+export async function fetchMyPosts(
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  return apiFetch(`/posts/mine${paginationQuery(options)}`, { token })
+}
+
+export async function fetchAllMyPosts(token: string): Promise<SteakPost[]> {
+  const all: SteakPost[] = []
+  let page = 0
+  let totalPages = 1
+  while (page < totalPages) {
+    const response = await fetchMyPosts(token, { page, size: FEED_PAGE_SIZE })
+    all.push(...response.content)
+    totalPages = response.totalPages
+    page += 1
+  }
+  return all
 }
 
 export async function createPost(
@@ -374,22 +439,57 @@ export async function deletePost(token: string, postId: string): Promise<void> {
   })
 }
 
-export async function hidePost(token: string, postId: string): Promise<SteakPost> {
+export async function hidePost(
+  token: string,
+  postId: string,
+  reason?: string,
+): Promise<SteakPost> {
+  const trimmed = reason?.trim()
   return apiFetch(`/posts/${postId}/hide`, {
+    method: 'PATCH',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: trimmed || null }),
+  })
+}
+
+export async function unhidePost(token: string, postId: string): Promise<SteakPost> {
+  return apiFetch(`/posts/${postId}/unhide`, {
     method: 'PATCH',
     token,
   })
 }
 
-export async function listUsers(token: string): Promise<UserProfile[]> {
-  return apiFetch('/users', { token })
+export async function listUsers(
+  token: string,
+  options: { q?: string; page?: number; size?: number } = {},
+): Promise<PageResponse<AdminUser>> {
+  const params = new URLSearchParams()
+  if (options.q?.trim()) params.set('q', options.q.trim())
+  if (options.page != null) params.set('page', String(options.page))
+  if (options.size != null) params.set('size', String(options.size))
+  const query = params.toString()
+  return apiFetch(`/users${query ? `?${query}` : ''}`, { token })
+}
+
+export async function setUserBlocked(
+  token: string,
+  userId: string,
+  blocked: boolean,
+): Promise<AdminUser> {
+  return apiFetch(`/users/${userId}/blocked`, {
+    method: 'PATCH',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocked }),
+  })
 }
 
 export async function updateUserRole(
   token: string,
   userId: string,
   role: string,
-): Promise<UserProfile> {
+): Promise<AdminUser> {
   return apiFetch(`/users/${userId}/role`, {
     method: 'PATCH',
     token,

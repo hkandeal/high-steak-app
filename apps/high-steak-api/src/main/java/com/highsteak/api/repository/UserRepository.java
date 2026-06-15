@@ -1,6 +1,8 @@
 package com.highsteak.api.repository;
 
 import com.highsteak.api.domain.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,6 +33,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    boolean existsByRole_Name(String roleName);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE (:query IS NULL OR :query = ''
+                OR LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')))
+            ORDER BY u.username
+            """)
+    Page<User> searchAdminUsers(@Param("query") String query, Pageable pageable);
 
     @Query("""
             SELECT u FROM User u

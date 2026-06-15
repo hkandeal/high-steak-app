@@ -3,7 +3,9 @@ import { Layout } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
-import { AdminUsersPage, ModerationPage } from './pages/AdminPages'
+import { ModerationNoticesProvider } from './context/ModerationNoticesContext'
+import { ManagementPage } from './pages/ManagementPage'
+import { NotificationsPage } from './pages/NotificationsPage'
 import { DiscoverPage } from './pages/DiscoverPage'
 import { FollowingPage } from './pages/FollowingPage'
 import { FeedPage } from './pages/FeedPage'
@@ -79,21 +81,23 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: 'moderation',
+        path: 'notifications',
         element: (
-          <ProtectedRoute requiredScope="posts:moderate">
-            <ModerationPage />
+          <ProtectedRoute>
+            <NotificationsPage />
           </ProtectedRoute>
         ),
       },
       {
-        path: 'admin/users',
+        path: 'manage',
         element: (
-          <ProtectedRoute requiredScope="users:read">
-            <AdminUsersPage />
+          <ProtectedRoute requiredAnyScope={['posts:moderate', 'users:read']}>
+            <ManagementPage />
           </ProtectedRoute>
         ),
       },
+      { path: 'moderation', element: <Navigate to="/manage" replace /> },
+      { path: 'admin/users', element: <Navigate to="/manage" replace /> },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
@@ -103,7 +107,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <ModerationNoticesProvider>
+          <RouterProvider router={router} />
+        </ModerationNoticesProvider>
       </AuthProvider>
     </ThemeProvider>
   )

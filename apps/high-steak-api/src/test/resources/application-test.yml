@@ -30,6 +30,9 @@ app:
     allowed-origins: http://localhost:5173
   logging:
     http-access-enabled: false
+  bootstrap:
+    admin:
+      enabled: false
 
 logging:
   level:

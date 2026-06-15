@@ -103,6 +103,17 @@ npm run web:build
 | `APP_LOG_LEVEL` | Package log level for `com.highsteak.api` (default `INFO`) |
 | `APP_HTTP_LOG_LEVEL` | HTTP access filter level (default `INFO`) |
 | `HTTP_ACCESS_LOG_ENABLED` | Enable/disable request logging (default `true`) |
+| `BOOTSTRAP_ADMIN_ENABLED` | Create default admin on startup if none exists (default `true`) |
+| `BOOTSTRAP_ADMIN_USERNAME` | Bootstrap admin username (default `admin`) |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Bootstrap admin password (default `AdminPass123!`) |
+| `BOOTSTRAP_ADMIN_EMAIL` | Bootstrap admin email (default `admin@high-steak.local`) |
+| `BOOTSTRAP_ADMIN_DISPLAY_NAME` | Bootstrap admin display name (default `System Admin`) |
+
+### Bootstrap admin
+
+On first startup (when no user has the `ADMIN` role), the API creates a default admin account using the `BOOTSTRAP_ADMIN_*` variables above. Log in at `/login` with those credentials, then open **Manage** from the account menu.
+
+Set `BOOTSTRAP_ADMIN_ENABLED=false` in production once real admins exist.
 
 ## Logging
 

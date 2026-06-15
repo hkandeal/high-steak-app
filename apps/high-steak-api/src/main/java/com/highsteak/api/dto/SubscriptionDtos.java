@@ -13,7 +13,9 @@ public final class SubscriptionDtos {
             String displayName,
             String avatarUrl,
             long postCount,
-            boolean subscribed
+            boolean subscribed,
+            Boolean blocked,
+            String role
     ) {}
 
     public record SubscriptionSummary(

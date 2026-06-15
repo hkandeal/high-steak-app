@@ -1,0 +1,39 @@
+.moderation-login-notice {
+  max-width: 32rem;
+}
+
+.moderation-login-notice-list {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.moderation-login-notice-list li {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.moderation-login-notice-reason {
+  font-size: 0.85rem;
+  color: var(--cream-muted);
+}
+
+.moderation-login-notice-kind {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f08080;
+}
+
+.moderation-login-notice-item--restored .moderation-login-notice-kind {
+  color: #7dd87d;
+}

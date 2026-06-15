@@ -1,9 +1,11 @@
 package com.highsteak.api.controller;
 
+import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.security.UserPrincipal;
 import com.highsteak.api.service.ReviewTagService;
 import com.highsteak.api.service.SteakPostService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,26 +32,36 @@ public class SteakPostController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('posts:read')")
-    public List<PostDtos.PostResponse> getFeed() {
-        return steakPostService.getFeed();
+    public PageDtos.PageResponse<PostDtos.PostResponse> getFeed(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return steakPostService.getFeed(page, size);
     }
 
     @GetMapping("/mine")
     @PreAuthorize("hasAuthority('posts:read:own')")
-    public List<PostDtos.PostResponse> getMyPosts(@AuthenticationPrincipal UserPrincipal principal) {
-        return steakPostService.getMyPosts(principal);
+    public PageDtos.PageResponse<PostDtos.PostResponse> getMyPosts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return steakPostService.getMyPosts(principal, page, size);
     }
 
     @GetMapping("/hidden")
     @PreAuthorize("hasAuthority('posts:moderate')")
-    public List<PostDtos.PostResponse> getHiddenPosts() {
-        return steakPostService.getHiddenPosts();
+    public PageDtos.PageResponse<PostDtos.PostResponse> getHiddenPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return steakPostService.getHiddenPosts(page, size);
     }
 
     @GetMapping("/following")
     @PreAuthorize("hasAuthority('subscriptions:read')")
-    public List<PostDtos.PostResponse> getFollowingFeed(@AuthenticationPrincipal UserPrincipal principal) {
-        return steakPostService.getFollowingFeed(principal);
+    public PageDtos.PageResponse<PostDtos.PostResponse> getFollowingFeed(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return steakPostService.getFollowingFeed(principal, page, size);
     }
 
     @GetMapping("/{id}")
@@ -106,7 +118,16 @@ public class SteakPostController {
 
     @PatchMapping("/{id}/hide")
     @PreAuthorize("hasAuthority('posts:moderate')")
-    public PostDtos.PostResponse hidePost(@PathVariable UUID id) {
-        return steakPostService.hidePost(id);
+    public PostDtos.PostResponse hidePost(
+            @PathVariable UUID id,
+            @Valid @RequestBody(required = false) PostDtos.HidePostRequest request) {
+        String reason = request != null ? request.reason() : null;
+        return steakPostService.hidePost(id, reason);
+    }
+
+    @PatchMapping("/{id}/unhide")
+    @PreAuthorize("hasAuthority('posts:moderate')")
+    public PostDtos.PostResponse unhidePost(@PathVariable UUID id) {
+        return steakPostService.unhidePost(id);
     }
 }

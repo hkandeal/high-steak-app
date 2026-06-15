@@ -58,6 +58,12 @@ public class SteakPost {
     @Builder.Default
     private boolean hidden = false;
 
+    @Column(name = "moderation_reason", length = 500)
+    private String moderationReason;
+
+    @Column(name = "moderation_restored_at")
+    private Instant moderationRestoredAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     @Builder.Default

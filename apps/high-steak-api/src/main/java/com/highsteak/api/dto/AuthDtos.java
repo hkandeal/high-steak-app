@@ -35,6 +35,20 @@ public final class AuthDtos {
             String avatarUrl
     ) {}
 
+    public record AdminUserSummary(
+            UUID id,
+            String username,
+            String email,
+            String displayName,
+            String avatarUrl,
+            String role,
+            boolean blocked
+    ) {}
+
+    public record UpdateUserBlockedRequest(
+            boolean blocked
+    ) {}
+
     public record UpdateUserRoleRequest(
             @NotBlank String role
     ) {}

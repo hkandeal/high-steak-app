@@ -1,5 +1,6 @@
 package com.highsteak.api.controller;
 
+import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.service.PostCommentService;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,8 @@ class PostCommentControllerSecurityTest {
     @Test
     @WithMockUser(authorities = {"posts:read"})
     void listCommentsAllowedWithReadScope() throws Exception {
-        when(commentService.listComments(any(), eq(POST_ID))).thenReturn(List.of());
+        when(commentService.listComments(any(), eq(POST_ID), eq(0), eq(20)))
+                .thenReturn(new PageDtos.PageResponse<>(List.of(), 0, 20, 0, 0));
         mockMvc.perform(get("/posts/" + POST_ID + "/comments"))
                 .andExpect(status().isOk());
     }

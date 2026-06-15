@@ -34,6 +34,7 @@ type AuthContextValue = {
   hasRole: (role: string) => boolean
   hasAnyRole: (...roles: string[]) => boolean
   hasScope: (scope: string) => boolean
+  hasAnyScope: (...scopes: string[]) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -114,6 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [auth?.user?.scopes],
   )
 
+  const hasAnyScope = useCallback(
+    (...scopes: string[]) => scopes.some((scope) => auth?.user?.scopes?.includes(scope) ?? false),
+    [auth?.user?.scopes],
+  )
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: auth?.user ?? null,
@@ -126,8 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasRole,
       hasAnyRole,
       hasScope,
+      hasAnyScope,
     }),
-    [auth, login, applyToken, logout, refreshUser, hasRole, hasAnyRole, hasScope],
+    [auth, login, applyToken, logout, refreshUser, hasRole, hasAnyRole, hasScope, hasAnyScope],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

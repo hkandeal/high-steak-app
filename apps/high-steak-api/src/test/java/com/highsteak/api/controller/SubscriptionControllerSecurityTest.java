@@ -1,5 +1,7 @@
 package com.highsteak.api.controller;
 
+import com.highsteak.api.dto.PageDtos;
+import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.dto.SubscriptionDtos;
 import com.highsteak.api.service.SteakPostService;
 import com.highsteak.api.service.SubscriptionService;
@@ -52,7 +54,8 @@ class SubscriptionControllerSecurityTest {
     @Test
     @WithMockUser(authorities = {"subscriptions:read"})
     void followingFeedAllowedWithReadScope() throws Exception {
-        when(steakPostService.getFollowingFeed(any())).thenReturn(List.of());
+        when(steakPostService.getFollowingFeed(any(), eq(0), eq(20)))
+                .thenReturn(new PageDtos.PageResponse<>(List.of(), 0, 20, 0, 0));
         mockMvc.perform(get("/posts/following"))
                 .andExpect(status().isOk());
     }
@@ -108,7 +111,7 @@ class SubscriptionControllerSecurityTest {
 
     private SubscriptionDtos.SubscriptionSummary sampleSummary() {
         SubscriptionDtos.UserPublicProfile profile = new SubscriptionDtos.UserPublicProfile(
-                TARGET_USER, "chef", "Chef", null, 0, true);
+                TARGET_USER, "chef", "Chef", null, 0, true, null, null);
         return new SubscriptionDtos.SubscriptionSummary(profile, Instant.now());
     }
 }

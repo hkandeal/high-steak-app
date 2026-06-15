@@ -1,6 +1,7 @@
 package com.highsteak.api.service;
 
 import com.highsteak.api.domain.User;
+import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.dto.SubscriptionDtos;
 import com.highsteak.api.repository.UserRepository;
@@ -31,7 +32,8 @@ public class UserDiscoveryService {
 
         Set<UUID> subscribedIds = subscriptionService.getSubscribedUserIds(principal.getId());
         return userRepository.searchPublicUsers(normalized, principal.getId()).stream()
-                .map(user -> subscriptionService.toPublicProfile(user, subscribedIds, principal.getId()))
+                .map(user -> subscriptionService.toPublicProfile(
+                        user, subscribedIds, principal.getId(), principal.hasScope("users:block")))
                 .toList();
     }
 
@@ -40,14 +42,16 @@ public class UserDiscoveryService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
         if (viewer == null) {
-            return subscriptionService.toPublicProfile(user, Set.of(), null);
+            return subscriptionService.toPublicProfile(user, Set.of(), null, false);
         }
         Set<UUID> subscribedIds = subscriptionService.getSubscribedUserIds(viewer.getId());
-        return subscriptionService.toPublicProfile(user, subscribedIds, viewer.getId());
+        return subscriptionService.toPublicProfile(
+                user, subscribedIds, viewer.getId(), viewer.hasScope("users:block"));
     }
 
     @Transactional(readOnly = true)
-    public List<PostDtos.PostResponse> getUserPublicPosts(UUID userId, UserPrincipal viewer) {
-        return steakPostService.getVisiblePostsForProfile(userId, viewer);
+    public PageDtos.PageResponse<PostDtos.PostResponse> getUserPublicPosts(
+            UUID userId, UserPrincipal viewer, int page, int size) {
+        return steakPostService.getVisiblePostsForProfile(userId, viewer, page, size);
     }
 }

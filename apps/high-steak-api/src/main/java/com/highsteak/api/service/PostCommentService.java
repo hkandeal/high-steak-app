@@ -4,6 +4,8 @@ import com.highsteak.api.domain.PostComment;
 import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.PostDtos;
+import com.highsteak.api.dto.PageDtos;
+import com.highsteak.api.util.PaginationHelper;
 import com.highsteak.api.repository.PostCommentRepository;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
@@ -13,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -30,15 +34,16 @@ public class PostCommentService {
     private final SteakPostService steakPostService;
 
     @Transactional(readOnly = true)
-    public List<PostDtos.CommentResponse> listComments(UserPrincipal viewer, UUID postId) {
+    public PageDtos.PageResponse<PostDtos.CommentResponse> listComments(
+            UserPrincipal viewer, UUID postId, int page, int size) {
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
         if (!steakPostService.canViewPost(viewer, post)) {
             throw new ResponseStatusException(NOT_FOUND, "Post not found");
         }
-        return commentRepository.findByPost_IdOrderByCreatedAtAsc(postId).stream()
-                .map(this::toResponse)
-                .toList();
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        Page<PostComment> comments = commentRepository.findByPost_IdOrderByCreatedAtAsc(postId, pageable);
+        return PaginationHelper.toPageResponse(comments, this::toResponse);
     }
 
     @Transactional

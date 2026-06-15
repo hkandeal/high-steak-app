@@ -1,5 +1,6 @@
 package com.highsteak.api.controller;
 
+import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.security.UserPrincipal;
 import com.highsteak.api.service.PostCommentService;
@@ -10,7 +11,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,10 +22,12 @@ public class PostCommentController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('posts:read')")
-    public List<PostDtos.CommentResponse> listComments(
+    public PageDtos.PageResponse<PostDtos.CommentResponse> listComments(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable UUID postId) {
-        return commentService.listComments(principal, postId);
+            @PathVariable UUID postId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return commentService.listComments(principal, postId, page, size);
     }
 
     @PostMapping

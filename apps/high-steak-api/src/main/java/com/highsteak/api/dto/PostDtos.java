@@ -39,9 +39,15 @@ public final class PostDtos {
             String restaurantLocation,
             Instant createdAt,
             boolean hidden,
+            String moderationReason,
+            java.time.Instant moderationRestoredAt,
             PostVisibility visibility,
             AuthorSummary author,
             List<ReviewTagSummary> tags
+    ) {}
+
+    public record HidePostRequest(
+            @Size(max = ApiConstraints.MODERATION_REASON_MAX) String reason
     ) {}
 
     public record CommentResponse(

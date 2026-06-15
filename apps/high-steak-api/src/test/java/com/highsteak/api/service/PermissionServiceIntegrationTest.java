@@ -34,6 +34,15 @@ class PermissionServiceIntegrationTest {
     }
 
     @Test
+    void moderatorRoleHasModerationAndUserListScopesFromDatabase() {
+        var role = roleRepository.findByNameWithPermissions("MODERATOR").orElseThrow();
+        List<String> scopes = permissionService.scopesForRole(role);
+        assertTrue(scopes.contains("posts:moderate"));
+        assertTrue(scopes.contains("users:read"));
+        assertTrue(scopes.contains("users:block"));
+    }
+
+    @Test
     void adminRoleHasUserManagementScopesFromDatabase() {
         var role = roleRepository.findByNameWithPermissions("ADMIN").orElseThrow();
         List<String> scopes = permissionService.scopesForRole(role);

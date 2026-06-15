@@ -126,6 +126,10 @@ public class AuthService {
         User user = userRepository.findByUsernameWithRoleAndPermissions(request.username())
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Invalid username or password"));
 
+        if (user.isBlocked()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "Account is blocked");
+        }
+
         UserPrincipal principal = new UserPrincipal(user);
         String token = jwtService.generateToken(principal);
         return new AuthDtos.AuthResponse(token);

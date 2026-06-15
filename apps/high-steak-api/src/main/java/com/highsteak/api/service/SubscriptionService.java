@@ -84,17 +84,28 @@ public class SubscriptionService {
     }
 
     @Transactional(readOnly = true)
-    public SubscriptionDtos.UserPublicProfile toPublicProfile(User user, Set<UUID> subscribedIds, UUID viewerId) {
+    public SubscriptionDtos.UserPublicProfile toPublicProfile(
+            User user, Set<UUID> subscribedIds, UUID viewerId, boolean includeBlocked) {
         return new SubscriptionDtos.UserPublicProfile(
                 user.getId(),
                 user.getUsername(),
                 user.getDisplayName(),
                 user.getAvatarUrl(),
                 countVisiblePosts(user.getId(), viewerId),
-                subscribedIds.contains(user.getId()));
+                subscribedIds.contains(user.getId()),
+                includeBlocked ? user.isBlocked() : null,
+                includeBlocked ? user.getRole().getName() : null);
+    }
+
+    @Transactional(readOnly = true)
+    public SubscriptionDtos.UserPublicProfile toPublicProfile(User user, Set<UUID> subscribedIds, UUID viewerId) {
+        return toPublicProfile(user, subscribedIds, viewerId, false);
     }
 
     private long countVisiblePosts(UUID profileUserId, UUID viewerId) {
+        if (viewerId != null && viewerId.equals(profileUserId)) {
+            return steakPostRepository.countByUserId(profileUserId);
+        }
         if (viewerId == null) {
             return steakPostRepository.countByUserIdAndHiddenFalseAndVisibility(
                     profileUserId, PostVisibility.PUBLIC);

@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import '../config/api_config.dart';
+import '../auth/auth_controller.dart';
+import '../controllers/paginated_list_controller.dart';
+import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../theme/app_palette.dart';
+import '../widgets/paginated_list_view.dart';
+import '../widgets/pill_tab_bar.dart';
+import '../widgets/post_card.dart';
+
+enum FeedTab { everyone, following }
 
 class FeedScreen extends StatefulWidget {
-  const FeedScreen({super.key, required this.api});
+  const FeedScreen({super.key, required this.auth, required this.api});
 
+  final AuthController auth;
   final ApiService api;
 
   @override
@@ -13,98 +23,103 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen> {
-  List<dynamic> _posts = [];
-  bool _loading = true;
-  String? _error;
+  FeedTab _tab = FeedTab.everyone;
+  PaginatedListController<SteakPost>? _controller;
+
+  bool get _showFollowingTab => widget.auth.hasScope('subscriptions:read');
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _initController();
   }
 
-  Future<void> _load() async {
-    try {
-      final posts = await widget.api.fetchPosts();
-      setState(() {
-        _posts = posts;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
   }
 
-  String _imageUrl(String path) {
-    if (path.startsWith('http')) return path;
-    return '$apiBaseUrl$path';
+  void _initController() {
+    _controller?.dispose();
+    final token = widget.auth.token!;
+    _controller = PaginatedListController<SteakPost>((page) {
+      if (_tab == FeedTab.following) {
+        return widget.api.fetchFollowingPosts(token, page: page);
+      }
+      return widget.api.fetchPosts(token, page: page);
+    });
+    _controller!.reload();
+  }
+
+  void _switchTab(FeedTab tab) {
+    if (_tab == tab) return;
+    setState(() => _tab = tab);
+    _initController();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Steak feed')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _posts.length,
-                    itemBuilder: (context, index) {
-                      final post = _posts[index] as Map<String, dynamic>;
-                      final author =
-                          post['author'] as Map<String, dynamic>? ?? {};
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(12),
-                              ),
-                              child: Image.network(
-                                _imageUrl(post['imageUrl'] as String),
-                                height: 200,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    post['title'] as String? ?? '',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '@${author['username'] ?? 'unknown'} · '
-                                    '${'★' * (post['rating'] as int? ?? 0)}',
-                                  ),
-                                  if (post['comment'] != null) ...[
-                                    const SizedBox(height: 8),
-                                    Text(post['comment'] as String),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+    final controller = _controller!;
+    final theme = Theme.of(context);
+    final palette = context.palette;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Steak feed',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: palette.creamMuted,
+                  fontWeight: FontWeight.w500,
                 ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _tab == FeedTab.following
+                    ? 'Posts from people you follow'
+                    : 'Fresh cuts from the community',
+                style: theme.textTheme.bodyMedium,
+              ),
+              if (_showFollowingTab) ...[
+                const SizedBox(height: 14),
+                PillTabBar<FeedTab>(
+                  tabs: const [
+                    PillTab(value: FeedTab.everyone, label: 'Everyone'),
+                    PillTab(value: FeedTab.following, label: 'Following'),
+                  ],
+                  selected: _tab,
+                  onSelected: _switchTab,
+                ),
+              ],
+            ],
+          ),
+        ),
+        Expanded(
+          child: PaginatedListView(
+            controller: controller,
+            emptyMessage: _tab == FeedTab.following
+                ? "You're not following anyone yet."
+                : 'No steaks yet. Be the first to fire up the grill!',
+            emptyIcon: _tab == FeedTab.following
+                ? Icons.group_outlined
+                : Icons.local_fire_department_outlined,
+            action: _tab == FeedTab.following &&
+                    widget.auth.hasScope('users:discover')
+                ? FilledButton(
+                    onPressed: () => context.go('/discover'),
+                    child: const Text('Find steak lovers'),
+                  )
+                : null,
+            itemBuilder: (context, item) => PostCard(post: item),
+          ),
+        ),
+      ],
     );
   }
 }

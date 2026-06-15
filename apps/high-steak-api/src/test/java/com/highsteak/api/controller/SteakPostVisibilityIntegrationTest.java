@@ -169,7 +169,11 @@ class SteakPostVisibilityIntegrationTest {
         MvcResult result = mockMvc.perform(get(path).header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode posts = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode posts = body.get("content");
+        if (posts == null || !posts.isArray()) {
+            return false;
+        }
         for (JsonNode post : posts) {
             if (postId.toString().equals(post.get("id").asText())) {
                 return true;
@@ -182,7 +186,10 @@ class SteakPostVisibilityIntegrationTest {
         MvcResult result = mockMvc.perform(get("/users/" + userId + "/posts").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode posts = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode posts = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
+        if (posts == null || !posts.isArray()) {
+            return false;
+        }
         for (JsonNode post : posts) {
             if (postId.toString().equals(post.get("id").asText())) {
                 return true;

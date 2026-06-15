@@ -50,6 +50,11 @@
   font-size: 0.9rem;
 }
 
+.profile-moderation-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+
 .profile-actions {
   display: flex;
   flex-wrap: wrap;

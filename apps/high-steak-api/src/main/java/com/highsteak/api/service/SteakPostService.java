@@ -7,6 +7,7 @@ import com.highsteak.api.domain.ReviewTag;
 import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.PostDtos;
+import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.repository.ReviewTagRepository;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
@@ -15,8 +16,11 @@ import com.highsteak.api.security.UserPrincipal;
 import com.highsteak.api.validation.ApiConstraints;
 import com.highsteak.api.validation.TextValidation;
 import com.highsteak.api.validation.UploadValidation;
+import com.highsteak.api.util.PaginationHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,10 +58,11 @@ public class SteakPostService {
     private String uploadsDir;
 
     @Transactional(readOnly = true)
-    public List<PostDtos.PostResponse> getFeed() {
-        return steakPostRepository.findByHiddenFalseAndVisibilityOrderByCreatedAtDesc(PostVisibility.PUBLIC).stream()
-                .map(this::toResponse)
-                .toList();
+    public PageDtos.PageResponse<PostDtos.PostResponse> getFeed(int page, int size) {
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        Page<SteakPost> posts = steakPostRepository.findByHiddenFalseAndVisibilityOrderByCreatedAtDesc(
+                PostVisibility.PUBLIC, pageable);
+        return PaginationHelper.toPageResponse(posts, this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -67,11 +72,14 @@ public class SteakPostService {
         if (!canViewPost(viewer, post)) {
             throw new ResponseStatusException(NOT_FOUND, "Post not found");
         }
-        return toResponse(post);
+        return toResponse(post, viewer);
     }
 
     public boolean canViewPost(UserPrincipal viewer, SteakPost post) {
         if (post.isHidden()) {
+            if (viewer != null && viewer.getId().equals(post.getUser().getId())) {
+                return true;
+            }
             return viewer != null && viewer.hasScope("posts:moderate");
         }
         if (viewer != null && viewer.getId().equals(post.getUser().getId())) {
@@ -91,48 +99,65 @@ public class SteakPostService {
     }
 
     @Transactional(readOnly = true)
-    public List<PostDtos.PostResponse> getMyPosts(UserPrincipal principal) {
-        return steakPostRepository.findByUserIdOrderByCreatedAtDesc(principal.getId()).stream()
-                .map(this::toResponse)
-                .toList();
+    public PageDtos.PageResponse<PostDtos.PostResponse> getMyPosts(UserPrincipal principal, int page, int size) {
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        Page<SteakPost> posts = steakPostRepository.findByUserIdOrderByCreatedAtDesc(principal.getId(), pageable);
+        return PaginationHelper.toPageResponse(posts, post -> toResponse(post, principal));
     }
 
     @Transactional(readOnly = true)
-    public List<PostDtos.PostResponse> getHiddenPosts() {
-        return steakPostRepository.findByHiddenTrueOrderByCreatedAtDesc().stream()
-                .map(this::toResponse)
-                .toList();
+    public PageDtos.PageResponse<PostDtos.PostResponse> getHiddenPosts(int page, int size) {
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        Page<SteakPost> posts = steakPostRepository.findByHiddenTrueOrderByCreatedAtDesc(pageable);
+        return PaginationHelper.toPageResponse(posts, this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<PostDtos.PostResponse> getFollowingFeed(UserPrincipal principal) {
+    public PageDtos.PageResponse<PostDtos.PostResponse> getFollowingFeed(UserPrincipal principal, int page, int size) {
         Set<UUID> followedUserIds = subscriptionService.getSubscribedUserIds(principal.getId());
         if (followedUserIds.isEmpty()) {
-            return List.of();
+            return emptyPage(page, size);
         }
-        return steakPostRepository.findByUserIdInAndHiddenFalseOrderByCreatedAtDesc(followedUserIds).stream()
-                .map(this::toResponse)
-                .toList();
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        Page<SteakPost> posts = steakPostRepository.findByUserIdInAndHiddenFalseOrderByCreatedAtDesc(
+                followedUserIds, pageable);
+        return PaginationHelper.toPageResponse(posts, this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<PostDtos.PostResponse> getVisiblePostsForProfile(UUID profileUserId, UserPrincipal viewer) {
+    public PageDtos.PageResponse<PostDtos.PostResponse> getVisiblePostsForProfile(
+            UUID profileUserId, UserPrincipal viewer, int page, int size) {
         if (!userRepository.existsById(profileUserId)) {
             throw new ResponseStatusException(NOT_FOUND, "User not found");
         }
         UUID viewerId = viewer != null ? viewer.getId() : null;
-        List<SteakPost> posts;
-        if (viewerId == null) {
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        Page<SteakPost> posts;
+        if (viewerId != null && viewerId.equals(profileUserId)) {
+            posts = steakPostRepository.findByUserIdOrderByCreatedAtDesc(profileUserId, pageable);
+        } else if (viewerId == null) {
             posts = steakPostRepository.findByUserIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
-                    profileUserId, PostVisibility.PUBLIC);
+                    profileUserId, PostVisibility.PUBLIC, pageable);
         } else {
-            posts = steakPostRepository.findVisiblePostsForProfile(profileUserId, viewerId);
+            posts = steakPostRepository.findVisiblePostsForProfile(profileUserId, viewerId, pageable);
         }
-        return posts.stream().map(this::toResponse).toList();
+        return PaginationHelper.toPageResponse(posts, post -> toResponse(post, viewer));
+    }
+
+    private PageDtos.PageResponse<PostDtos.PostResponse> emptyPage(int page, int size) {
+        Pageable pageable = PaginationHelper.pageable(page, size);
+        return new PageDtos.PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0);
     }
 
     @Transactional(readOnly = true)
-    public long countVisiblePostsForProfile(UUID profileUserId, UUID viewerId) {
+    public long countVisiblePostsForProfile(UUID profileUserId, UserPrincipal viewer) {
+        if (!userRepository.existsById(profileUserId)) {
+            throw new ResponseStatusException(NOT_FOUND, "User not found");
+        }
+        UUID viewerId = viewer != null ? viewer.getId() : null;
+        if (viewerId != null && viewerId.equals(profileUserId)) {
+            return steakPostRepository.countByUserId(profileUserId);
+        }
         if (viewerId == null) {
             return steakPostRepository.countByUserIdAndHiddenFalseAndVisibility(
                     profileUserId, PostVisibility.PUBLIC);
@@ -325,19 +350,45 @@ public class SteakPostService {
     }
 
     @Transactional
-    public PostDtos.PostResponse hidePost(UUID postId) {
+    public PostDtos.PostResponse hidePost(UUID postId, String reason) {
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
         post.setHidden(true);
+        post.setModerationReason(normalizeModerationReason(reason));
+        post.setModerationRestoredAt(null);
         post = steakPostRepository.save(post);
         return toResponse(post);
     }
 
+    @Transactional
+    public PostDtos.PostResponse unhidePost(UUID postId) {
+        SteakPost post = steakPostRepository.findWithDetailsById(postId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
+        post.setHidden(false);
+        post.setModerationReason(null);
+        post.setModerationRestoredAt(java.time.Instant.now());
+        post = steakPostRepository.save(post);
+        return toResponse(post);
+    }
+
+    private String normalizeModerationReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return null;
+        }
+        return TextValidation.bounded(reason.trim(), "Moderation reason", 1, ApiConstraints.MODERATION_REASON_MAX);
+    }
+
     public PostDtos.PostResponse toResponse(SteakPost post) {
+        return toResponse(post, null);
+    }
+
+    public PostDtos.PostResponse toResponse(SteakPost post, UserPrincipal viewer) {
         List<String> imageUrls = uniqueImageUrls(post.getImages());
         List<PostDtos.ReviewTagSummary> tags = post.getReviewTags().stream()
                 .map(link -> reviewTagService.toSummary(link.getTag()))
                 .toList();
+        boolean includeAuthorModerationFields = viewer != null
+                && viewer.getId().equals(post.getUser().getId());
         return new PostDtos.PostResponse(
                 post.getId(),
                 post.getTitle(),
@@ -348,6 +399,8 @@ public class SteakPostService {
                 post.getRestaurantLocation(),
                 post.getCreatedAt(),
                 post.isHidden(),
+                post.isHidden() ? post.getModerationReason() : null,
+                includeAuthorModerationFields ? post.getModerationRestoredAt() : null,
                 post.getVisibility(),
                 authService.toAuthorSummary(post.getUser()),
                 tags);

@@ -187,15 +187,16 @@ paths:
         - posts:read
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
-          description: List of posts
+          description: Paginated list of posts
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PostResponse'
+                $ref: '#/components/schemas/PostPage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -256,15 +257,16 @@ paths:
         - posts:read:own
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
-          description: User's posts
+          description: Paginated user's posts
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PostResponse'
+                $ref: '#/components/schemas/PostPage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -279,15 +281,16 @@ paths:
         - posts:moderate
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
-          description: Hidden posts
+          description: Paginated hidden posts
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PostResponse'
+                $ref: '#/components/schemas/PostPage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -375,8 +378,39 @@ paths:
   /posts/{id}/hide:
     patch:
       tags: [Posts]
-      summary: Hide a post (moderators)
+      summary: Hide a post from public feeds (moderators)
       operationId: hidePost
+      x-required-scopes:
+        - posts:moderate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HidePostRequest'
+      responses:
+        '200':
+          description: Post hidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/{id}/unhide:
+    patch:
+      tags: [Posts]
+      summary: Restore a hidden post to public feeds (moderators)
+      operationId: unhidePost
       x-required-scopes:
         - posts:moderate
       security:
@@ -385,7 +419,7 @@ paths:
         - $ref: '#/components/parameters/PostId'
       responses:
         '200':
-          description: Post hidden
+          description: Post restored
           content:
             application/json:
               schema:
@@ -408,15 +442,15 @@ paths:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
-          description: Comments
+          description: Paginated comments
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CommentResponse'
+                $ref: '#/components/schemas/CommentPage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -462,15 +496,16 @@ paths:
         - subscriptions:read
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
-          description: Posts from followed users
+          description: Paginated posts from followed users
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PostResponse'
+                $ref: '#/components/schemas/PostPage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -552,49 +587,111 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
       responses:
         '200':
-          description: User posts
+          description: Paginated user posts
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PostResponse'
+                $ref: '#/components/schemas/PostPage'
         '404':
           $ref: '#/components/responses/NotFound'
 
   /users:
     get:
       tags: [Users]
-      summary: List all users (admin)
+      summary: List users with search and pagination
       operationId: listUsers
       x-required-scopes:
         - users:read
+      description: Available to admins and moderators for the Manage page user list.
       security:
         - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by username, display name, or email (case-insensitive).
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
         '200':
-          description: User list
+          description: Paginated user list
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/UserSummary'
+                $ref: '#/components/schemas/AdminUserPage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /users/{id}/blocked:
+    patch:
+      tags: [Users]
+      summary: Block or unblock a user account
+      operationId: setUserBlocked
+      x-required-scopes:
+        - users:block
+      description: |
+        Blocked users cannot sign in or use existing JWTs. Moderators may block regular users;
+        blocking staff accounts requires `users:manage`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserBlockedRequest'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /users/{id}/role:
     patch:
       tags: [Users]
-      summary: Change a user's role (admin)
+      summary: Assign or remove moderator role (admin)
       operationId: updateUserRole
       x-required-scopes:
         - users:manage
-      description: Assigns a role server-side. Role/scopes are not returned in the response — affected users must re-login for a new JWT.
+      description: |
+        Promotes a member to MODERATOR or demotes back to USER. ADMIN accounts cannot be changed
+        through this endpoint. Affected users must re-login for a new JWT.
       security:
         - bearerAuth: []
       parameters:
@@ -616,7 +713,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserSummary'
+                $ref: '#/components/schemas/AdminUserSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -733,7 +830,7 @@ components:
     "posts:moderate": Hide posts from public feeds
     "comments:write": Add comments to posts
     "users:discover": Search users to follow
-    "users:read": List all users (admin)
+    "users:read": List all users (admin and moderator)
     "users:manage": Change user roles (admin)
     "subscriptions:read": View following feed and subscription list
     "subscriptions:write": Follow and unfollow users
@@ -748,6 +845,25 @@ components:
         type: string
         format: uuid
       example: b2c3d4e5-f6a7-8901-bcde-f12345678901
+
+    PageNumber:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+    PageSize:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
 
   schemas:
     Username:
@@ -993,14 +1109,104 @@ components:
           description: Relative URL to profile photo, or null if unset.
           example: /uploads/avatar-abc.jpg
 
+    AdminUserSummary:
+      type: object
+      required: [id, username, email, displayName, role, blocked]
+      description: |
+        Admin-only user record from `GET /users`. Includes assigned role for management UI.
+        Public `/auth/me` still uses `UserSummary` without role.
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          $ref: '#/components/schemas/Username'
+        email:
+          $ref: '#/components/schemas/Email'
+        displayName:
+          $ref: '#/components/schemas/DisplayName'
+        avatarUrl:
+          type: string
+          nullable: true
+          maxLength: 512
+        role:
+          type: string
+          enum: [USER, MODERATOR, ADMIN]
+          example: USER
+        blocked:
+          type: boolean
+          description: When true, the user cannot sign in.
+
+    AdminUserPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserSummary'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    PostPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PostResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    CommentPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    UpdateUserBlockedRequest:
+      type: object
+      required: [blocked]
+      properties:
+        blocked:
+          type: boolean
+          description: Set true to block sign-in, false to restore access.
+
     UpdateUserRoleRequest:
       type: object
       required: [role]
       properties:
         role:
           type: string
-          enum: [USER, MODERATOR, ADMIN]
-          description: New role to assign (admin only).
+          enum: [USER, MODERATOR]
+          description: USER removes moderator access; MODERATOR grants moderation tools.
           example: MODERATOR
 
     UserPublicProfile:
@@ -1029,6 +1235,15 @@ components:
         subscribed:
           type: boolean
           description: Whether the authenticated viewer follows this user.
+        blocked:
+          type: boolean
+          nullable: true
+          description: Present when the viewer has `users:block`; otherwise omitted.
+        role:
+          type: string
+          nullable: true
+          enum: [USER, MODERATOR, ADMIN]
+          description: Present when the viewer has `users:block`; otherwise omitted.
           example: true
 
     SubscriptionSummary:
@@ -1095,6 +1310,16 @@ components:
           type: boolean
           description: True if moderators hid the post from public feeds.
           example: false
+        moderationReason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Optional explanation shown to the author when the post is hidden.
+        moderationRestoredAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set when a moderator restores the post; visible to the author only.
         visibility:
           $ref: '#/components/schemas/PostVisibility'
         author:
@@ -1154,6 +1379,15 @@ components:
           example: '2026-05-30T19:00:00Z'
         author:
           $ref: '#/components/schemas/AuthorSummary'
+
+    HidePostRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Optional message for the post author explaining why it was removed from feeds.
 
     CreateCommentRequest:
       type: object

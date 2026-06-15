@@ -1,5 +1,6 @@
 package com.highsteak.api.controller;
 
+import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.dto.SubscriptionDtos;
 import com.highsteak.api.security.UserPrincipal;
@@ -36,9 +37,11 @@ public class UserDiscoveryController {
 
     @GetMapping("/{id}/posts")
     @PreAuthorize("hasAuthority('posts:read')")
-    public List<PostDtos.PostResponse> getUserPosts(
+    public PageDtos.PageResponse<PostDtos.PostResponse> getUserPosts(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return userDiscoveryService.getUserPublicPosts(id, principal);
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return userDiscoveryService.getUserPublicPosts(id, principal, page, size);
     }
 }

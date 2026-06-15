@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { postImageUrl } from '../api/client'
+import { RoleGate } from './RoleGate'
 import { useAuth } from '../context/AuthContext'
 import { displayInitials } from '../utils/displayInitials'
 import './UserMenu.css'
@@ -102,6 +103,17 @@ export function UserMenu() {
           >
             Following
           </Link>
+
+          <RoleGate anyScope={['posts:moderate', 'users:read']}>
+            <Link
+              to="/manage"
+              className="user-menu-item"
+              role="menuitem"
+              onClick={closeMenu}
+            >
+              Manage
+            </Link>
+          </RoleGate>
 
           <hr className="user-menu-divider" />
 

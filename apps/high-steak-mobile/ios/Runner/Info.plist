@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose steak photos to share in your posts.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save steak photos to your library.</string>
 </dict>
 </plist>

@@ -1,10 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
+  deletePost,
   fetchUserPosts,
   fetchUserProfile,
+  FEED_PAGE_SIZE,
+  hidePost,
   postImageUrl,
   primaryPostImage,
+  setUserBlocked,
+  unhidePost,
   subscribeToUser,
   unsubscribeFromUser,
   updateProfile,
@@ -12,21 +17,30 @@ import {
   type UserPublicProfile,
 } from '../api/client'
 import { AvatarCropModal } from '../components/AvatarCropModal'
+import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { HidePostDialog } from '../components/HidePostDialog'
 import { PageBackLink } from '../components/BackLink'
+import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
+import { useModerationNoticesContext } from '../context/ModerationNoticesContext'
+import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
 import { listItemBackState } from '../navigation'
 import { displayInitials } from '../utils/displayInitials'
 import { validateImageFile, validateProfileForm } from '../utils/validation'
 import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
+import '../components/AuthorPostModerationNotice.css'
+import '../components/ManagementPage.css'
+import './FeedPage.css'
 import './ProfilePage.css'
 
 export function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
   const { user, token, isAuthenticated, hasScope, applyToken } = useAuth()
+  const { hiddenPosts: moderatedHiddenPosts } = useModerationNoticesContext()
   const [profile, setProfile] = useState<UserPublicProfile | null>(null)
-  const [posts, setPosts] = useState<SteakPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pendingFollow, setPendingFollow] = useState(false)
@@ -37,19 +51,47 @@ export function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [blockingUser, setBlockingUser] = useState(false)
+  const [hideTarget, setHideTarget] = useState<SteakPost | null>(null)
+  const [hiding, setHiding] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<SteakPost | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [profileAlertExpanded, setProfileAlertExpanded] = useState(false)
 
   const isOwnProfile = isAuthenticated && user?.id === userId
   const canFollow = isAuthenticated && hasScope('subscriptions:write') && !isOwnProfile
   const canPost = isOwnProfile && hasScope('posts:write')
+  const canModerateProfile = hasScope('posts:moderate') && !isOwnProfile
+  const canBlockProfile =
+    hasScope('users:block') && !isOwnProfile && profile?.role === 'USER'
+
+  const loadPostsPage = useCallback(
+    async (page: number) => {
+      if (!token || !userId) {
+        return { content: [], page: 0, size: FEED_PAGE_SIZE, totalElements: 0, totalPages: 0 }
+      }
+      return fetchUserPosts(userId, token, { page, size: FEED_PAGE_SIZE })
+    },
+    [token, userId],
+  )
+
+  const {
+    posts,
+    setPosts,
+    loading: postsLoading,
+    loadingMore: postsLoadingMore,
+    error: postsError,
+    hasMore: postsHasMore,
+    sentinelRef: postsSentinelRef,
+  } = useInfinitePostFeed(loadPostsPage, `${userId}:${token ?? 'anon'}`)
 
   useEffect(() => {
     if (!userId || !token) return
     setLoading(true)
     setError(null)
-    Promise.all([fetchUserProfile(userId, token), fetchUserPosts(userId, token)])
-      .then(([profileData, postsData]) => {
+    fetchUserProfile(userId, token)
+      .then((profileData) => {
         setProfile(profileData)
-        setPosts(postsData)
         setDisplayName(profileData.displayName)
         setEmail(user?.email ?? '')
       })
@@ -154,6 +196,112 @@ export function ProfilePage() {
     }
   }
 
+  async function confirmHide(reason: string) {
+    if (!token || !hideTarget || !canModerateProfile) return
+    setHiding(true)
+    setError(null)
+    try {
+      const updated = await hidePost(token, hideTarget.id, reason)
+      setPosts((current) =>
+        canModerateProfile && !isOwnProfile
+          ? current.filter((post) => post.id !== hideTarget.id)
+          : current.map((post) => (post.id === hideTarget.id ? updated : post)),
+      )
+      if (!isOwnProfile) {
+        setProfile((current) =>
+          current ? { ...current, postCount: Math.max(0, current.postCount - 1) } : current,
+        )
+      }
+      setHideTarget(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to block post from feed')
+    } finally {
+      setHiding(false)
+    }
+  }
+
+  async function handleUnhidePost(postId: string) {
+    if (!token || !canModerateProfile) return
+    setError(null)
+    try {
+      const updated = await unhidePost(token, postId)
+      setPosts((current) => current.map((post) => (post.id === postId ? updated : post)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to restore post')
+    }
+  }
+
+  async function handleBlockUser() {
+    if (!token || !profile || !canBlockProfile) return
+    setBlockingUser(true)
+    setError(null)
+    try {
+      const nextBlocked = !profile.blocked
+      await setUserBlocked(token, profile.id, nextBlocked)
+      setProfile({ ...profile, blocked: nextBlocked })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update account status')
+    } finally {
+      setBlockingUser(false)
+    }
+  }
+
+  function buildPostMenuItems(post: SteakPost): PostCardMenuItem[] {
+    const items: PostCardMenuItem[] = []
+
+    if (isOwnProfile && hasScope('posts:write')) {
+      items.push({ kind: 'link', label: 'Edit post', to: `/posts/${post.id}/edit` })
+    }
+    if (isOwnProfile && hasScope('posts:delete:own')) {
+      items.push({
+        kind: 'action',
+        label: 'Delete post',
+        tone: 'danger',
+        onSelect: () => setDeleteTarget(post),
+      })
+    }
+    if (canModerateProfile) {
+      if (post.hidden) {
+        items.push({
+          kind: 'action',
+          label: 'Restore to feed',
+          onSelect: () => {
+            void handleUnhidePost(post.id)
+          },
+        })
+      } else {
+        items.push({
+          kind: 'action',
+          label: 'Block from feed',
+          tone: 'danger',
+          onSelect: () => setHideTarget(post),
+        })
+      }
+    }
+
+    return items
+  }
+
+  async function confirmDeletePost() {
+    if (!token || !deleteTarget) return
+    setDeleting(true)
+    setError(null)
+    try {
+      await deletePost(token, deleteTarget.id)
+      setPosts((current) => current.filter((post) => post.id !== deleteTarget.id))
+      setProfile((current) =>
+        current ? { ...current, postCount: Math.max(0, current.postCount - 1) } : current,
+      )
+      setDeleteTarget(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete post')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const hiddenPostCount = isOwnProfile ? moderatedHiddenPosts.length : 0
+
   if (!userId) {
     return <p className="form-error">User not found.</p>
   }
@@ -166,7 +314,7 @@ export function ProfilePage() {
       <PageBackLink defaultTo="/feed" defaultLabel="Back to feed" />
 
       {loading && <p className="muted">Loading profile…</p>}
-      {error && <p className="form-error">{error}</p>}
+      {(error || postsError) && <p className="form-error">{error ?? postsError}</p>}
 
       {profile && !editing && (
         <header className="profile-header">
@@ -182,6 +330,12 @@ export function ProfilePage() {
             <p className="profile-username">@{profile.username}</p>
             <p className="profile-meta">
               {profile.postCount} {profile.postCount === 1 ? 'post' : 'posts'}
+              {profile.blocked && (
+                <>
+                  {' '}
+                  · <span className="status-badge blocked">Blocked</span>
+                </>
+              )}
             </p>
           </div>
           <div className="profile-actions">
@@ -203,6 +357,18 @@ export function ProfilePage() {
                 onClick={toggleFollow}
               >
                 {pendingFollow ? '…' : profile.subscribed ? 'Unfollow' : 'Follow'}
+              </button>
+            )}
+            {canBlockProfile && (
+              <button
+                type="button"
+                className={`btn ghost ${profile.blocked ? '' : 'danger-text'}`}
+                disabled={blockingUser}
+                onClick={() => {
+                  void handleBlockUser()
+                }}
+              >
+                {blockingUser ? '…' : profile.blocked ? 'Unblock user' : 'Block user'}
               </button>
             )}
           </div>
@@ -266,7 +432,41 @@ export function ProfilePage() {
         </form>
       )}
 
-      {!loading && !error && posts.length === 0 && (
+      {isOwnProfile && hiddenPostCount > 0 && !loading && !postsLoading && (
+        <div className="profile-moderation-alert">
+          <button
+            type="button"
+            className="profile-moderation-alert-toggle"
+            aria-expanded={profileAlertExpanded}
+            onClick={() => setProfileAlertExpanded((current) => !current)}
+          >
+            <span className="profile-moderation-alert-icon" aria-hidden="true">
+              ⚠
+            </span>
+            <span className="profile-moderation-alert-summary">
+              {hiddenPostCount === 1
+                ? '1 post hidden from public feeds'
+                : `${hiddenPostCount} posts hidden from public feeds`}
+            </span>
+            <span className="profile-moderation-alert-chevron" aria-hidden="true">
+              {profileAlertExpanded ? '▾' : '▸'}
+            </span>
+          </button>
+          {profileAlertExpanded && (
+            <div className="profile-moderation-alert-details">
+              <p>
+                These posts were removed by moderation. You can still view them below, edit, or
+                delete them.
+              </p>
+              <Link to="/notifications" className="profile-moderation-alert-link">
+                View in notifications →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!loading && !postsLoading && !error && !postsError && posts.length === 0 && (
         <div className="empty-feed">
           <p>{isOwnProfile ? "You haven't posted yet." : 'No public posts yet.'}</p>
           {canPost && (
@@ -278,30 +478,94 @@ export function ProfilePage() {
       )}
 
       <div className="post-grid">
-        {posts.map((post) => (
-          <Link
-            key={post.id}
-            to={`/posts/${post.id}`}
-            state={listItemBackState(`/users/${userId}`, 'Back to profile')}
-            className="post-card post-card-link"
-          >
-            <div className="post-image-wrap">
-              <img src={postImageUrl(primaryPostImage(post))} alt={post.title} loading="lazy" />
-            </div>
-            <div className="post-body">
-              <div className="post-meta">
-                <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+        {posts.map((post) => {
+          const menuItems = buildPostMenuItems(post)
+          const useInteractiveCard = menuItems.length > 0 || (isOwnProfile && post.hidden)
+
+          if (useInteractiveCard) {
+            return (
+              <article
+                key={post.id}
+                className={`post-card ${isOwnProfile && post.hidden ? 'post-card--moderated' : ''}`}
+              >
+                <div className="post-card-media-wrap">
+                  <Link
+                    to={`/posts/${post.id}`}
+                    state={listItemBackState(`/users/${userId}`, 'Back to profile')}
+                    className="post-card-media"
+                  >
+                    <div className="post-image-wrap">
+                      <img
+                        src={postImageUrl(primaryPostImage(post))}
+                        alt={post.title}
+                        loading="lazy"
+                      />
+                    </div>
+                  </Link>
+                  {menuItems.length > 0 && (
+                    <PostCardMenu label={`Actions for ${post.title}`} items={menuItems} />
+                  )}
+                </div>
+                <div className="post-body">
+                  {isOwnProfile && post.hidden && (
+                    <AuthorPostModerationNotice
+                      reason={post.moderationReason}
+                      variant="card"
+                    />
+                  )}
+                  <div className="post-meta">
+                    <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+                  </div>
+                  <Link
+                    to={`/posts/${post.id}`}
+                    state={listItemBackState(`/users/${userId}`, 'Back to profile')}
+                    className="post-title-link"
+                  >
+                    <h2>{post.title}</h2>
+                  </Link>
+                  <StarRating value={post.rating} readOnly />
+                  <ReviewTagChips tags={post.tags ?? []} compact />
+                  {post.restaurantName && (
+                    <p className="post-restaurant">{post.restaurantName}</p>
+                  )}
+                </div>
+              </article>
+            )
+          }
+
+          return (
+            <Link
+              key={post.id}
+              to={`/posts/${post.id}`}
+              state={listItemBackState(`/users/${userId}`, 'Back to profile')}
+              className="post-card post-card-link"
+            >
+              <div className="post-image-wrap">
+                <img src={postImageUrl(primaryPostImage(post))} alt={post.title} loading="lazy" />
               </div>
-              <h2>{post.title}</h2>
-              <StarRating value={post.rating} readOnly />
-              <ReviewTagChips tags={post.tags ?? []} compact />
-              {post.restaurantName && (
-                <p className="post-restaurant">{post.restaurantName}</p>
-              )}
-            </div>
-          </Link>
-        ))}
+              <div className="post-body">
+                <div className="post-meta">
+                  <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+                </div>
+                <h2>{post.title}</h2>
+                <StarRating value={post.rating} readOnly />
+                <ReviewTagChips tags={post.tags ?? []} compact />
+                {post.restaurantName && (
+                  <p className="post-restaurant">{post.restaurantName}</p>
+                )}
+              </div>
+            </Link>
+          )
+        })}
       </div>
+
+      {postsLoading && !loading && <p className="muted">Loading posts…</p>}
+
+      {postsHasMore && !postsLoading && (
+        <div ref={postsSentinelRef} className="infinite-scroll-sentinel">
+          {postsLoadingMore && <p className="muted">Loading more posts…</p>}
+        </div>
+      )}
 
       {cropImageSrc && (
         <AvatarCropModal
@@ -310,6 +574,38 @@ export function ProfilePage() {
           onComplete={handleCropComplete}
         />
       )}
+
+      <HidePostDialog
+        open={hideTarget !== null}
+        postTitle={hideTarget?.title ?? ''}
+        loading={hiding}
+        onConfirm={(reason) => {
+          void confirmHide(reason)
+        }}
+        onCancel={() => {
+          if (!hiding) setHideTarget(null)
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete this post?"
+        message={
+          deleteTarget
+            ? `“${deleteTarget.title}” will be removed permanently. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete post"
+        cancelLabel="Keep post"
+        variant="danger"
+        loading={deleting}
+        onConfirm={() => {
+          void confirmDeletePost()
+        }}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null)
+        }}
+      />
     </section>
   )
 }

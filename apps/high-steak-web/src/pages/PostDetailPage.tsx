@@ -1,17 +1,21 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   addPostComment,
   fetchPost,
   fetchPostComments,
+  FEED_PAGE_SIZE,
   postImageUrl,
-  type PostComment,
   type SteakPost,
 } from '../api/client'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
+import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
 import { PageBackLink } from '../components/BackLink'
 import { useAuth } from '../context/AuthContext'
+import { useModerationNoticesContext } from '../context/ModerationNoticesContext'
+import { useInfiniteComments } from '../hooks/useInfiniteComments'
+import { markModerationPostsSeen, markRestoredNoticesSeen } from '../utils/moderationNotices'
 import { API_CONSTRAINTS } from '../api/constraints'
 import { validateCommentBody } from '../utils/validation'
 import './PostDetailPage.css'
@@ -19,13 +23,35 @@ import './PostDetailPage.css'
 export function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>()
   const { token, isAuthenticated, hasScope, user } = useAuth()
+  const { reload: reloadModerationNotices } = useModerationNoticesContext()
   const [post, setPost] = useState<SteakPost | null>(null)
-  const [comments, setComments] = useState<PostComment[]>([])
   const [activeImage, setActiveImage] = useState(0)
   const [commentBody, setCommentBody] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const loadCommentsPage = useCallback(
+    async (page: number) => {
+      if (!token || !postId) {
+        return { content: [], page: 0, size: FEED_PAGE_SIZE, totalElements: 0, totalPages: 0 }
+      }
+      return fetchPostComments(postId, token, { page, size: FEED_PAGE_SIZE })
+    },
+    [postId, token],
+  )
+
+  const {
+    comments,
+    setComments,
+    totalElements,
+    setTotalElements,
+    loading: commentsLoading,
+    loadingMore: commentsLoadingMore,
+    error: commentsError,
+    hasMore: commentsHasMore,
+    sentinelRef: commentsSentinelRef,
+  } = useInfiniteComments(loadCommentsPage, `${postId}:${token ?? 'anon'}`)
 
   const canComment = isAuthenticated && hasScope('comments:write')
   const canEdit = isAuthenticated && hasScope('posts:write') && user?.id === post?.author.id
@@ -34,15 +60,28 @@ export function PostDetailPage() {
     if (!postId || !token) return
     setLoading(true)
     setError(null)
-    Promise.all([fetchPost(postId, token), fetchPostComments(postId, token)])
-      .then(([postData, commentsData]) => {
+    fetchPost(postId, token)
+      .then((postData) => {
         setPost(postData)
-        setComments(commentsData)
         setActiveImage(0)
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load post'))
       .finally(() => setLoading(false))
   }, [postId, token])
+
+  useEffect(() => {
+    if (!post || !user || post.author.id !== user.id) return
+    if (post.hidden) {
+      markModerationPostsSeen(user.id, [post.id])
+    } else if (post.moderationRestoredAt) {
+      markRestoredNoticesSeen(user.id, [
+        { id: post.id, moderationRestoredAt: post.moderationRestoredAt },
+      ])
+    } else {
+      return
+    }
+    void reloadModerationNotices()
+  }, [post, user, reloadModerationNotices])
 
   async function handleSubmitComment(e: FormEvent) {
     e.preventDefault()
@@ -57,6 +96,7 @@ export function PostDetailPage() {
     try {
       const created = await addPostComment(token, post.id, commentBody.trim())
       setComments((current) => [...current, created])
+      setTotalElements((count) => count + 1)
       setCommentBody('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add comment')
@@ -69,15 +109,21 @@ export function PostDetailPage() {
     return <p className="form-error">Post not found.</p>
   }
 
+  const displayError = error ?? commentsError
+
   return (
     <section className="post-detail-page">
       <PageBackLink defaultTo="/feed" defaultLabel="Back to feed" />
 
       {loading && <p className="muted">Loading post…</p>}
-      {error && <p className="form-error">{error}</p>}
+      {displayError && <p className="form-error">{displayError}</p>}
 
       {post && (
         <>
+          {post.hidden && user?.id === post.author.id && (
+            <AuthorPostModerationNotice reason={post.moderationReason} variant="banner" />
+          )}
+
           <div className="post-detail-grid">
             <div className="post-gallery">
               <div className="post-gallery-main">
@@ -130,7 +176,7 @@ export function PostDetailPage() {
           </div>
 
           <section className="comments-section">
-            <h2>Comments ({comments.length})</h2>
+            <h2>Comments ({totalElements})</h2>
 
             {canComment ? (
               <form className="comment-form" onSubmit={handleSubmitComment}>
@@ -152,6 +198,8 @@ export function PostDetailPage() {
               </p>
             )}
 
+            {commentsLoading && !loading && <p className="muted">Loading comments…</p>}
+
             <ul className="comment-list">
               {comments.map((comment) => (
                 <li key={comment.id} className="comment-item">
@@ -164,7 +212,13 @@ export function PostDetailPage() {
               ))}
             </ul>
 
-            {!loading && comments.length === 0 && (
+            {commentsHasMore && !commentsLoading && (
+              <div ref={commentsSentinelRef} className="infinite-scroll-sentinel">
+                {commentsLoadingMore && <p className="muted">Loading more comments…</p>}
+              </div>
+            )}
+
+            {!loading && !commentsLoading && totalElements === 0 && (
               <p className="muted">No comments yet. Be the first!</p>
             )}
           </section>

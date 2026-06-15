@@ -56,6 +56,13 @@
   color: var(--cream-muted);
 }
 
+.infinite-scroll-sentinel {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 0.5rem;
+  min-height: 2rem;
+}
+
 .post-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
