@@ -6,7 +6,7 @@ replicaCount: 1
 apiReplicaCount: 1
 image:
   repository: hossamgbm/high-steak-web
-  tag: '2'
+  tag: '3'
   pullPolicy: Always
 apiImage:
   repository: hossamgbm/high-steak-api
@@ -55,12 +55,10 @@ configMap:
 mysqlSecret:
   name: mysql-secrets
   passwordKey: mysql-root-password
-
 podSecurity:
   runAsUser: 1001
   runAsGroup: 1001
   fsGroup: 1001
-
 secret:
   create: false
   name: high-steak-secret
