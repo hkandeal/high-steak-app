@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "high-steak.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "high-steak.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.apiReplicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "high-steak.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "high-steak.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+        - name: high-steak-api
+          image: "{{ .Values.apiImage.repository }}:{{ .Values.apiImage.tag }}"
+          imagePullPolicy: {{ .Values.apiImage.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "high-steak.fullname" . }}-config
+            - secretRef:
+                name: {{ .Values.secret.name }}
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysqlSecret.name }}
+                  key: {{ .Values.mysqlSecret.passwordKey }}
+          ports:
+            - containerPort: {{ .Values.apiService.targetPort }}
+          {{- if .Values.persistence.uploads.enabled }}
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.apiService.targetPort }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.apiService.targetPort }}
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.apiResources | nindent 12 }}
+      {{- if .Values.persistence.uploads.enabled }}
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: {{ include "high-steak.fullname" . }}-uploads
+      {{- end }}
