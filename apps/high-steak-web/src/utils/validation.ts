@@ -114,6 +114,20 @@ export function validatePostForm(input: {
   return validateImageFiles(input.newImages)
 }
 
+export function isUploadRelatedError(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('photo') ||
+    lower.includes('image') ||
+    lower.includes('upload') ||
+    lower.includes('store image') ||
+    lower.includes('jpeg') ||
+    lower.includes('png') ||
+    lower.includes('webp') ||
+    lower.includes(' mb')
+  )
+}
+
 export function validateRegisterForm(input: {
   username: string
   email: string

@@ -3,7 +3,9 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 ARG VITE_API_URL=https://steaks.apps.hossam.io/api
+ARG VITE_SITE_URL=https://steaks.apps.hossam.io
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SITE_URL=$VITE_SITE_URL
 
 COPY package*.json ./
 RUN npm ci
