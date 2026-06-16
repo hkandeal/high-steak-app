@@ -109,6 +109,19 @@ Ensure `mysql-secrets` and `high-steak-secret` exist in `apps` before applying.
 
 `konghq.com/strip-path: "false"` — the API expects the `/api` context path.
 
+## Troubleshooting
+
+### `Failed to store image` on post upload
+
+The API writes to `/app/uploads` (PVC). The container runs as non-root user `spring` (UID/GID **1001**). The chart sets `podSecurityContext.fsGroup: 1001` so the volume is writable.
+
+After changing the API `Dockerfile` or deployment security context, **rebuild and redeploy the API image**, then restart the pod:
+
+```bash
+argocd app sync high-steak --grpc-web
+kubectl rollout restart deploy/high-steak-api -n apps
+```
+
 ## Mobile clients
 
 ```bash

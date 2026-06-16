@@ -15,8 +15,15 @@ spec:
       labels:
         app: high-steak-api
     spec:
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: high-steak-api
+          securityContext:
+            runAsUser: 1001
+            runAsGroup: 1001
+            runAsNonRoot: true
           image: hossamgbm/high-steak-api:1
           imagePullPolicy: Always
           envFrom:
@@ -29,7 +36,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: mysql-secrets
-                  key: mysql-user-password
+                  key: mysql-root-password
           ports:
             - containerPort: 8080
           volumeMounts:
