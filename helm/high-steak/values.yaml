@@ -2,7 +2,7 @@ nameOverride: ''
 fullnameOverride: ''
 
 namespace:
-  create: false  # deploy into existing shared `apps` namespace
+  create: false # deploy into existing shared `apps` namespace
 
 replicaCount: 1
 apiReplicaCount: 1
@@ -57,7 +57,7 @@ ingress:
 configMap:
   SPRING_DATASOURCE_URL: >-
     jdbc:mysql://db-apps-mysql-svc:3306/high_steak?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-  SPRING_DATASOURCE_USERNAME: high_steak
+  SPRING_DATASOURCE_USERNAME: root
   SERVER_SERVLET_CONTEXT_PATH: /api
   CORS_ALLOWED_ORIGINS: https://steaks.apps.hossam.io
   UPLOADS_DIR: /app/uploads
