@@ -19,8 +19,15 @@ spec:
         {{- include "high-steak.labels" . | nindent 8 }}
         app.kubernetes.io/component: api
     spec:
+      securityContext:
+        fsGroup: {{ .Values.podSecurity.fsGroup }}
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: high-steak-api
+          securityContext:
+            runAsUser: {{ .Values.podSecurity.runAsUser }}
+            runAsGroup: {{ .Values.podSecurity.runAsGroup }}
+            runAsNonRoot: true
           image: "{{ .Values.apiImage.repository }}:{{ .Values.apiImage.tag }}"
           imagePullPolicy: {{ .Values.apiImage.pullPolicy }}
           envFrom:

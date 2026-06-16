@@ -7,7 +7,7 @@ RUN mvn -DskipTests package
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-RUN groupadd --system spring && useradd --system --gid spring spring
+RUN groupadd --system -g 1001 spring && useradd --system -u 1001 -g spring spring
 COPY --from=build /app/target/*.jar app.jar
 RUN mkdir -p /app/uploads && chown -R spring:spring /app
 USER spring:spring
