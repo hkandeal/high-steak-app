@@ -247,7 +247,7 @@ export function RegisterPage() {
 
   return (
     <AuthCard
-      title="Join High Steak"
+      title="Join High Steaks"
       subtitle="Start sharing your best cuts."
       error={error}
       onSubmit={handleSubmit}

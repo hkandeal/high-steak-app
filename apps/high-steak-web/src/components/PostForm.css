@@ -81,6 +81,20 @@
   opacity: 0.9;
 }
 
+.upload-zone-error {
+  border-color: var(--ember);
+}
+
+.upload-error {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  background: var(--error-bg);
+  border-top: 1px solid var(--ember);
+  color: var(--error-text);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .upload-btn {
   flex-shrink: 0;
   background: var(--ember);

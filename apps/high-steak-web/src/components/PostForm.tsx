@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useState, type FormEvent } from 'react'
 import { postImageUrl, type PostVisibility } from '../api/client'
 import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
-import { validateImageFiles, validatePostForm } from '../utils/validation'
+import { validateImageFiles, validatePostForm, isUploadRelatedError } from '../utils/validation'
 import { ReviewTagPicker } from './ReviewTagPicker'
 import { StarRating } from './StarRating'
 import { VisibilityPicker } from './VisibilityPicker'
@@ -80,10 +80,26 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   const [keepImageUrls, setKeepImageUrls] = useState<string[]>(initialImageUrls)
   const [newImages, setNewImages] = useState<File[]>([])
   const [newPreviews, setNewPreviews] = useState<string[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const totalImages = keepImageUrls.length + newImages.length
+
+  function setFormErrors(message: string | null) {
+    if (!message) {
+      setUploadError(null)
+      setFormError(null)
+      return
+    }
+    if (isUploadRelatedError(message)) {
+      setUploadError(message)
+      setFormError(null)
+    } else {
+      setFormError(message)
+      setUploadError(null)
+    }
+  }
 
   const isDirty =
     mode === 'edit' &&
@@ -129,19 +145,19 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       totalImages,
     })
     if (validationError) {
-      setError(validationError)
+      setFormErrors(validationError)
       return false
     }
 
     setLoading(true)
-    setError(null)
+    setFormErrors(null)
     try {
       await onSubmit(data)
       onDirtyChange?.(false)
       if (runComplete) onComplete?.()
       return true
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save post')
+      setFormErrors(err instanceof Error ? err.message : 'Failed to save post')
       return false
     } finally {
       setLoading(false)
@@ -157,10 +173,10 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
     const picked = Array.from(files)
     const imageError = validateImageFiles(picked)
     if (imageError) {
-      setError(imageError)
+      setFormErrors(imageError)
       return
     }
-    setError(null)
+    setFormErrors(null)
     setNewImages((current) => [...current, ...picked])
     setNewPreviews((current) => [...current, ...picked.map((file) => URL.createObjectURL(file))])
   }
@@ -182,7 +198,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
 
   return (
     <form className="post-form" onSubmit={handleSubmit}>
-      <div className="upload-zone">
+      <div className={`upload-zone${uploadError ? ' upload-zone-error' : ''}`}>
         {totalImages > 0 ? (
           <div className="preview-grid">
             {keepImageUrls.map((url) => (
@@ -224,6 +240,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             />
           </label>
         </div>
+        {uploadError && <p className="upload-error">{uploadError}</p>}
       </div>
 
       <div className="form-fields">
@@ -280,7 +297,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
         <VisibilityPicker value={visibility} onChange={setVisibility} />
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      {formError && <p className="form-error">{formError}</p>}
 
       <button type="submit" className="btn primary full" disabled={loading || totalImages === 0}>
         {loading ? pendingLabel : submitLabel}

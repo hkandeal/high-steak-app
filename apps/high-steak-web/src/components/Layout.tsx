@@ -16,9 +16,9 @@ export function Layout() {
     <div className="app-shell">
       <header className="top-nav">
         <Link to={isAuthenticated ? '/feed' : '/'} className="brand">
-          <span className="brand-mark">🥩</span>
+          <img src="/favicon.svg" alt="" className="brand-icon" width={28} height={28} />
           <span>
-            High <em>Steak</em>
+            High <em>Steaks</em>
           </span>
         </Link>
         <nav className="nav-links">
