@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: high-steak-web-svc
+  namespace: apps
+spec:
+  type: ClusterIP
+  selector:
+    app: high-steak-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

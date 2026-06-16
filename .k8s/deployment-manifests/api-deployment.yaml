@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: high-steak-api-deployment
+  namespace: apps
+  labels:
+    application: high-steak-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: high-steak-api
+  template:
+    metadata:
+      labels:
+        app: high-steak-api
+    spec:
+      containers:
+        - name: high-steak-api
+          image: hossamgbm/high-steak-api:1
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: high-steak-config
+            - secretRef:
+                name: high-steak-secret
+          env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secrets
+                  key: mysql-user-password
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              memory: 384Mi
+              cpu: 200m
+            limits:
+              memory: 768Mi
+              cpu: 500m
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: high-steak-api-uploads

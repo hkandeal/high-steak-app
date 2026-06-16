@@ -1,0 +1,86 @@
+nameOverride: ''
+fullnameOverride: ''
+
+namespace:
+  create: false  # deploy into existing shared `apps` namespace
+
+replicaCount: 1
+apiReplicaCount: 1
+
+image:
+  repository: hossamgbm/high-steak-web
+  tag: '1'
+  pullPolicy: Always
+
+apiImage:
+  repository: hossamgbm/high-steak-api
+  tag: '1'
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+apiService:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 50m
+  limits:
+    memory: 128Mi
+    cpu: 200m
+
+apiResources:
+  requests:
+    memory: 384Mi
+    cpu: 200m
+  limits:
+    memory: 768Mi
+    cpu: 500m
+
+ingress:
+  enabled: true
+  className: kong
+  host: steaks.apps.hossam.io
+  tls:
+    enabled: true
+    secretName: high-steak-ingress-tls
+  annotations:
+    konghq.com/strip-path: 'false'
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+configMap:
+  SPRING_DATASOURCE_URL: >-
+    jdbc:mysql://db-apps-mysql-svc:3306/high_steak?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+  SPRING_DATASOURCE_USERNAME: high_steak
+  SERVER_SERVLET_CONTEXT_PATH: /api
+  CORS_ALLOWED_ORIGINS: https://steaks.apps.hossam.io
+  UPLOADS_DIR: /app/uploads
+  BOOTSTRAP_ADMIN_ENABLED: 'true'
+  HTTP_ACCESS_LOG_ENABLED: 'true'
+
+mysqlSecret:
+  name: mysql-secrets
+  passwordKey: mysql-user-password
+
+secret:
+  create: false
+  name: high-steak-secret
+  data:
+    JWT_SECRET: ''
+    BOOTSTRAP_ADMIN_USERNAME: ''
+    BOOTSTRAP_ADMIN_PASSWORD: ''
+    BOOTSTRAP_ADMIN_EMAIL: ''
+    BOOTSTRAP_ADMIN_DISPLAY_NAME: ''
+
+persistence:
+  uploads:
+    enabled: true
+    size: 5Gi
+    storageClass: ''
+    accessMode: ReadWriteOnce

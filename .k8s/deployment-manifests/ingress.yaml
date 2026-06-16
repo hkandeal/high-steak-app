@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: high-steak-ingress
+  namespace: apps
+  annotations:
+    konghq.com/strip-path: "false"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: kong
+  tls:
+    - hosts:
+        - steaks.apps.hossam.io
+      secretName: high-steak-ingress-tls
+  rules:
+    - host: steaks.apps.hossam.io
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: high-steak-api-svc
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: high-steak-web-svc
+                port:
+                  number: 80

@@ -1,0 +1,112 @@
+name: app docker build workflow
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - "apps/high-steak-api/**"
+      - "apps/high-steak-web/**"
+      - "helm/high-steak/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+env:
+  GITHUB_SHA: ${{ github.sha }}
+  REGISTRY_HOSTNAME: docker.io
+  DOCKER_USERNAME: hossamgbm
+  FRONTEND_IMAGE_NAME: high-steak-web
+  API_IMAGE_NAME: high-steak-api
+  VITE_API_URL: https://steaks.apps.hossam.io/api
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate build number
+        uses: einaregilsson/build-number@v3
+        with:
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
+      - name: Print new build number
+        run: echo "Starting Build ${{ env.BUILD_NUMBER }}"
+
+      - name: Starting Build & Push Status Slack Notification
+        uses: ravsamhq/notify-slack-action@v2
+        if: always()
+        with:
+          status: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          notification_title: "Starting Build #${{ env.BUILD_NUMBER }}"
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
+          notify_when: "failure, success, warning"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}
+
+      - name: Build web docker image
+        run: |
+          docker images
+          docker build -t $FRONTEND_IMAGE_NAME:$BUILD_NUMBER \
+            --build-arg VITE_API_URL=$VITE_API_URL \
+            -f apps/high-steak-web/Dockerfile.prod \
+            apps/high-steak-web
+          docker images
+
+      - name: Build high-steak-api docker image
+        run: |
+          docker build -t $API_IMAGE_NAME:$BUILD_NUMBER apps/high-steak-api
+          docker images
+
+      - name: Login to Docker Hub
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Push images to Dockerhub
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          docker image tag $FRONTEND_IMAGE_NAME:$BUILD_NUMBER docker.io/$DOCKER_USERNAME/$FRONTEND_IMAGE_NAME:$BUILD_NUMBER
+          docker image push docker.io/$DOCKER_USERNAME/$FRONTEND_IMAGE_NAME:$BUILD_NUMBER
+          docker image tag $API_IMAGE_NAME:$BUILD_NUMBER docker.io/$DOCKER_USERNAME/$API_IMAGE_NAME:$BUILD_NUMBER
+          docker image push docker.io/$DOCKER_USERNAME/$API_IMAGE_NAME:$BUILD_NUMBER
+
+      - name: Docker Build & Push Status Slack Notification
+        uses: ravsamhq/notify-slack-action@v2
+        if: always()
+        with:
+          status: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          notification_title: "Docker Build & Push Status: {status_message}"
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
+          notify_when: "failure, success, warning"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}
+
+      - name: Invoke High Steak Infra GitOps pipe
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          curl -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ secrets.API_TOKEN_GITHUB }}" \
+          -H "Content-Type: application/json" \
+          --request POST \
+          --data '{"event_type": "app-update-service-build-number", "client_payload": { "buildnumber": "'"$BUILD_NUMBER"'", "api_buildnumber": "'"$BUILD_NUMBER"'" }}' \
+          https://api.github.com/repos/hkandeal/high-steak-app/dispatches
+
+      - name: Invoked Infra Workflow Slack Notification
+        uses: ravsamhq/notify-slack-action@v2
+        if: always()
+        with:
+          status: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          notification_title: "Infra Workflow trigger Status: {status_message}"
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
+          notify_when: "failure, success, warning"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}

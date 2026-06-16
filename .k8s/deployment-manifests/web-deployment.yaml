@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: high-steak-web-deployment
+  namespace: apps
+  labels:
+    application: high-steak-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: high-steak-web
+  template:
+    metadata:
+      labels:
+        app: high-steak-web
+    spec:
+      containers:
+        - name: high-steak-web
+          image: hossamgbm/high-steak-web:1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: 64Mi
+              cpu: 50m
+            limits:
+              memory: 128Mi
+              cpu: 200m

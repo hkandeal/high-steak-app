@@ -1,0 +1,7 @@
+# Optional: skip if the shared `apps` namespace already exists in your cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps
+  labels:
+    name: apps

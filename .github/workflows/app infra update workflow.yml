@@ -1,0 +1,39 @@
+name: app infra update K8s manifest workflow
+
+on:
+  repository_dispatch:
+    types: app-update-service-build-number
+
+permissions:
+  contents: write
+
+jobs:
+  DevDeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Update the Build number
+        run: |
+          echo "Updating the Build Number: ${{ github.event.client_payload.buildnumber }}"
+
+      - name: Update web image version in the yaml
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: 'helm/high-steak/values.yaml'
+          propertyPath: 'image.tag'
+          value: '${{ github.event.client_payload.buildnumber }}'
+          masterBranchName: 'main'
+          branch: 'main'
+          message: 'Update web image to hossamgbm/high-steak-web:${{ github.event.client_payload.buildnumber }}'
+
+      - name: Update API image version in the yaml
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: 'helm/high-steak/values.yaml'
+          propertyPath: 'apiImage.tag'
+          value: '${{ github.event.client_payload.api_buildnumber }}'
+          masterBranchName: 'main'
+          branch: 'main'
+          message: 'Update API image to hossamgbm/high-steak-api:${{ github.event.client_payload.api_buildnumber }}'
