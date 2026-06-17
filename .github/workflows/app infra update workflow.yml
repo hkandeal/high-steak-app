@@ -19,6 +19,7 @@ jobs:
           echo "Updating the Build Number: ${{ github.event.client_payload.buildnumber }}"
 
       - name: Update web image version in the yaml
+        if: github.event.client_payload.buildnumber != ''
         uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: 'helm/high-steak/values.yaml'
@@ -29,6 +30,7 @@ jobs:
           message: 'Update web image to hossamgbm/high-steak-web:${{ github.event.client_payload.buildnumber }}'
 
       - name: Update API image version in the yaml
+        if: github.event.client_payload.api_buildnumber != ''
         uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: 'helm/high-steak/values.yaml'
