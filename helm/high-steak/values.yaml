@@ -10,7 +10,7 @@ image:
   pullPolicy: Always
 apiImage:
   repository: hossamgbm/high-steak-api
-  tag: '7'
+  tag: '9'
   pullPolicy: Always
 service:
   type: ClusterIP
