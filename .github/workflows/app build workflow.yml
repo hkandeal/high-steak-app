@@ -5,8 +5,7 @@ on:
     paths:
       - "apps/high-steak-api/**"
       - "apps/high-steak-web/**"
-      - "helm/high-steak/**"
-      - ".github/workflows/**"
+      - ".github/workflows/app build workflow.yml"
 
 permissions:
   contents: read
@@ -26,6 +25,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            web:
+              - 'apps/high-steak-web/**'
+              - '.github/workflows/app build workflow.yml'
+            api:
+              - 'apps/high-steak-api/**'
+              - '.github/workflows/app build workflow.yml'
 
       - name: Generate build number
         uses: einaregilsson/build-number@v3
@@ -49,6 +60,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}
 
       - name: Build web docker image
+        if: steps.changes.outputs.web == 'true'
         run: |
           docker images
           docker build -t $FRONTEND_IMAGE_NAME:$BUILD_NUMBER \
@@ -60,22 +72,27 @@ jobs:
           docker images
 
       - name: Build high-steak-api docker image
+        if: steps.changes.outputs.api == 'true'
         run: |
           docker build -t $API_IMAGE_NAME:$BUILD_NUMBER apps/high-steak-api
           docker images
 
       - name: Login to Docker Hub
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && (steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true')
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Push images to Dockerhub
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      - name: Push web image to Dockerhub
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && steps.changes.outputs.web == 'true'
         run: |
           docker image tag $FRONTEND_IMAGE_NAME:$BUILD_NUMBER docker.io/$DOCKER_USERNAME/$FRONTEND_IMAGE_NAME:$BUILD_NUMBER
           docker image push docker.io/$DOCKER_USERNAME/$FRONTEND_IMAGE_NAME:$BUILD_NUMBER
+
+      - name: Push API image to Dockerhub
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && steps.changes.outputs.api == 'true'
+        run: |
           docker image tag $API_IMAGE_NAME:$BUILD_NUMBER docker.io/$DOCKER_USERNAME/$API_IMAGE_NAME:$BUILD_NUMBER
           docker image push docker.io/$DOCKER_USERNAME/$API_IMAGE_NAME:$BUILD_NUMBER
 
@@ -93,14 +110,28 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}
 
       - name: Invoke High Steak Infra GitOps pipe
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && (steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true')
+        env:
+          BUILD_WEB: ${{ steps.changes.outputs.web }}
+          BUILD_API: ${{ steps.changes.outputs.api }}
         run: |
+          PAYLOAD='{"event_type": "app-update-service-build-number", "client_payload": {'
+          if [ "$BUILD_WEB" = "true" ]; then
+            PAYLOAD="$PAYLOAD\"buildnumber\": \"$BUILD_NUMBER\""
+          fi
+          if [ "$BUILD_API" = "true" ]; then
+            if [ "$BUILD_WEB" = "true" ]; then
+              PAYLOAD="$PAYLOAD, "
+            fi
+            PAYLOAD="$PAYLOAD\"api_buildnumber\": \"$BUILD_NUMBER\""
+          fi
+          PAYLOAD="$PAYLOAD}}"
           curl -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ secrets.API_TOKEN_GITHUB }}" \
-          -H "Content-Type: application/json" \
-          --request POST \
-          --data '{"event_type": "app-update-service-build-number", "client_payload": { "buildnumber": "'"$BUILD_NUMBER"'", "api_buildnumber": "'"$BUILD_NUMBER"'" }}' \
-          https://api.github.com/repos/hkandeal/high-steak-app/dispatches
+            -H "Authorization: token ${{ secrets.API_TOKEN_GITHUB }}" \
+            -H "Content-Type: application/json" \
+            --request POST \
+            --data "$PAYLOAD" \
+            https://api.github.com/repos/hkandeal/high-steak-app/dispatches
 
       - name: Invoked Infra Workflow Slack Notification
         uses: ravsamhq/notify-slack-action@v2
