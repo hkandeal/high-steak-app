@@ -16,6 +16,7 @@ public class ApiLoggingProperties {
 
     private List<String> skipPaths = new ArrayList<>(List.of(
             "/health",
+            "/config",
             "/swagger-ui",
             "/v3/api-docs",
             "/uploads"

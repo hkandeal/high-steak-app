@@ -89,7 +89,7 @@ uploads:
   maxImagesPerPost: 10
 ```
 
-These map to `APP_MAX_IMAGE_SIZE_MB`, multipart limits, and (for local Docker) the same vars in `docker-compose.yml`. Rebuild the **web** image if you change the client hint (`VITE_MAX_IMAGE_SIZE_MB`).
+These map to `APP_MAX_IMAGE_SIZE_MB` and multipart limits in the API ConfigMap. The web app reads the live limit from `GET /api/config` at startup, so changing `uploads.maxImageSizeMb` and syncing Argo CD updates the UI after the API pod restarts (no web image rebuild required). `VITE_MAX_IMAGE_SIZE_MB` remains a local/build fallback only.
 
 ## Deploy with Helm (recommended)
 

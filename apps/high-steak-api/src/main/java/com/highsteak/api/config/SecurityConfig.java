@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/health",
+                                "/config",
                                 "/auth/register",
                                 "/auth/login",
                                 "/auth/refresh",
