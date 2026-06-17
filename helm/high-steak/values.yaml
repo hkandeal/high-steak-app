@@ -44,6 +44,9 @@ ingress:
   annotations:
     konghq.com/strip-path: 'false'
     cert-manager.io/cluster-issuer: letsencrypt-prod
+uploads:
+  maxImageSizeMb: 3
+  maxImagesPerPost: 10
 configMap:
   SPRING_DATASOURCE_URL: jdbc:mysql://db-apps-mysql-svc:3306/high_steak?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
   SPRING_DATASOURCE_USERNAME: root

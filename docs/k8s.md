@@ -79,6 +79,18 @@ Argo CD syncs `helm/high-steak` from `main` into the **`apps`** namespace with a
 
 Ensure `mysql-secrets` and `high-steak-secret` exist in `apps` before the first sync, or the API pod will fail until secrets are present.
 
+### Upload size
+
+Per-image limit defaults to **3 MB**. Configure in `helm/high-steak/values.yaml`:
+
+```yaml
+uploads:
+  maxImageSizeMb: 3
+  maxImagesPerPost: 10
+```
+
+These map to `APP_MAX_IMAGE_SIZE_MB`, multipart limits, and (for local Docker) the same vars in `docker-compose.yml`. Rebuild the **web** image if you change the client hint (`VITE_MAX_IMAGE_SIZE_MB`).
+
 ## Deploy with Helm (recommended)
 
 ```bash

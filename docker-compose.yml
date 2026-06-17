@@ -40,6 +40,10 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: AdminPass123!
       BOOTSTRAP_ADMIN_EMAIL: admin@high-steak.local
       BOOTSTRAP_ADMIN_DISPLAY_NAME: System Admin
+      APP_MAX_IMAGE_SIZE_MB: "3"
+      APP_MAX_IMAGES_PER_POST: "10"
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 3MB
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 33MB
     ports:
       - "8080:8080"
     volumes:
@@ -55,6 +59,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8080/api
       VITE_SITE_URL: http://localhost:5173
+      VITE_MAX_IMAGE_SIZE_MB: "3"
     ports:
       - "5173:5173"
 

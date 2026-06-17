@@ -53,6 +53,7 @@ public class SteakPostService {
     private final ReviewTagService reviewTagService;
     private final AuthService authService;
     private final SubscriptionService subscriptionService;
+    private final UploadValidation uploadValidation;
 
     @Value("${app.uploads.dir}")
     private String uploadsDir;
@@ -180,7 +181,7 @@ public class SteakPostService {
         if (images == null || images.length == 0) {
             throw new ResponseStatusException(BAD_REQUEST, "At least one image is required");
         }
-        UploadValidation.validateImages(images);
+        uploadValidation.validateImages(images);
 
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
@@ -234,7 +235,7 @@ public class SteakPostService {
             MultipartFile[] newImages,
             List<UUID> tagIds) {
         ValidatedPostFields fields = validatePostFields(title, comment, rating, restaurantName, restaurantLocation);
-        UploadValidation.validateImages(newImages);
+        uploadValidation.validateImages(newImages);
 
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
@@ -415,7 +416,7 @@ public class SteakPostService {
     }
 
     private String storeImage(MultipartFile image) {
-        UploadValidation.validateImage(image);
+        uploadValidation.validateImage(image);
         String original = image.getOriginalFilename();
         String extension = original != null && original.contains(".")
                 ? original.substring(original.lastIndexOf('.'))

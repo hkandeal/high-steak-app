@@ -996,7 +996,7 @@ components:
     ImageUpload:
       type: string
       format: binary
-      description: Image file (JPEG, PNG, WebP, etc.). Each file must be ≤ 1 MB.
+      description: Image file (JPEG, PNG, WebP, etc.). Each file must be ≤ 3 MB (configurable via `APP_MAX_IMAGE_SIZE_MB`).
 
     TagIdList:
       type: array
@@ -1096,7 +1096,7 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/ImageUpload'
-          description: One or more steak photos. At least one required; each ≤ 1 MB.
+          description: One or more steak photos. At least one required; each ≤ 3 MB.
         tagIds:
           $ref: '#/components/schemas/TagIdList'
         visibility:
@@ -1127,7 +1127,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImageUpload'
-          description: New photos to append. Each ≤ 1 MB. Combined with kept URLs, at least one image must remain.
+          description: New photos to append. Each ≤ 3 MB. Combined with kept URLs, at least one image must remain.
         tagIds:
           $ref: '#/components/schemas/TagIdList'
         visibility:

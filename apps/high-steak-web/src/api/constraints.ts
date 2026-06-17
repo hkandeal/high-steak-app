@@ -1,6 +1,14 @@
 /**
  * Field limits aligned with apps/high-steak-api/openapi/openapi.yaml and database columns.
+ * Image size should match API `APP_MAX_IMAGE_SIZE_MB` / `VITE_MAX_IMAGE_SIZE_MB`.
  */
+function resolveMaxImageSizeMb(): number {
+  const parsed = Number(import.meta.env.VITE_MAX_IMAGE_SIZE_MB)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3
+}
+
+const maxImageSizeMb = resolveMaxImageSizeMb()
+
 export const API_CONSTRAINTS = {
   username: { min: 3, max: 50 },
   email: { max: 255 },
@@ -13,8 +21,8 @@ export const API_CONSTRAINTS = {
   commentBody: { min: 1, max: 2_000 },
   searchQuery: { min: 2, max: 100 },
   maxReviewTags: 12,
-  maxImageBytes: 1_048_576,
+  maxImageBytes: maxImageSizeMb * 1_048_576,
   postVisibility: ['PUBLIC', 'FOLLOWERS_ONLY'] as const,
 } as const
 
-export const MAX_IMAGE_MB = API_CONSTRAINTS.maxImageBytes / 1_048_576
+export const MAX_IMAGE_MB = maxImageSizeMb
