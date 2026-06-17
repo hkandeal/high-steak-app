@@ -318,32 +318,29 @@ export function ProfilePage() {
 
       {profile && !editing && (
         <header className="profile-header">
-          <div className="profile-avatar">
-            {avatarSrc ? (
-              <img src={avatarSrc} alt="" />
-            ) : (
-              <span>{displayInitials(profile.displayName)}</span>
-            )}
-          </div>
-          <div className="profile-info">
-            <h1>{profile.displayName}</h1>
-            <p className="profile-username">@{profile.username}</p>
-            <p className="profile-meta">
-              {profile.postCount} {profile.postCount === 1 ? 'post' : 'posts'}
-              {profile.blocked && (
-                <>
-                  {' '}
-                  · <span className="status-badge blocked">Blocked</span>
-                </>
+          <div className="profile-header-main">
+            <div className="profile-avatar">
+              {avatarSrc ? (
+                <img src={avatarSrc} alt="" />
+              ) : (
+                <span>{displayInitials(profile.displayName)}</span>
               )}
-            </p>
+            </div>
+            <div className="profile-info">
+              <h1>{profile.displayName}</h1>
+              <p className="profile-username">@{profile.username}</p>
+              <p className="profile-meta">
+                {profile.postCount} {profile.postCount === 1 ? 'post' : 'posts'}
+                {profile.blocked && (
+                  <>
+                    {' '}
+                    · <span className="status-badge blocked">Blocked</span>
+                  </>
+                )}
+              </p>
+            </div>
           </div>
           <div className="profile-actions">
-            {canPost && (
-              <Link to="/post/new" className="btn primary">
-                Rate a steak
-              </Link>
-            )}
             {isOwnProfile && (
               <button type="button" className="btn ghost" onClick={startEditing}>
                 Edit profile
