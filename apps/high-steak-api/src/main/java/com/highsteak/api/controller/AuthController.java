@@ -29,6 +29,19 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @PostMapping("/refresh")
+    public AuthDtos.AuthResponse refresh(@RequestBody(required = false) AuthDtos.RefreshRequest request) {
+        String refreshToken = request != null ? request.refreshToken() : null;
+        return authService.refresh(refreshToken);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@RequestBody(required = false) AuthDtos.LogoutRequest request) {
+        String refreshToken = request != null ? request.refreshToken() : null;
+        authService.logout(refreshToken);
+    }
+
     @GetMapping("/check-username")
     public AuthDtos.AvailabilityResponse checkUsername(@RequestParam String username) {
         return authService.checkUsernameAvailability(username);

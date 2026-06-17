@@ -60,6 +60,105 @@ export function mergeUserWithToken(token: string, profile: UserProfile): UserSum
 
 export type AuthResponse = {
   token: string
+  refreshToken: string
+}
+
+type SessionHandlers = {
+  getRefreshToken: () => string | null
+  onSessionRefreshed: (response: AuthResponse) => void
+  onLogout: () => void
+}
+
+const REFRESH_BUFFER_MS = 5 * 60 * 1000
+const AUTH_REFRESH_PATHS = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/logout']
+
+let onUnauthorized: (() => void) | null = null
+let sessionHandlers: SessionHandlers | null = null
+let refreshInFlight: Promise<AuthResponse | null> | null = null
+let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler
+}
+
+export function setSessionHandlers(handlers: SessionHandlers | null) {
+  sessionHandlers = handlers
+}
+
+export function getAccessTokenExpiryMs(token: string): number | null {
+  try {
+    const payloadSegment = token.split('.')[1]
+    if (!payloadSegment) return null
+    const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/')
+    const payload = JSON.parse(atob(normalized)) as { exp?: number }
+    return payload.exp ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+export function scheduleProactiveRefresh(token: string, refreshToken: string) {
+  if (proactiveRefreshTimer) {
+    clearTimeout(proactiveRefreshTimer)
+    proactiveRefreshTimer = null
+  }
+  const expiresAt = getAccessTokenExpiryMs(token)
+  if (!expiresAt) return
+  const delay = Math.max(expiresAt - Date.now() - REFRESH_BUFFER_MS, 0)
+  proactiveRefreshTimer = setTimeout(() => {
+  void refreshAccessToken(refreshToken).then((refreshed) => {
+      if (!refreshed) {
+        sessionHandlers?.onLogout()
+        onUnauthorized?.()
+      }
+    })
+  }, delay)
+}
+
+export function clearProactiveRefresh() {
+  if (proactiveRefreshTimer) {
+    clearTimeout(proactiveRefreshTimer)
+    proactiveRefreshTimer = null
+  }
+}
+
+async function refreshAccessToken(refreshToken?: string | null): Promise<AuthResponse | null> {
+  const tokenToUse = refreshToken ?? sessionHandlers?.getRefreshToken()
+  if (!tokenToUse) return null
+  if (refreshInFlight) return refreshInFlight
+
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(resolveUrl('/auth/refresh'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokenToUse }),
+      })
+      if (!res.ok) return null
+      const data = (await res.json()) as AuthResponse
+      sessionHandlers?.onSessionRefreshed(data)
+      return data
+    } catch {
+      return null
+    } finally {
+      refreshInFlight = null
+    }
+  })()
+
+  return refreshInFlight
+}
+
+function shouldAttemptRefresh(path: string) {
+  return !AUTH_REFRESH_PATHS.some((segment) => path.startsWith(segment))
+}
+
+function resolveUrl(path: string) {
+  if (path.startsWith('http')) return path
+  return `${API_URL}${path}`
+}
+
+type ApiFetchOptions = RequestInit & {
+  token?: string | null
 }
 
 export type PostAuthor = {
@@ -128,21 +227,6 @@ export type SubscriptionSummary = {
   subscribedAt: string
 }
 
-type ApiFetchOptions = RequestInit & {
-  token?: string | null
-}
-
-let onUnauthorized: (() => void) | null = null
-
-export function setUnauthorizedHandler(handler: () => void) {
-  onUnauthorized = handler
-}
-
-function resolveUrl(path: string) {
-  if (path.startsWith('http')) return path
-  return `${API_URL}${path}`
-}
-
 function authHeaders(token?: string | null): HeadersInit {
   const headers: HeadersInit = {}
   if (token) {
@@ -152,9 +236,6 @@ function authHeaders(token?: string | null): HeadersInit {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  if (res.status === 401) {
-    onUnauthorized?.()
-  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.message ?? res.statusText)
@@ -167,14 +248,42 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options
-  const res = await fetch(resolveUrl(path), {
-    ...rest,
-    headers: {
-      ...authHeaders(token),
-      ...headers,
-    },
-  })
+
+  const performRequest = async (activeToken?: string | null) => {
+    return fetch(resolveUrl(path), {
+      ...rest,
+      headers: {
+        ...authHeaders(activeToken ?? token),
+        ...headers,
+      },
+    })
+  }
+
+  let res = await performRequest(token)
+  if (res.status === 401 && shouldAttemptRefresh(path)) {
+    const refreshed = await refreshAccessToken()
+    if (refreshed) {
+      res = await performRequest(refreshed.token)
+    } else {
+      sessionHandlers?.onLogout()
+      onUnauthorized?.()
+    }
+  }
+
   return handleResponse<T>(res)
+}
+
+export async function logoutSession(refreshToken: string | null | undefined) {
+  if (!refreshToken) return
+  try {
+    await fetch(resolveUrl('/auth/logout'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+  } catch {
+    // Best-effort server logout.
+  }
 }
 
 export async function register(payload: {

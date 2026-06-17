@@ -45,6 +45,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final PermissionService permissionService;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${app.uploads.dir}")
     private String uploadsDir;
@@ -84,9 +85,7 @@ public class AuthService {
         user = userRepository.save(user);
         user = userRepository.findByIdWithRoleAndPermissions(user.getId()).orElse(user);
 
-        UserPrincipal principal = new UserPrincipal(user);
-        String token = jwtService.generateToken(principal);
-        return new AuthDtos.AuthResponse(token);
+        return refreshTokenService.issueSession(user);
     }
 
     @Transactional(readOnly = true)
@@ -130,9 +129,15 @@ public class AuthService {
             throw new ResponseStatusException(UNAUTHORIZED, "Account is blocked");
         }
 
-        UserPrincipal principal = new UserPrincipal(user);
-        String token = jwtService.generateToken(principal);
-        return new AuthDtos.AuthResponse(token);
+        return refreshTokenService.issueSession(user);
+    }
+
+    public AuthDtos.AuthResponse refresh(String refreshToken) {
+        return refreshTokenService.refresh(refreshToken);
+    }
+
+    public void logout(String refreshToken) {
+        refreshTokenService.revoke(refreshToken);
     }
 
     @Transactional(readOnly = true)

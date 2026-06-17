@@ -90,6 +90,26 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> refresh({required String refreshToken}) async {
+    final res = await _client.post(
+      _uri('/auth/refresh'),
+      headers: _headers(json: true),
+      body: jsonEncode({'refreshToken': refreshToken}),
+    );
+    return _handle(res, (body) => body as Map<String, dynamic>);
+  }
+
+  Future<void> logout({required String refreshToken}) async {
+    final res = await _client.post(
+      _uri('/auth/logout'),
+      headers: _headers(json: true),
+      body: jsonEncode({'refreshToken': refreshToken}),
+    );
+    if (res.statusCode >= 400 && res.statusCode != 401) {
+      throw ApiException('Logout failed (${res.statusCode})');
+    }
+  }
+
   Future<UserProfile> getMe(String token) async {
     final res = await _client.get(
       _uri('/auth/me'),

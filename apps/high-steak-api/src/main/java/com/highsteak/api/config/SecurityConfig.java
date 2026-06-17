@@ -57,6 +57,8 @@ public class SecurityConfig {
                                 "/health",
                                 "/auth/register",
                                 "/auth/login",
+                                "/auth/refresh",
+                                "/auth/logout",
                                 "/auth/check-username",
                                 "/auth/check-email",
                                 "/v3/api-docs/**",

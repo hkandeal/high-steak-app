@@ -149,7 +149,23 @@
 }
 
 @media (max-width: 720px) {
-  .user-menu-name {
-    max-width: 80px;
+  .user-menu-name,
+  .user-menu-chevron {
+    display: none;
+  }
+
+  .user-menu-trigger {
+    padding: 0.2rem;
+    border-radius: 50%;
+  }
+
+  .user-menu-discover {
+    display: block;
+  }
+}
+
+@media (min-width: 721px) {
+  .user-menu-discover {
+    display: none;
   }
 }

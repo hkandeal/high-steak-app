@@ -104,6 +104,17 @@ export function UserMenu() {
             Following
           </Link>
 
+          <RoleGate scope="users:discover">
+            <Link
+              to="/discover"
+              className="user-menu-item user-menu-discover"
+              role="menuitem"
+              onClick={closeMenu}
+            >
+              Steak lovers
+            </Link>
+          </RoleGate>
+
           <RoleGate anyScope={['posts:moderate', 'users:read']}>
             <Link
               to="/manage"

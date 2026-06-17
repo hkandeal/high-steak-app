@@ -23,7 +23,8 @@ springdoc:
 app:
   jwt:
     secret: test-secret-with-at-least-32-characters!!
-    expiration-ms: 3600000
+    access-expiration-ms: 3600000
+    refresh-expiration-ms: 1209600000
   uploads:
     dir: ${java.io.tmpdir}/high-steak-uploads
   cors:

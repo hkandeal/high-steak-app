@@ -11,6 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   padding: 1rem 2rem;
   backdrop-filter: blur(12px);
   background: var(--nav-bg);
@@ -26,6 +27,8 @@
   letter-spacing: 0.02em;
   color: var(--cream);
   text-decoration: none;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .brand em {
@@ -42,6 +45,9 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-shrink: 1;
+  min-width: 0;
+  justify-content: flex-end;
 }
 
 .nav-links a {
@@ -56,11 +62,30 @@
   color: var(--gold);
 }
 
+.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.5rem;
+  white-space: nowrap;
+}
+
+.nav-link-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .page-content {
   flex: 1;
   width: min(1100px, 100%);
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
+}
+
+.app-shell:has(.create-post-fab) .page-content {
+  padding-bottom: 5.5rem;
 }
 
 .site-footer {
@@ -73,13 +98,60 @@
 
 @media (max-width: 720px) {
   .top-nav {
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .brand {
+    font-size: 1.05rem;
+    gap: 0.45rem;
+  }
+
+  .brand-icon {
+    width: 24px;
+    height: 24px;
   }
 
   .nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
+    gap: 0.15rem;
+    flex-wrap: nowrap;
+  }
+
+  .nav-link {
+    padding: 0.4rem;
+  }
+
+  .nav-link-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .nav-discover {
+    display: none;
+  }
+
+  .page-content {
+    padding: 1rem 1rem 4.5rem;
+  }
+
+  .app-shell:has(.create-post-fab) .page-content {
+    padding-bottom: 5.25rem;
+  }
+
+  .site-footer {
+    padding: 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand span {
+    font-size: 0.95rem;
   }
 }

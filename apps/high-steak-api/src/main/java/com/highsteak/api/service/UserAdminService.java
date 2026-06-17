@@ -31,6 +31,7 @@ public class UserAdminService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional(readOnly = true)
     public PageDtos.PageResponse<AuthDtos.AdminUserSummary> listUsers(String query, int page, int size) {
@@ -90,6 +91,9 @@ public class UserAdminService {
 
         user.setBlocked(blocked);
         user = userRepository.save(user);
+        if (blocked) {
+            refreshTokenService.revokeAllForUser(userId);
+        }
         return toAdminSummary(user);
     }
 
