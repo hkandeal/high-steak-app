@@ -36,6 +36,4 @@ public final class ApiConstraints {
     public static final int MODERATION_REASON_MAX = 500;
 
     public static final int MAX_REVIEW_TAGS = 12;
-
-    public static final long MAX_IMAGE_BYTES = 1_048_576L;
 }

@@ -46,6 +46,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final PermissionService permissionService;
     private final RefreshTokenService refreshTokenService;
+    private final UploadValidation uploadValidation;
 
     @Value("${app.uploads.dir}")
     private String uploadsDir;
@@ -177,7 +178,7 @@ public class AuthService {
         }
 
         if (avatar != null && !avatar.isEmpty()) {
-            UploadValidation.validateImage(avatar);
+            uploadValidation.validateImage(avatar);
             user.setAvatarUrl(storeAvatar(avatar));
         }
 

@@ -13,3 +13,7 @@ data:
   UPLOADS_DIR: {{ .Values.configMap.UPLOADS_DIR | quote }}
   BOOTSTRAP_ADMIN_ENABLED: {{ .Values.configMap.BOOTSTRAP_ADMIN_ENABLED | quote }}
   HTTP_ACCESS_LOG_ENABLED: {{ .Values.configMap.HTTP_ACCESS_LOG_ENABLED | quote }}
+  APP_MAX_IMAGE_SIZE_MB: {{ .Values.uploads.maxImageSizeMb | quote }}
+  APP_MAX_IMAGES_PER_POST: {{ .Values.uploads.maxImagesPerPost | quote }}
+  SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: {{ printf "%dMB" (int .Values.uploads.maxImageSizeMb) | quote }}
+  SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: {{ printf "%dMB" (add (mul (int .Values.uploads.maxImageSizeMb) (int .Values.uploads.maxImagesPerPost)) 3) | quote }}
