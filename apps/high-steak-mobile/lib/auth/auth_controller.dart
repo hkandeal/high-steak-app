@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/user.dart';
@@ -16,21 +18,28 @@ class AuthController extends ChangeNotifier {
   final AuthStorage _storage;
 
   String? _token;
+  String? _refreshToken;
   UserSummary? _user;
   bool _initializing = true;
+  Timer? _refreshTimer;
 
   String? get token => _token;
   UserSummary? get user => _user;
-  bool get isAuthenticated => _token != null && _user != null;
+  bool get isAuthenticated => _token != null && _refreshToken != null && _user != null;
   bool get initializing => _initializing;
 
   bool hasScope(String scope) => _user?.hasScope(scope) ?? false;
 
   Future<void> initialize() async {
-    _api.onUnauthorized = logout;
-    final saved = await _storage.readToken();
-    if (saved != null) {
-      await _applyToken(saved, refreshProfile: true);
+    _api.onUnauthorized = () {
+      unawaited(_tryRefreshSession());
+    };
+    final savedAccess = await _storage.readToken();
+    final savedRefresh = await _storage.readRefreshToken();
+    if (savedAccess != null && savedRefresh != null) {
+      await _applyTokens(savedAccess, savedRefresh, refreshProfile: true);
+    } else if (savedAccess != null || savedRefresh != null) {
+      await _storage.clearToken();
     }
     _initializing = false;
     notifyListeners();
@@ -38,8 +47,10 @@ class AuthController extends ChangeNotifier {
 
   Future<void> login(String username, String password) async {
     final result = await _api.login(username: username, password: password);
-    final token = result['token'] as String;
-    await _persistToken(token);
+    await _persistTokens(
+      result['token'] as String,
+      result['refreshToken'] as String,
+    );
   }
 
   Future<void> register({
@@ -54,45 +65,101 @@ class AuthController extends ChangeNotifier {
       password: password,
       displayName: displayName,
     );
-    final token = result['token'] as String;
-    await _persistToken(token);
+    await _persistTokens(
+      result['token'] as String,
+      result['refreshToken'] as String,
+    );
   }
 
-  Future<void> _persistToken(String token) async {
-    await _storage.saveToken(token);
-    await _applyToken(token, refreshProfile: true);
+  Future<void> _persistTokens(String accessToken, String refreshToken) async {
+    await _storage.saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+    await _applyTokens(accessToken, refreshToken, refreshProfile: true);
     notifyListeners();
   }
 
-  Future<void> _applyToken(String token, {required bool refreshProfile}) async {
-    _token = token;
-    var summary = JwtUtils.userFromToken(token);
+  Future<void> _applyTokens(
+    String accessToken,
+    String refreshToken, {
+    required bool refreshProfile,
+  }) async {
+    _token = accessToken;
+    _refreshToken = refreshToken;
+    var summary = JwtUtils.userFromToken(accessToken);
     if (refreshProfile) {
       try {
-        final profile = await _api.getMe(token);
+        final profile = await _api.getMe(accessToken);
         summary = summary.copyWithProfile(profile);
       } catch (_) {
         // Keep JWT claims if profile refresh fails transiently.
       }
     }
     _user = summary;
+    _scheduleProactiveRefresh(accessToken, refreshToken);
+  }
+
+  void _scheduleProactiveRefresh(String accessToken, String refreshToken) {
+    _refreshTimer?.cancel();
+    final expiry = JwtUtils.expiryFromToken(accessToken);
+    if (expiry == null) return;
+    final refreshAt = expiry.subtract(const Duration(minutes: 5));
+    final delay = refreshAt.difference(DateTime.now());
+    _refreshTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+      unawaited(_tryRefreshSession());
+    });
+  }
+
+  Future<void> _tryRefreshSession() async {
+    final refreshToken = _refreshToken ?? await _storage.readRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      await logout();
+      return;
+    }
+    try {
+      final result = await _api.refresh(refreshToken: refreshToken);
+      await _persistTokens(
+        result['token'] as String,
+        result['refreshToken'] as String,
+      );
+    } catch (_) {
+      await logout();
+    }
   }
 
   Future<void> refreshProfile() async {
     final token = _token;
-    if (token == null) return;
-    await _applyToken(token, refreshProfile: true);
+    if (token == null || _refreshToken == null) return;
+    await _applyTokens(token, _refreshToken!, refreshProfile: true);
     notifyListeners();
   }
 
   Future<void> applySessionUpdate(String token) async {
-    await _persistToken(token);
+    final refreshToken = _refreshToken ?? await _storage.readRefreshToken();
+    if (refreshToken == null) return;
+    await _storage.saveToken(token);
+    await _applyTokens(token, refreshToken, refreshProfile: false);
+    notifyListeners();
   }
 
   Future<void> logout() async {
+    _refreshTimer?.cancel();
+    final refreshToken = _refreshToken ?? await _storage.readRefreshToken();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _api.logout(refreshToken: refreshToken);
+      } catch (_) {
+        // Best-effort server logout.
+      }
+    }
     _token = null;
+    _refreshToken = null;
     _user = null;
     await _storage.clearToken();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 }

@@ -135,7 +135,7 @@ export function FeedPage() {
           <p>Fresh from the grill — rated by the community.</p>
         </div>
         {isAuthenticated && (
-          <Link to="/post/new" className="btn primary">
+          <Link to="/post/new" className="btn primary feed-header-action">
             + Rate a steak
           </Link>
         )}

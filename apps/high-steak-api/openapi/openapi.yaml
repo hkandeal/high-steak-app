@@ -91,6 +91,47 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: |
+        Exchanges a valid refresh token for a new access token and rotated refresh token (sliding session).
+        Reuse of a revoked refresh token revokes the entire token family.
+      operationId: refreshAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Session refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out
+      description: Revokes the presented refresh token. Does not require a valid access token.
+      operationId: logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Refresh token revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /auth/check-username:
     get:
       tags: [Auth]
@@ -992,12 +1033,29 @@ components:
 
     AuthResponse:
       type: object
-      required: [token]
+      required: [token, refreshToken]
       properties:
         token:
           type: string
           description: "JWT access token used as `Authorization: Bearer <token>`."
           example: eyJhbGciOiJIUzI1NiJ9...
+        refreshToken:
+          type: string
+          description: Opaque refresh token for `POST /auth/refresh` and `POST /auth/logout`.
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token to revoke. Optional when using an HttpOnly cookie (future).
 
     UpdateProfileRequest:
       type: object

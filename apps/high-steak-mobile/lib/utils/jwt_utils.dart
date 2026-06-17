@@ -16,6 +16,17 @@ class JwtUtils {
     return jsonDecode(decoded) as Map<String, dynamic>;
   }
 
+  static DateTime? expiryFromToken(String token) {
+    try {
+      final payload = parsePayload(token);
+      final exp = payload['exp'];
+      if (exp is! num) return null;
+      return DateTime.fromMillisecondsSinceEpoch((exp * 1000).round(), isUtc: true).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
   static UserSummary userFromToken(String token) {
     final payload = parsePayload(token);
     final scopesRaw = payload['scopes'];

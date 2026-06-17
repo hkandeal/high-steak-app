@@ -24,7 +24,16 @@ public final class AuthDtos {
     ) {}
 
     public record AuthResponse(
-            String token
+            String token,
+            String refreshToken
+    ) {}
+
+    public record RefreshRequest(
+            String refreshToken
+    ) {}
+
+    public record LogoutRequest(
+            String refreshToken
     ) {}
 
     public record UserSummary(

@@ -4,13 +4,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import {
+  clearProactiveRefresh,
   getMe,
+  logoutSession,
   mergeUserWithToken,
   parseUserFromToken,
+  scheduleProactiveRefresh,
+  setSessionHandlers,
   setUnauthorizedHandler,
   type AuthResponse,
   type UserSummary,
@@ -20,6 +25,7 @@ const STORAGE_KEY = 'high-steak-auth'
 
 type AuthState = {
   token: string
+  refreshToken: string
   user: UserSummary
 }
 
@@ -29,7 +35,7 @@ type AuthContextValue = {
   isAuthenticated: boolean
   login: (response: AuthResponse) => void
   applyToken: (token: string) => void
-  logout: () => void
+  logout: () => Promise<void>
   refreshUser: () => Promise<void>
   hasRole: (role: string) => boolean
   hasAnyRole: (...roles: string[]) => boolean
@@ -43,10 +49,11 @@ function loadStored(): AuthState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const stored = JSON.parse(raw) as AuthState
-    if (!stored.token) return null
+    const stored = JSON.parse(raw) as Partial<AuthState>
+    if (!stored.token || !stored.refreshToken) return null
     return {
       token: stored.token,
+      refreshToken: stored.refreshToken,
       user: parseUserFromToken(stored.token),
     }
   } catch {
@@ -54,49 +61,98 @@ function loadStored(): AuthState | null {
   }
 }
 
+function persistSession(next: AuthState) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  scheduleProactiveRefresh(next.token, next.refreshToken)
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState | null>(() => loadStored())
+  const authRef = useRef(auth)
+  authRef.current = auth
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    clearProactiveRefresh()
+    const refreshToken = authRef.current?.refreshToken
+    await logoutSession(refreshToken)
     localStorage.removeItem(STORAGE_KEY)
     setAuth(null)
   }, [])
 
   const login = useCallback((response: AuthResponse) => {
-    const user = parseUserFromToken(response.token)
-    const next = { token: response.token, user }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    const next = {
+      token: response.token,
+      refreshToken: response.refreshToken,
+      user: parseUserFromToken(response.token),
+    }
+    persistSession(next)
     setAuth(next)
   }, [])
 
   const applyToken = useCallback((token: string) => {
-    const user = parseUserFromToken(token)
-    const next = { token, user }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    setAuth((current) => {
+      if (!current?.refreshToken) return current
+      const next = {
+        ...current,
+        token,
+        user: parseUserFromToken(token),
+      }
+      persistSession(next)
+      return next
+    })
+  }, [])
+
+  const handleSessionRefreshed = useCallback((response: AuthResponse) => {
+    const next = {
+      token: response.token,
+      refreshToken: response.refreshToken,
+      user: parseUserFromToken(response.token),
+    }
+    persistSession(next)
     setAuth(next)
   }, [])
 
   const refreshUser = useCallback(async () => {
-    if (!auth?.token) return
+    if (!authRef.current?.token) return
     try {
-      const profile = await getMe(auth.token)
-      const user = mergeUserWithToken(auth.token, profile)
-      const next = { token: auth.token, user }
+      const profile = await getMe(authRef.current.token)
+      const user = mergeUserWithToken(authRef.current.token, profile)
+      const next = { ...authRef.current, user }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
       setAuth(next)
     } catch {
-      logout()
+      await logout()
     }
-  }, [auth?.token, logout])
+  }, [logout])
 
   useEffect(() => {
-    setUnauthorizedHandler(logout)
+    setUnauthorizedHandler(() => {
+      void logout()
+    })
     return () => setUnauthorizedHandler(() => {})
   }, [logout])
 
   useEffect(() => {
+    setSessionHandlers({
+      getRefreshToken: () => authRef.current?.refreshToken ?? null,
+      onSessionRefreshed: handleSessionRefreshed,
+      onLogout: () => {
+        void logout()
+      },
+    })
+    return () => setSessionHandlers(null)
+  }, [handleSessionRefreshed, logout])
+
+  useEffect(() => {
+    if (auth?.token && auth.refreshToken) {
+      scheduleProactiveRefresh(auth.token, auth.refreshToken)
+    }
+    return () => clearProactiveRefresh()
+  }, [auth?.token, auth?.refreshToken])
+
+  useEffect(() => {
     if (auth?.token) {
-      refreshUser()
+      void refreshUser()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -124,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user: auth?.user ?? null,
       token: auth?.token ?? null,
-      isAuthenticated: Boolean(auth?.token),
+      isAuthenticated: Boolean(auth?.token && auth?.refreshToken),
       login,
       applyToken,
       logout,

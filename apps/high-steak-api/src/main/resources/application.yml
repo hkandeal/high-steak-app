@@ -36,7 +36,8 @@ springdoc:
 app:
   jwt:
     secret: ${JWT_SECRET:change-me-in-production-use-at-least-32-characters!!}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:${JWT_EXPIRATION_MS:3600000}}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:1209600000}
   uploads:
     dir: ${UPLOADS_DIR:uploads}
   cors:

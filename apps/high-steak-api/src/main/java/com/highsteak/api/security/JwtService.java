@@ -21,7 +21,7 @@ public class JwtService {
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-ms}") long expirationMs) {
+            @Value("${app.jwt.access-expiration-ms}") long expirationMs) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
@@ -31,6 +31,7 @@ public class JwtService {
         Date expiry = new Date(now.getTime() + expirationMs);
         return Jwts.builder()
                 .subject(principal.getUsername())
+                .id(UUID.randomUUID().toString())
                 .claim("uid", principal.getId().toString())
                 .claim("email", principal.getEmail())
                 .claim("displayName", principal.getDisplayName())
