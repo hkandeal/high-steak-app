@@ -1,16 +1,29 @@
-name: app docker build workflow
+name: Deploy to production
+
 on:
-  push:
-    branches: ["main", "master"]
-    paths:
-      - "apps/high-steak-api/**"
-      - "apps/high-steak-web/**"
-      - ".github/workflows/app build workflow.yml"
+  workflow_dispatch:
+    inputs:
+      deploy_web:
+        description: Build and deploy web image
+        type: boolean
+        default: true
+      deploy_api:
+        description: Build and deploy API image
+        type: boolean
+        default: true
+      confirm:
+        description: Type "deploy" to confirm
+        type: string
+        required: true
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 permissions:
   contents: read
+
 env:
-  GITHUB_SHA: ${{ github.sha }}
   REGISTRY_HOSTNAME: docker.io
   DOCKER_USERNAME: hossamgbm
   FRONTEND_IMAGE_NAME: high-steak-web
@@ -20,39 +33,44 @@ env:
   VITE_MAX_IMAGE_SIZE_MB: "3"
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Validate deploy request
+        run: |
+          if [ "${{ inputs.confirm }}" != "deploy" ]; then
+            echo 'Confirmation failed. Type deploy in the confirm field.'
+            exit 1
+          fi
+          if [ "${{ inputs.deploy_web }}" != "true" ] && [ "${{ inputs.deploy_api }}" != "true" ]; then
+            echo 'Select at least one service to deploy.'
+            exit 1
+          fi
 
-      - name: Detect changed paths
-        uses: dorny/paths-filter@v3
-        id: changes
+      - uses: actions/checkout@v3
         with:
-          filters: |
-            web:
-              - 'apps/high-steak-web/**'
-              - '.github/workflows/app build workflow.yml'
-            api:
-              - 'apps/high-steak-api/**'
-              - '.github/workflows/app build workflow.yml'
+          ref: main
 
       - name: Generate build number
         uses: einaregilsson/build-number@v3
         with:
           token: ${{ secrets.API_TOKEN_GITHUB }}
 
-      - name: Print new build number
-        run: echo "Starting Build ${{ env.BUILD_NUMBER }}"
+      - name: Print deploy target
+        run: |
+          echo "Build #${{ env.BUILD_NUMBER }} from commit ${{ github.sha }}"
+          echo "Deploy web: ${{ inputs.deploy_web }}"
+          echo "Deploy API: ${{ inputs.deploy_api }}"
 
-      - name: Starting Build & Push Status Slack Notification
+      - name: Starting production deploy Slack notification
         uses: ravsamhq/notify-slack-action@v2
         if: always()
         with:
           status: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          notification_title: "Starting Build #${{ env.BUILD_NUMBER }}"
+          notification_title: "Production deploy #${{ env.BUILD_NUMBER }} starting"
           message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
           footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
           notify_when: "failure, success, warning"
@@ -60,67 +78,49 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}
 
       - name: Build web docker image
-        if: steps.changes.outputs.web == 'true'
+        if: inputs.deploy_web == true
         run: |
-          docker images
           docker build -t $FRONTEND_IMAGE_NAME:$BUILD_NUMBER \
             --build-arg VITE_API_URL=$VITE_API_URL \
             --build-arg VITE_SITE_URL=$VITE_SITE_URL \
             --build-arg VITE_MAX_IMAGE_SIZE_MB=$VITE_MAX_IMAGE_SIZE_MB \
             -f apps/high-steak-web/Dockerfile.prod \
             apps/high-steak-web
-          docker images
 
-      - name: Build high-steak-api docker image
-        if: steps.changes.outputs.api == 'true'
+      - name: Build API docker image
+        if: inputs.deploy_api == true
         run: |
           docker build -t $API_IMAGE_NAME:$BUILD_NUMBER apps/high-steak-api
-          docker images
 
       - name: Login to Docker Hub
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && (steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true')
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Push web image to Dockerhub
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && steps.changes.outputs.web == 'true'
+        if: inputs.deploy_web == true
         run: |
           docker image tag $FRONTEND_IMAGE_NAME:$BUILD_NUMBER docker.io/$DOCKER_USERNAME/$FRONTEND_IMAGE_NAME:$BUILD_NUMBER
           docker image push docker.io/$DOCKER_USERNAME/$FRONTEND_IMAGE_NAME:$BUILD_NUMBER
 
       - name: Push API image to Dockerhub
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && steps.changes.outputs.api == 'true'
+        if: inputs.deploy_api == true
         run: |
           docker image tag $API_IMAGE_NAME:$BUILD_NUMBER docker.io/$DOCKER_USERNAME/$API_IMAGE_NAME:$BUILD_NUMBER
           docker image push docker.io/$DOCKER_USERNAME/$API_IMAGE_NAME:$BUILD_NUMBER
 
-      - name: Docker Build & Push Status Slack Notification
-        uses: ravsamhq/notify-slack-action@v2
-        if: always()
-        with:
-          status: ${{ job.status }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          notification_title: "Docker Build & Push Status: {status_message}"
-          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
-          footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
-          notify_when: "failure, success, warning"
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.GITOPS_SLACK_API }}
-
       - name: Invoke High Steak Infra GitOps pipe
-        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && (steps.changes.outputs.web == 'true' || steps.changes.outputs.api == 'true')
         env:
-          BUILD_WEB: ${{ steps.changes.outputs.web }}
-          BUILD_API: ${{ steps.changes.outputs.api }}
+          DEPLOY_WEB: ${{ inputs.deploy_web }}
+          DEPLOY_API: ${{ inputs.deploy_api }}
         run: |
           PAYLOAD='{"event_type": "app-update-service-build-number", "client_payload": {'
-          if [ "$BUILD_WEB" = "true" ]; then
+          if [ "$DEPLOY_WEB" = "true" ]; then
             PAYLOAD="$PAYLOAD\"buildnumber\": \"$BUILD_NUMBER\""
           fi
-          if [ "$BUILD_API" = "true" ]; then
-            if [ "$BUILD_WEB" = "true" ]; then
+          if [ "$DEPLOY_API" = "true" ]; then
+            if [ "$DEPLOY_WEB" = "true" ]; then
               PAYLOAD="$PAYLOAD, "
             fi
             PAYLOAD="$PAYLOAD\"api_buildnumber\": \"$BUILD_NUMBER\""
@@ -133,13 +133,13 @@ jobs:
             --data "$PAYLOAD" \
             https://api.github.com/repos/hkandeal/high-steak-app/dispatches
 
-      - name: Invoked Infra Workflow Slack Notification
+      - name: Production deploy Slack notification
         uses: ravsamhq/notify-slack-action@v2
         if: always()
         with:
           status: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          notification_title: "Infra Workflow trigger Status: {status_message}"
+          notification_title: "Production deploy status: {status_message}"
           message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
           footer: "Linked Repo <{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
           notify_when: "failure, success, warning"

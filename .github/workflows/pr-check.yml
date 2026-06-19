@@ -1,0 +1,56 @@
+name: PR docker build check
+
+on:
+  pull_request:
+    branches: ["main", "master"]
+    paths:
+      - "apps/high-steak-api/**"
+      - "apps/high-steak-web/**"
+      - ".github/workflows/pr-check.yml"
+      - ".github/workflows/deploy-prod.yml"
+
+permissions:
+  contents: read
+
+env:
+  FRONTEND_IMAGE_NAME: high-steak-web
+  API_IMAGE_NAME: high-steak-api
+  VITE_API_URL: https://steaks.apps.hossam.io/api
+  VITE_SITE_URL: https://steaks.apps.hossam.io
+  VITE_MAX_IMAGE_SIZE_MB: "3"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            web:
+              - 'apps/high-steak-web/**'
+              - '.github/workflows/pr-check.yml'
+              - '.github/workflows/deploy-prod.yml'
+            api:
+              - 'apps/high-steak-api/**'
+              - '.github/workflows/pr-check.yml'
+              - '.github/workflows/deploy-prod.yml'
+
+      - name: Build web docker image
+        if: steps.changes.outputs.web == 'true'
+        run: |
+          docker build -t $FRONTEND_IMAGE_NAME:pr-check \
+            --build-arg VITE_API_URL=$VITE_API_URL \
+            --build-arg VITE_SITE_URL=$VITE_SITE_URL \
+            --build-arg VITE_MAX_IMAGE_SIZE_MB=$VITE_MAX_IMAGE_SIZE_MB \
+            -f apps/high-steak-web/Dockerfile.prod \
+            apps/high-steak-web
+
+      - name: Build API docker image
+        if: steps.changes.outputs.api == 'true'
+        run: |
+          docker build -t $API_IMAGE_NAME:pr-check apps/high-steak-api
