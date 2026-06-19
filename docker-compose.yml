@@ -7,6 +7,7 @@ services:
       MYSQL_DATABASE: high_steak
       MYSQL_USER: high_steak
       MYSQL_PASSWORD: high_steak
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     ports:
       - "3306:3306"
     volumes:
@@ -26,7 +27,7 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/high_steak?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/high_steak?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci
       SPRING_DATASOURCE_USERNAME: high_steak
       SPRING_DATASOURCE_PASSWORD: high_steak
       JWT_SECRET: dev-secret-change-in-production-min-32-chars

@@ -2,7 +2,7 @@ spring:
   application:
     name: high-steak-api
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/high_steak?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/high_steak?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci}
     username: ${SPRING_DATASOURCE_USERNAME:high_steak}
     password: ${SPRING_DATASOURCE_PASSWORD:high_steak}
   jpa:
