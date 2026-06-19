@@ -6,7 +6,7 @@ replicaCount: 1
 apiReplicaCount: 1
 image:
   repository: hossamgbm/high-steak-web
-  tag: '13'
+  tag: '14'
   pullPolicy: Always
 apiImage:
   repository: hossamgbm/high-steak-api
