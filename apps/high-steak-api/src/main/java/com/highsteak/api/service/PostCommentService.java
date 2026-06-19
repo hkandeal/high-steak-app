@@ -43,7 +43,7 @@ public class PostCommentService {
             throw new ResponseStatusException(NOT_FOUND, "Post not found");
         }
         Pageable pageable = PaginationHelper.pageable(page, size);
-        Page<PostComment> comments = commentRepository.findByPost_IdOrderByCreatedAtAsc(postId, pageable);
+        Page<PostComment> comments = commentRepository.findByPost_IdOrderByCreatedAtDesc(postId, pageable);
         return PaginationHelper.toPageResponse(comments, this::toResponse);
     }
 

@@ -489,6 +489,7 @@ paths:
     get:
       tags: [Posts]
       summary: List comments on a post
+      description: Returns comments newest-first (`createdAt` descending), matching the main feed sort order.
       operationId: listPostComments
       x-required-scopes:
         - posts:read

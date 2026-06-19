@@ -79,7 +79,7 @@ class FeedPaginationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(3))
                 .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].body").value("Comment 0"));
+                .andExpect(jsonPath("$.content[0].body").value("Comment 2"));
 
         MvcResult pageTwo = mockMvc.perform(get("/posts/" + postId + "/comments")
                         .param("page", "1")

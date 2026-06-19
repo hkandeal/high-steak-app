@@ -12,8 +12,8 @@ import java.util.UUID;
 public interface PostCommentRepository extends JpaRepository<PostComment, UUID> {
 
     @EntityGraph(attributePaths = {"user"})
-    Page<PostComment> findByPost_IdOrderByCreatedAtAsc(UUID postId, Pageable pageable);
+    Page<PostComment> findByPost_IdOrderByCreatedAtDesc(UUID postId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"user"})
-    List<PostComment> findByPost_IdOrderByCreatedAtAsc(UUID postId);
+    List<PostComment> findByPost_IdOrderByCreatedAtDesc(UUID postId);
 }

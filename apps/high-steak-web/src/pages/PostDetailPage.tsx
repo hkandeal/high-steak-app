@@ -98,7 +98,7 @@ export function PostDetailPage() {
     setError(null)
     try {
       const created = await addPostComment(token, post.id, commentBody.trim())
-      setComments((current) => [...current, created])
+      setComments((current) => [created, ...current])
       setTotalElements((count) => count + 1)
       setCommentBody('')
     } catch (err) {

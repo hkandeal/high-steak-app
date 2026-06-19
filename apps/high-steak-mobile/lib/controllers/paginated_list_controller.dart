@@ -65,7 +65,7 @@ class PaginatedListController<T> extends ChangeNotifier {
   }
 
   void addItem(T item) {
-    items.add(item);
+    items.insert(0, item);
     notifyListeners();
   }
 }
