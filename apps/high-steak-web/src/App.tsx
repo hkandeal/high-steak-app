@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { ModerationNoticesProvider } from './context/ModerationNoticesContext'
+import { BookmarksPage } from './pages/BookmarksPage'
 import { ManagementPage } from './pages/ManagementPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { DiscoverPage } from './pages/DiscoverPage'
@@ -77,6 +78,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute requiredScope="subscriptions:read">
             <FollowingPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'bookmarks',
+        element: (
+          <ProtectedRoute requiredScope="bookmarks:read">
+            <BookmarksPage />
           </ProtectedRoute>
         ),
       },

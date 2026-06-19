@@ -43,7 +43,8 @@ public final class PostDtos {
             java.time.Instant moderationRestoredAt,
             PostVisibility visibility,
             AuthorSummary author,
-            List<ReviewTagSummary> tags
+            List<ReviewTagSummary> tags,
+            boolean bookmarked
     ) {}
 
     public record HidePostRequest(

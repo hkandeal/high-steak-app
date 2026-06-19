@@ -30,6 +30,8 @@ class PermissionServiceIntegrationTest {
         assertTrue(scopes.contains("users:discover"));
         assertTrue(scopes.contains("subscriptions:read"));
         assertTrue(scopes.contains("subscriptions:write"));
+        assertTrue(scopes.contains("bookmarks:read"));
+        assertTrue(scopes.contains("bookmarks:write"));
         assertTrue(scopes.contains("comments:write"));
     }
 

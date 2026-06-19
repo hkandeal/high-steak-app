@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
+  bookmarkPost,
   deletePost,
   fetchUserPosts,
   fetchUserProfile,
@@ -9,6 +10,7 @@ import {
   postImageUrl,
   primaryPostImage,
   setUserBlocked,
+  unbookmarkPost,
   unhidePost,
   subscribeToUser,
   unsubscribeFromUser,
@@ -58,6 +60,7 @@ export function ProfilePage() {
   const [hiding, setHiding] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<SteakPost | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [pendingBookmarkId, setPendingBookmarkId] = useState<string | null>(null)
   const [profileAlertExpanded, setProfileAlertExpanded] = useState(false)
   const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
@@ -252,6 +255,21 @@ export function ProfilePage() {
   function buildPostMenuItems(post: SteakPost): PostCardMenuItem[] {
     const items: PostCardMenuItem[] = []
 
+    if (!isOwnProfile && hasScope('bookmarks:write')) {
+      items.push({
+        kind: 'action',
+        label:
+          pendingBookmarkId === post.id
+            ? 'Saving…'
+            : post.bookmarked
+              ? 'Remove bookmark'
+              : 'Bookmark',
+        onSelect: () => {
+          void toggleBookmark(post)
+        },
+      })
+    }
+
     if (isOwnProfile && hasScope('posts:write')) {
       items.push({ kind: 'link', label: 'Edit post', to: `/posts/${post.id}/edit` })
     }
@@ -283,6 +301,29 @@ export function ProfilePage() {
     }
 
     return items
+  }
+
+  async function toggleBookmark(post: SteakPost) {
+    if (!token || pendingBookmarkId) return
+    setPendingBookmarkId(post.id)
+    setError(null)
+    try {
+      if (post.bookmarked) {
+        await unbookmarkPost(token, post.id)
+        setPosts((current) =>
+          current.map((item) => (item.id === post.id ? { ...item, bookmarked: false } : item)),
+        )
+      } else {
+        await bookmarkPost(token, post.id)
+        setPosts((current) =>
+          current.map((item) => (item.id === post.id ? { ...item, bookmarked: true } : item)),
+        )
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update bookmark')
+    } finally {
+      setPendingBookmarkId(null)
+    }
   }
 
   async function confirmDeletePost() {

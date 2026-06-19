@@ -1,5 +1,6 @@
 package com.highsteak.api.service;
 
+import com.highsteak.api.domain.PostBookmarkId;
 import com.highsteak.api.domain.PostImage;
 import com.highsteak.api.domain.PostReviewTag;
 import com.highsteak.api.domain.PostVisibility;
@@ -8,6 +9,7 @@ import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.dto.PageDtos;
+import com.highsteak.api.repository.PostBookmarkRepository;
 import com.highsteak.api.repository.ReviewTagRepository;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
@@ -47,6 +49,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class SteakPostService {
 
     private final SteakPostRepository steakPostRepository;
+    private final PostBookmarkRepository postBookmarkRepository;
     private final UserRepository userRepository;
     private final UserSubscriptionRepository subscriptionRepository;
     private final ReviewTagRepository reviewTagRepository;
@@ -59,11 +62,11 @@ public class SteakPostService {
     private String uploadsDir;
 
     @Transactional(readOnly = true)
-    public PageDtos.PageResponse<PostDtos.PostResponse> getFeed(int page, int size) {
+    public PageDtos.PageResponse<PostDtos.PostResponse> getFeed(UserPrincipal viewer, int page, int size) {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByHiddenFalseAndVisibilityOrderByCreatedAtDesc(
                 PostVisibility.PUBLIC, pageable);
-        return PaginationHelper.toPageResponse(posts, this::toResponse);
+        return toPageResponse(posts, viewer);
     }
 
     @Transactional(readOnly = true)
@@ -103,14 +106,14 @@ public class SteakPostService {
     public PageDtos.PageResponse<PostDtos.PostResponse> getMyPosts(UserPrincipal principal, int page, int size) {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByUserIdOrderByCreatedAtDesc(principal.getId(), pageable);
-        return PaginationHelper.toPageResponse(posts, post -> toResponse(post, principal));
+        return toPageResponse(posts, principal);
     }
 
     @Transactional(readOnly = true)
     public PageDtos.PageResponse<PostDtos.PostResponse> getHiddenPosts(int page, int size) {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByHiddenTrueOrderByCreatedAtDesc(pageable);
-        return PaginationHelper.toPageResponse(posts, this::toResponse);
+        return PaginationHelper.toPageResponse(posts, post -> toResponse(post, null, false));
     }
 
     @Transactional(readOnly = true)
@@ -122,7 +125,7 @@ public class SteakPostService {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByUserIdInAndHiddenFalseOrderByCreatedAtDesc(
                 followedUserIds, pageable);
-        return PaginationHelper.toPageResponse(posts, this::toResponse);
+        return toPageResponse(posts, principal);
     }
 
     @Transactional(readOnly = true)
@@ -142,7 +145,22 @@ public class SteakPostService {
         } else {
             posts = steakPostRepository.findVisiblePostsForProfile(profileUserId, viewerId, pageable);
         }
-        return PaginationHelper.toPageResponse(posts, post -> toResponse(post, viewer));
+        return toPageResponse(posts, viewer);
+    }
+
+    private PageDtos.PageResponse<PostDtos.PostResponse> toPageResponse(
+            Page<SteakPost> posts, UserPrincipal viewer) {
+        Set<UUID> bookmarkedIds = resolveBookmarkedIds(viewer, posts.getContent());
+        return PaginationHelper.toPageResponse(
+                posts, post -> toResponse(post, viewer, bookmarkedIds.contains(post.getId())));
+    }
+
+    private Set<UUID> resolveBookmarkedIds(UserPrincipal viewer, List<SteakPost> posts) {
+        if (viewer == null || posts.isEmpty()) {
+            return Set.of();
+        }
+        List<UUID> postIds = posts.stream().map(SteakPost::getId).toList();
+        return postBookmarkRepository.findPostIdsByUserIdAndPostIdIn(viewer.getId(), postIds);
     }
 
     private PageDtos.PageResponse<PostDtos.PostResponse> emptyPage(int page, int size) {
@@ -218,7 +236,7 @@ public class SteakPostService {
         }
         post = steakPostRepository.saveAndFlush(post);
         attachReviewTags(post, tagIds);
-        return loadPostResponse(post.getId());
+        return loadPostResponse(post.getId(), principal);
     }
 
     @Transactional
@@ -255,7 +273,7 @@ public class SteakPostService {
         syncImages(post, keepImageUrls, newImages);
         replaceReviewTags(post, tagIds);
         steakPostRepository.saveAndFlush(post);
-        return loadPostResponse(post.getId());
+        return loadPostResponse(post.getId(), principal);
     }
 
     private void syncImages(SteakPost post, List<String> keepImageUrls, MultipartFile[] newImages) {
@@ -292,9 +310,12 @@ public class SteakPostService {
         }
     }
 
-    private PostDtos.PostResponse loadPostResponse(UUID postId) {
-        return toResponse(steakPostRepository.findWithDetailsById(postId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found")));
+    private PostDtos.PostResponse loadPostResponse(UUID postId, UserPrincipal principal) {
+        SteakPost post = steakPostRepository.findWithDetailsById(postId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
+        boolean bookmarked = principal != null
+                && postBookmarkRepository.existsById(new PostBookmarkId(principal.getId(), postId));
+        return toResponse(post, principal, bookmarked);
     }
 
     private void attachReviewTags(SteakPost post, List<UUID> tagIds) {
@@ -384,6 +405,12 @@ public class SteakPostService {
     }
 
     public PostDtos.PostResponse toResponse(SteakPost post, UserPrincipal viewer) {
+        boolean bookmarked = viewer != null
+                && postBookmarkRepository.existsById(new PostBookmarkId(viewer.getId(), post.getId()));
+        return toResponse(post, viewer, bookmarked);
+    }
+
+    public PostDtos.PostResponse toResponse(SteakPost post, UserPrincipal viewer, boolean bookmarked) {
         List<String> imageUrls = uniqueImageUrls(post.getImages());
         List<PostDtos.ReviewTagSummary> tags = post.getReviewTags().stream()
                 .map(link -> reviewTagService.toSummary(link.getTag()))
@@ -404,7 +431,8 @@ public class SteakPostService {
                 includeAuthorModerationFields ? post.getModerationRestoredAt() : null,
                 post.getVisibility(),
                 authService.toAuthorSummary(post.getUser()),
-                tags);
+                tags,
+                bookmarked);
     }
 
     private List<String> uniqueImageUrls(List<PostImage> images) {

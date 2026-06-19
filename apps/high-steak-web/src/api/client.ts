@@ -194,6 +194,7 @@ export type SteakPost = {
   visibility: PostVisibility
   author: PostAuthor
   tags: ReviewTag[]
+  bookmarked?: boolean
 }
 
 export type PostComment = {
@@ -463,6 +464,27 @@ export async function fetchMyPosts(
   options: { page?: number; size?: number } = {},
 ): Promise<PageResponse<SteakPost>> {
   return apiFetch(`/posts/mine${paginationQuery(options)}`, { token })
+}
+
+export async function fetchBookmarkedPosts(
+  token: string,
+  options: { page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  return apiFetch(`/bookmarks${paginationQuery(options)}`, { token })
+}
+
+export async function bookmarkPost(token: string, postId: string): Promise<void> {
+  return apiFetch(`/posts/${postId}/bookmark`, {
+    method: 'POST',
+    token,
+  })
+}
+
+export async function unbookmarkPost(token: string, postId: string): Promise<void> {
+  return apiFetch(`/posts/${postId}/bookmark`, {
+    method: 'DELETE',
+    token,
+  })
 }
 
 export async function fetchAllMyPosts(token: string): Promise<SteakPost[]> {
