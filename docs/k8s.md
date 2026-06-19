@@ -143,12 +143,17 @@ flutter run --dart-define=API_BASE_URL=https://steaks.apps.hossam.io/api
 
 ## CI/CD (GitHub Actions)
 
-Two workflows (same pattern as idea-web-craft):
+Merges to `main` do **not** deploy production automatically. Deploy when you are ready via the manual workflow.
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `app build workflow.yml` | Push to `main` / `master` (api/web paths) | Builds `high-steak-web` + `high-steak-api`, pushes to Docker Hub, dispatches infra workflow |
-| `app infra update workflow.yml` | `repository_dispatch` | Bumps `image.tag` and `apiImage.tag` in `helm/high-steak/values.yaml` on `main` |
+| `pr-check.yml` | Pull request to `main` / `master` (api/web paths) | Builds changed Docker images only (no push, no deploy) |
+| `deploy-prod.yml` | Manual **Run workflow** on `main` | Builds selected services from latest `main`, pushes to Docker Hub, dispatches infra workflow |
+| `app infra update workflow.yml` | `repository_dispatch` | Bumps `image.tag` and/or `apiImage.tag` in `helm/high-steak/values.yaml` on `main` |
+
+**Deploy to production:** Actions → **Deploy to production** → choose web/API → type `deploy` in the confirm field → Run workflow.
+
+Optional: configure a `production` environment in GitHub repo settings to require approval before deploy runs.
 
 **Required GitHub repo secrets:**
 
