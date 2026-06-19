@@ -20,6 +20,7 @@ import { AvatarCropModal } from '../components/AvatarCropModal'
 import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
+import { ImageLightbox } from '../components/ImageLightbox'
 import { PageBackLink } from '../components/BackLink'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
@@ -27,6 +28,7 @@ import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
 import { useModerationNoticesContext } from '../context/ModerationNoticesContext'
 import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
+import { useImageLightbox } from '../hooks/useImageLightbox'
 import { listItemBackState } from '../navigation'
 import { displayInitials } from '../utils/displayInitials'
 import { validateImageFile, validateProfileForm } from '../utils/validation'
@@ -57,6 +59,7 @@ export function ProfilePage() {
   const [deleteTarget, setDeleteTarget] = useState<SteakPost | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [profileAlertExpanded, setProfileAlertExpanded] = useState(false)
+  const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
   const isOwnProfile = isAuthenticated && user?.id === userId
   const canFollow = isAuthenticated && hasScope('subscriptions:write') && !isOwnProfile
@@ -486,19 +489,31 @@ export function ProfilePage() {
                 className={`post-card ${isOwnProfile && post.hidden ? 'post-card--moderated' : ''}`}
               >
                 <div className="post-card-media-wrap">
-                  <Link
-                    to={`/posts/${post.id}`}
-                    state={listItemBackState(`/users/${userId}`, 'Back to profile')}
-                    className="post-card-media"
-                  >
-                    <div className="post-image-wrap">
-                      <img
-                        src={postImageUrl(primaryPostImage(post))}
-                        alt={post.title}
-                        loading="lazy"
-                      />
-                    </div>
-                  </Link>
+                  <div className="post-card-media">
+                    <button
+                      type="button"
+                      className="post-image-lightbox-trigger"
+                      onClick={() =>
+                        openLightbox(
+                          post.imageUrls.map((url) => postImageUrl(url)),
+                          0,
+                          post.title,
+                        )
+                      }
+                      aria-label={`View photos for ${post.title}`}
+                    >
+                      <div className="post-image-wrap">
+                        <img
+                          src={postImageUrl(primaryPostImage(post))}
+                          alt={post.title}
+                          loading="lazy"
+                        />
+                        {post.imageUrls.length > 1 && (
+                          <span className="photo-count">+{post.imageUrls.length - 1}</span>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                   {menuItems.length > 0 && (
                     <PostCardMenu label={`Actions for ${post.title}`} items={menuItems} />
                   )}
@@ -531,27 +546,44 @@ export function ProfilePage() {
           }
 
           return (
-            <Link
-              key={post.id}
-              to={`/posts/${post.id}`}
-              state={listItemBackState(`/users/${userId}`, 'Back to profile')}
-              className="post-card post-card-link"
-            >
-              <div className="post-image-wrap">
-                <img src={postImageUrl(primaryPostImage(post))} alt={post.title} loading="lazy" />
-              </div>
+            <article key={post.id} className="post-card">
+              <button
+                type="button"
+                className="post-image-lightbox-trigger"
+                onClick={() =>
+                  openLightbox(
+                    post.imageUrls.map((url) => postImageUrl(url)),
+                    0,
+                    post.title,
+                  )
+                }
+                aria-label={`View photos for ${post.title}`}
+              >
+                <div className="post-image-wrap">
+                  <img src={postImageUrl(primaryPostImage(post))} alt={post.title} loading="lazy" />
+                  {post.imageUrls.length > 1 && (
+                    <span className="photo-count">+{post.imageUrls.length - 1}</span>
+                  )}
+                </div>
+              </button>
               <div className="post-body">
                 <div className="post-meta">
                   <time>{new Date(post.createdAt).toLocaleDateString()}</time>
                 </div>
-                <h2>{post.title}</h2>
+                <Link
+                  to={`/posts/${post.id}`}
+                  state={listItemBackState(`/users/${userId}`, 'Back to profile')}
+                  className="post-title-link"
+                >
+                  <h2>{post.title}</h2>
+                </Link>
                 <StarRating value={post.rating} readOnly />
                 <ReviewTagChips tags={post.tags ?? []} compact />
                 {post.restaurantName && (
                   <p className="post-restaurant">{post.restaurantName}</p>
                 )}
               </div>
-            </Link>
+            </article>
           )
         })}
       </div>
@@ -602,6 +634,14 @@ export function ProfilePage() {
         onCancel={() => {
           if (!deleting) setDeleteTarget(null)
         }}
+      />
+
+      <ImageLightbox
+        open={lightbox !== null}
+        images={lightbox?.images ?? []}
+        initialIndex={lightbox?.index ?? 0}
+        alt={lightbox?.alt}
+        onClose={closeLightbox}
       />
     </section>
   )

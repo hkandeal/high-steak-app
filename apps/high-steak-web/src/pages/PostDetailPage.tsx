@@ -10,11 +10,13 @@ import {
 } from '../api/client'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
+import { ImageLightbox } from '../components/ImageLightbox'
 import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
 import { PageBackLink } from '../components/BackLink'
 import { useAuth } from '../context/AuthContext'
 import { useModerationNoticesContext } from '../context/ModerationNoticesContext'
 import { useInfiniteComments } from '../hooks/useInfiniteComments'
+import { useImageLightbox } from '../hooks/useImageLightbox'
 import { markModerationPostsSeen, markRestoredNoticesSeen } from '../utils/moderationNotices'
 import { API_CONSTRAINTS } from '../api/constraints'
 import { validateCommentBody } from '../utils/validation'
@@ -30,6 +32,7 @@ export function PostDetailPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
   const loadCommentsPage = useCallback(
     async (page: number) => {
@@ -110,6 +113,7 @@ export function PostDetailPage() {
   }
 
   const displayError = error ?? commentsError
+  const galleryImages = post?.imageUrls.map((url) => postImageUrl(url)) ?? []
 
   return (
     <section className="post-detail-page">
@@ -126,12 +130,18 @@ export function PostDetailPage() {
 
           <div className="post-detail-grid">
             <div className="post-gallery">
-              <div className="post-gallery-main">
+              <button
+                type="button"
+                className="post-gallery-main post-gallery-main-button"
+                onClick={() => openLightbox(galleryImages, activeImage, post.title)}
+                aria-label="View photo full size"
+              >
                 <img
                   src={postImageUrl(post.imageUrls[activeImage] ?? '')}
                   alt={post.title}
                 />
-              </div>
+                <span className="post-gallery-expand" aria-hidden="true">⤢</span>
+              </button>
               {post.imageUrls.length > 1 && (
                 <div className="post-gallery-thumbs">
                   {post.imageUrls.map((url, index) => (
@@ -140,6 +150,8 @@ export function PostDetailPage() {
                       type="button"
                       className={`thumb ${index === activeImage ? 'active' : ''}`}
                       onClick={() => setActiveImage(index)}
+                      onDoubleClick={() => openLightbox(galleryImages, index, post.title)}
+                      aria-label={`Show photo ${index + 1}`}
                     >
                       <img src={postImageUrl(url)} alt="" />
                     </button>
@@ -224,6 +236,14 @@ export function PostDetailPage() {
           </section>
         </>
       )}
+
+      <ImageLightbox
+        open={lightbox !== null}
+        images={lightbox?.images ?? []}
+        initialIndex={lightbox?.index ?? 0}
+        alt={lightbox?.alt}
+        onClose={closeLightbox}
+      />
     </section>
   )
 }

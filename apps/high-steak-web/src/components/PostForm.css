@@ -21,6 +21,21 @@
   position: relative;
 }
 
+.preview-image-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: none;
+  cursor: zoom-in;
+}
+
+.preview-image-button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 .preview-item .preview-image {
   width: 100%;
   height: 140px;

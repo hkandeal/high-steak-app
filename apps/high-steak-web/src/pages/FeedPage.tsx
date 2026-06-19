@@ -12,11 +12,13 @@ import {
 } from '../api/client'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
+import { ImageLightbox } from '../components/ImageLightbox'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
 import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
+import { useImageLightbox } from '../hooks/useImageLightbox'
 import { listItemBackState } from '../navigation'
 import './FeedPage.css'
 
@@ -29,6 +31,7 @@ export function FeedPage() {
   const [hideTarget, setHideTarget] = useState<SteakPost | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [hiding, setHiding] = useState(false)
+  const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
   const showFollowingTab = isAuthenticated && hasScope('subscriptions:read')
 
@@ -198,25 +201,34 @@ export function FeedPage() {
             return (
               <article key={post.id} className="post-card">
                 <div className="post-card-media-wrap">
-                  <Link
-                    to={`/posts/${post.id}`}
-                    state={listItemBackState('/feed', 'Back to feed')}
-                    className="post-card-media"
-                  >
-                    <div className="post-image-wrap">
-                      <img
-                        src={postImageUrl(primaryPostImage(post))}
-                        alt={post.title}
-                        loading="lazy"
-                      />
-                      {post.imageUrls.length > 1 && (
-                        <span className="photo-count">+{post.imageUrls.length - 1}</span>
-                      )}
-                      {post.visibility === 'FOLLOWERS_ONLY' && (
-                        <span className="visibility-badge">Followers only</span>
-                      )}
-                    </div>
-                  </Link>
+                  <div className="post-card-media">
+                    <button
+                      type="button"
+                      className="post-image-lightbox-trigger"
+                      onClick={() =>
+                        openLightbox(
+                          post.imageUrls.map((url) => postImageUrl(url)),
+                          0,
+                          post.title,
+                        )
+                      }
+                      aria-label={`View photos for ${post.title}`}
+                    >
+                      <div className="post-image-wrap">
+                        <img
+                          src={postImageUrl(primaryPostImage(post))}
+                          alt={post.title}
+                          loading="lazy"
+                        />
+                        {post.imageUrls.length > 1 && (
+                          <span className="photo-count">+{post.imageUrls.length - 1}</span>
+                        )}
+                        {post.visibility === 'FOLLOWERS_ONLY' && (
+                          <span className="visibility-badge">Followers only</span>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                   {menuItems.length > 0 && (
                     <PostCardMenu label={`Actions for ${post.title}`} items={menuItems} />
                   )}
@@ -288,6 +300,14 @@ export function FeedPage() {
         onCancel={() => {
           if (!deleting) setDeleteTarget(null)
         }}
+      />
+
+      <ImageLightbox
+        open={lightbox !== null}
+        images={lightbox?.images ?? []}
+        initialIndex={lightbox?.index ?? 0}
+        alt={lightbox?.alt}
+        onClose={closeLightbox}
       />
     </section>
   )

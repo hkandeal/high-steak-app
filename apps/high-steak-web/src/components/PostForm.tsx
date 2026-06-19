@@ -1,7 +1,8 @@
-import { forwardRef, useEffect, useImperativeHandle, useState, type FormEvent } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type FormEvent } from 'react'
 import { postImageUrl, type PostVisibility } from '../api/client'
 import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
 import { validateImageFiles, validatePostForm, isUploadRelatedError } from '../utils/validation'
+import { ImageLightbox } from './ImageLightbox'
 import { ReviewTagPicker } from './ReviewTagPicker'
 import { StarRating } from './StarRating'
 import { VisibilityPicker } from './VisibilityPicker'
@@ -83,8 +84,13 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   const totalImages = keepImageUrls.length + newImages.length
+  const previewImages = useMemo(
+    () => [...keepImageUrls.map((url) => postImageUrl(url)), ...newPreviews],
+    [keepImageUrls, newPreviews],
+  )
 
   function setFormErrors(message: string | null) {
     if (!message) {
@@ -201,9 +207,16 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       <div className={`upload-zone${uploadError ? ' upload-zone-error' : ''}`}>
         {totalImages > 0 ? (
           <div className="preview-grid">
-            {keepImageUrls.map((url) => (
+            {keepImageUrls.map((url, index) => (
               <div key={url} className="preview-item">
-                <img src={postImageUrl(url)} alt="" className="preview-image" />
+                <button
+                  type="button"
+                  className="preview-image-button"
+                  onClick={() => setLightboxIndex(index)}
+                  aria-label={`View photo ${index + 1} full size`}
+                >
+                  <img src={postImageUrl(url)} alt="" className="preview-image" />
+                </button>
                 <button type="button" className="preview-remove" onClick={() => removeExistingImage(url)}>
                   Remove
                 </button>
@@ -211,7 +224,14 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
             ))}
             {newPreviews.map((preview, index) => (
               <div key={preview} className="preview-item">
-                <img src={preview} alt="" className="preview-image" />
+                <button
+                  type="button"
+                  className="preview-image-button"
+                  onClick={() => setLightboxIndex(keepImageUrls.length + index)}
+                  aria-label={`View photo ${keepImageUrls.length + index + 1} full size`}
+                >
+                  <img src={preview} alt="" className="preview-image" />
+                </button>
                 <button type="button" className="preview-remove" onClick={() => removeNewImage(index)}>
                   Remove
                 </button>
@@ -302,6 +322,14 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       <button type="submit" className="btn primary full" disabled={loading || totalImages === 0}>
         {loading ? pendingLabel : submitLabel}
       </button>
+
+      <ImageLightbox
+        open={lightboxIndex !== null}
+        images={previewImages}
+        initialIndex={lightboxIndex ?? 0}
+        alt="Post photo preview"
+        onClose={() => setLightboxIndex(null)}
+      />
     </form>
   )
 })
