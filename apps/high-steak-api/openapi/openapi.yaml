@@ -1487,8 +1487,10 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
-          description: Comment text (1–2000 characters).
-          example: What temperature did you pull it at?
+          description: |
+            Plain-text comment (1–2000 characters). Emoji and line breaks are allowed.
+            HTML and other markup are rejected. Post captions and other fields remain plain text only.
+          example: What temperature did you pull it at? 🔥
 
     ApiError:
       type: object

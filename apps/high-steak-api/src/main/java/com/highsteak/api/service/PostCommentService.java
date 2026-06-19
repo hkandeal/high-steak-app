@@ -10,6 +10,7 @@ import com.highsteak.api.repository.PostCommentRepository;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
 import com.highsteak.api.security.UserPrincipal;
+import com.highsteak.api.validation.CommentValidation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +21,6 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -32,6 +32,7 @@ public class PostCommentService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final SteakPostService steakPostService;
+    private final CommentValidation commentValidation;
 
     @Transactional(readOnly = true)
     public PageDtos.PageResponse<PostDtos.CommentResponse> listComments(
@@ -48,10 +49,7 @@ public class PostCommentService {
 
     @Transactional
     public PostDtos.CommentResponse addComment(UserPrincipal principal, UUID postId, String body) {
-        String normalized = body == null ? "" : body.trim();
-        if (normalized.isEmpty()) {
-            throw new ResponseStatusException(BAD_REQUEST, "Comment body is required");
-        }
+        String normalized = commentValidation.normalizeAndValidate(body);
 
         SteakPost post = steakPostRepository.findWithDetailsById(postId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Post not found"));
