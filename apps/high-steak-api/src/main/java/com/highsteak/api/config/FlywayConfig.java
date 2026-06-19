@@ -2,6 +2,7 @@ package com.highsteak.api.config;
 
 import com.highsteak.api.db.migration.V4__UserUuid;
 import com.highsteak.api.db.migration.V7__PostUuid;
+import com.highsteak.api.db.migration.V16__Utf8mb4TextColumns;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ public class FlywayConfig {
     FlywayConfigurationCustomizer registerJavaMigrations() {
         return configuration -> configuration.javaMigrations(
                 new V4__UserUuid(),
-                new V7__PostUuid());
+                new V7__PostUuid(),
+                new V16__Utf8mb4TextColumns());
     }
 }

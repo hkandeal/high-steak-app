@@ -16,6 +16,8 @@ public class V16__Utf8mb4TextColumns extends BaseJavaMigration {
         }
 
         try (Statement stmt = conn.createStatement()) {
+            // Widen individual text columns only. CONVERT TO on whole tables breaks FK charset
+            // alignment between post_comments.post_id and steak_posts.id on shared MySQL instances.
             stmt.execute("""
                     ALTER TABLE post_comments
                     MODIFY body TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL
