@@ -33,7 +33,7 @@ public class SteakPost {
     @Column(nullable = false, length = 120)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
     private String comment;
 
     @Column(nullable = false)
