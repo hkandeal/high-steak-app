@@ -178,6 +178,10 @@ export function validateProfileForm(input: {
 }
 
 export function validateCommentBody(body: string): string | null {
+  if (/<[^>]+>/.test(body)) {
+    return 'HTML is not allowed in comments.'
+  }
+
   return validateTextLength(body, 'Comment', {
     required: true,
     min: API_CONSTRAINTS.commentBody.min,

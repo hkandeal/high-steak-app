@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   addPostComment,
@@ -8,6 +8,8 @@ import {
   postImageUrl,
   type SteakPost,
 } from '../api/client'
+import { CommentBody } from '../components/CommentBody'
+import { CommentComposer } from '../components/CommentComposer'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { ImageLightbox } from '../components/ImageLightbox'
@@ -18,7 +20,6 @@ import { useModerationNoticesContext } from '../context/ModerationNoticesContext
 import { useInfiniteComments } from '../hooks/useInfiniteComments'
 import { useImageLightbox } from '../hooks/useImageLightbox'
 import { markModerationPostsSeen, markRestoredNoticesSeen } from '../utils/moderationNotices'
-import { API_CONSTRAINTS } from '../api/constraints'
 import { validateCommentBody } from '../utils/validation'
 import './PostDetailPage.css'
 
@@ -86,8 +87,7 @@ export function PostDetailPage() {
     void reloadModerationNotices()
   }, [post, user, reloadModerationNotices])
 
-  async function handleSubmitComment(e: FormEvent) {
-    e.preventDefault()
+  async function handleSubmitComment() {
     if (!token || !post || !commentBody.trim()) return
     const validationError = validateCommentBody(commentBody)
     if (validationError) {
@@ -98,7 +98,7 @@ export function PostDetailPage() {
     setError(null)
     try {
       const created = await addPostComment(token, post.id, commentBody.trim())
-      setComments((current) => [...current, created])
+      setComments((current) => [created, ...current])
       setTotalElements((count) => count + 1)
       setCommentBody('')
     } catch (err) {
@@ -191,19 +191,14 @@ export function PostDetailPage() {
             <h2>Comments ({totalElements})</h2>
 
             {canComment ? (
-              <form className="comment-form" onSubmit={handleSubmitComment}>
-                <textarea
-                  value={commentBody}
-                  onChange={(e) => setCommentBody(e.target.value)}
-                  rows={3}
-                  placeholder="Share your thoughts…"
-                  maxLength={API_CONSTRAINTS.commentBody.max}
-                  required
-                />
-                <button type="submit" className="btn primary" disabled={submitting || !commentBody.trim()}>
-                  {submitting ? 'Posting…' : 'Post comment'}
-                </button>
-              </form>
+              <CommentComposer
+                value={commentBody}
+                onChange={setCommentBody}
+                submitting={submitting}
+                onSubmit={() => {
+                  void handleSubmitComment()
+                }}
+              />
             ) : (
               <p className="muted comment-login-hint">
                 <Link to="/login">Log in</Link> to leave a comment.
@@ -219,7 +214,7 @@ export function PostDetailPage() {
                     <Link to={`/users/${comment.author.id}`}>{comment.author.displayName}</Link>
                     <time>{new Date(comment.createdAt).toLocaleString()}</time>
                   </div>
-                  <p>{comment.body}</p>
+                  <CommentBody text={comment.body} />
                 </li>
               ))}
             </ul>
