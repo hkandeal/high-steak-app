@@ -33,9 +33,10 @@ public class SteakPostController {
     @GetMapping
     @PreAuthorize("hasAuthority('posts:read')")
     public PageDtos.PageResponse<PostDtos.PostResponse> getFeed(
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return steakPostService.getFeed(page, size);
+        return steakPostService.getFeed(principal, page, size);
     }
 
     @GetMapping("/mine")

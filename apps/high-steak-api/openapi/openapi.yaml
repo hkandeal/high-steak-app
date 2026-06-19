@@ -857,6 +857,82 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /bookmarks:
+    get:
+      tags: [Bookmarks]
+      summary: List bookmarked posts
+      operationId: listBookmarks
+      x-required-scopes:
+        - bookmarks:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Bookmarked posts (newest bookmarks first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /posts/{postId}/bookmark:
+    post:
+      tags: [Bookmarks]
+      summary: Bookmark a post
+      operationId: bookmarkPost
+      x-required-scopes:
+        - bookmarks:write
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Bookmarked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already bookmarked
+    delete:
+      tags: [Bookmarks]
+      summary: Remove a bookmark
+      operationId: unbookmarkPost
+      x-required-scopes:
+        - bookmarks:write
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Bookmark removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -875,6 +951,7 @@ components:
         - `comments:write`
         - `users:discover`, `users:read`, `users:manage`
         - `subscriptions:read`, `subscriptions:write`
+        - `bookmarks:read`, `bookmarks:write`
 
   x-scope-definitions:
     "posts:read": View non-hidden posts and comments
@@ -889,6 +966,8 @@ components:
     "users:manage": Change user roles (admin)
     "subscriptions:read": View following feed and subscription list
     "subscriptions:write": Follow and unfollow users
+    "bookmarks:read": View bookmarked posts
+    "bookmarks:write": Bookmark and unbookmark posts
 
   parameters:
     PostId:
@@ -1419,6 +1498,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReviewTagSummary'
+        bookmarked:
+          type: boolean
+          description: True if the authenticated user bookmarked this post.
+          example: false
 
     ReviewTagSummary:
       type: object

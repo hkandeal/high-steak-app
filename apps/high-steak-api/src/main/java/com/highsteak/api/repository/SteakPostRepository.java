@@ -53,6 +53,9 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
     Optional<SteakPost> findWithDetailsById(UUID id);
 
+    @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
+    List<SteakPost> findWithDetailsByIdIn(Collection<UUID> ids);
+
     long countByUserIdAndHiddenFalse(UUID userId);
 
     long countByUserId(UUID userId);

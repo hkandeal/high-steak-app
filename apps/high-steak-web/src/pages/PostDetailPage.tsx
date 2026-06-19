@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   addPostComment,
+  bookmarkPost,
   fetchPost,
   fetchPostComments,
   FEED_PAGE_SIZE,
   postImageUrl,
+  unbookmarkPost,
   type SteakPost,
 } from '../api/client'
 import { CommentBody } from '../components/CommentBody'
@@ -32,6 +34,7 @@ export function PostDetailPage() {
   const [commentBody, setCommentBody] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [bookmarking, setBookmarking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
@@ -59,6 +62,26 @@ export function PostDetailPage() {
 
   const canComment = isAuthenticated && hasScope('comments:write')
   const canEdit = isAuthenticated && hasScope('posts:write') && user?.id === post?.author.id
+  const canBookmark = isAuthenticated && hasScope('bookmarks:write')
+
+  async function toggleBookmark() {
+    if (!token || !post || bookmarking) return
+    setBookmarking(true)
+    setError(null)
+    try {
+      if (post.bookmarked) {
+        await unbookmarkPost(token, post.id)
+        setPost({ ...post, bookmarked: false })
+      } else {
+        await bookmarkPost(token, post.id)
+        setPost({ ...post, bookmarked: true })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update bookmark')
+    } finally {
+      setBookmarking(false)
+    }
+  }
 
   useEffect(() => {
     if (!postId || !token) return
@@ -168,11 +191,29 @@ export function PostDetailPage() {
                 <time>{new Date(post.createdAt).toLocaleString()}</time>
               </div>
               <h1>{post.title}</h1>
-              {canEdit && (
+              {(canEdit || canBookmark) && (
                 <div className="post-editor-actions">
-                  <Link to={`/posts/${post.id}/edit`} className="btn ghost small">
-                    Edit post
-                  </Link>
+                  {canEdit && (
+                    <Link to={`/posts/${post.id}/edit`} className="btn ghost small">
+                      Edit post
+                    </Link>
+                  )}
+                  {canBookmark && (
+                    <button
+                      type="button"
+                      className="btn ghost small"
+                      disabled={bookmarking}
+                      onClick={() => {
+                        void toggleBookmark()
+                      }}
+                    >
+                      {bookmarking
+                        ? 'Saving…'
+                        : post.bookmarked
+                          ? 'Remove bookmark'
+                          : 'Bookmark'}
+                    </button>
+                  )}
                 </div>
               )}
               <StarRating value={post.rating} readOnly />

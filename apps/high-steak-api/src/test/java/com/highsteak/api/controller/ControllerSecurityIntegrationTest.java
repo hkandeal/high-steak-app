@@ -132,6 +132,6 @@ class ControllerSecurityIntegrationTest {
                 "Chef");
         return new PostDtos.PostResponse(
                 POST_ID, "Ribeye", "Great sear", 5, List.of("/uploads/steak.jpg"),
-                null, null, Instant.now(), false, null, null, PostVisibility.PUBLIC, author, List.of());
+                null, null, Instant.now(), false, null, null, PostVisibility.PUBLIC, author, List.of(), false);
     }
 }

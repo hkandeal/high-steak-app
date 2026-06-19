@@ -104,6 +104,17 @@ export function UserMenu() {
             Following
           </Link>
 
+          <RoleGate scope="bookmarks:read">
+            <Link
+              to="/bookmarks"
+              className="user-menu-item"
+              role="menuitem"
+              onClick={closeMenu}
+            >
+              Bookmarks
+            </Link>
+          </RoleGate>
+
           <RoleGate scope="users:discover">
             <Link
               to="/discover"

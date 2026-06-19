@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  bookmarkPost,
   deletePost,
   fetchFollowingPosts,
   fetchPosts,
@@ -8,11 +9,13 @@ import {
   hidePost,
   postImageUrl,
   primaryPostImage,
+  unbookmarkPost,
   type SteakPost,
 } from '../api/client'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
 import { ImageLightbox } from '../components/ImageLightbox'
+import { PostBookmarkButton } from '../components/PostBookmarkButton'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
@@ -31,6 +34,7 @@ export function FeedPage() {
   const [hideTarget, setHideTarget] = useState<SteakPost | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [hiding, setHiding] = useState(false)
+  const [pendingBookmarkId, setPendingBookmarkId] = useState<string | null>(null)
   const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
   const showFollowingTab = isAuthenticated && hasScope('subscriptions:read')
@@ -102,6 +106,29 @@ export function FeedPage() {
 
   function canEditPost(post: SteakPost) {
     return hasScope('posts:write') && user?.id === post.author.id
+  }
+
+  async function toggleBookmark(post: SteakPost) {
+    if (!token || pendingBookmarkId) return
+    setPendingBookmarkId(post.id)
+    setActionError(null)
+    try {
+      if (post.bookmarked) {
+        await unbookmarkPost(token, post.id)
+        setPosts((current) =>
+          current.map((item) => (item.id === post.id ? { ...item, bookmarked: false } : item)),
+        )
+      } else {
+        await bookmarkPost(token, post.id)
+        setPosts((current) =>
+          current.map((item) => (item.id === post.id ? { ...item, bookmarked: true } : item)),
+        )
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update bookmark')
+    } finally {
+      setPendingBookmarkId(null)
+    }
   }
 
   function buildMenuItems(post: SteakPost): PostCardMenuItem[] {
@@ -199,8 +226,23 @@ export function FeedPage() {
           {posts.map((post) => {
             const menuItems = buildMenuItems(post)
             return (
-              <article key={post.id} className="post-card">
-                <div className="post-card-media-wrap">
+              <article
+                key={post.id}
+                className={`post-card ${post.bookmarked ? 'post-card--bookmarked' : ''}`}
+              >
+                <div
+                  className={`post-card-media-wrap ${post.visibility === 'FOLLOWERS_ONLY' ? 'has-visibility-badge' : ''}`}
+                >
+                  {hasScope('bookmarks:write') && (
+                    <PostBookmarkButton
+                      bookmarked={Boolean(post.bookmarked)}
+                      busy={pendingBookmarkId === post.id}
+                      postTitle={post.title}
+                      onToggle={() => {
+                        void toggleBookmark(post)
+                      }}
+                    />
+                  )}
                   <div className="post-card-media">
                     <button
                       type="button"
