@@ -36,6 +36,7 @@ Shared: `docker-compose.yml`, `assets/`, root `package.json` scripts.
 7. **OpenAPI** — Update `apps/high-steak-api/openapi/openapi.yaml` when adding or changing endpoints.
 8. **No secrets in repo** — Never commit `.env`, JWT secrets, or credentials.
 9. **Minimal diffs** — Match existing patterns; do not refactor unrelated code (see `core.mdc` for full agent behavior guidelines).
+10. **Prod via CI/CD only** — No direct prod hotfixes (DB, kubectl, Flyway history). Fix in repo → merge → deploy. See `.cursor/rules/prod-cicd.mdc`.
 
 ## Where to look
 
@@ -70,6 +71,7 @@ Shared: `docker-compose.yml`, `assets/`, root `package.json` scripts.
 ## Cursor rules
 
 - `core.mdc` — always applies (High Steak standards + Karpathy-inspired agent behavior: think first, simplicity, surgical diffs, goal-driven verify)
+- `prod-cicd.mdc` — always applies (no direct prod hotfixes; changes go through CI/CD)
 - `api-ids.mdc` — always applies (UUID-only IDs for new entities and APIs)
 - `api-security.mdc`, `api-spring.mdc`, `api-flyway.mdc`, `api-logging.mdc` — API Java files
 - `web-react.mdc` — web app
