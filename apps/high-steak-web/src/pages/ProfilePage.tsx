@@ -50,7 +50,6 @@ export function ProfilePage() {
   const [pendingFollow, setPendingFollow] = useState(false)
   const [editing, setEditing] = useState(false)
   const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
@@ -99,15 +98,13 @@ export function ProfilePage() {
       .then((profileData) => {
         setProfile(profileData)
         setDisplayName(profileData.displayName)
-        setEmail(user?.email ?? '')
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load profile'))
       .finally(() => setLoading(false))
-  }, [userId, token, user?.email])
+  }, [userId, token])
 
   useEffect(() => {
     if (isOwnProfile && user) {
-      setEmail(user.email)
       setDisplayName(user.displayName)
     }
   }, [isOwnProfile, user])
@@ -115,7 +112,6 @@ export function ProfilePage() {
   function startEditing() {
     if (!user) return
     setDisplayName(user.displayName)
-    setEmail(user.email)
     setAvatarFile(null)
     if (avatarPreview) URL.revokeObjectURL(avatarPreview)
     setAvatarPreview(null)
@@ -152,7 +148,7 @@ export function ProfilePage() {
   async function handleSaveProfile(e: FormEvent) {
     e.preventDefault()
     if (!token) return
-    const validationError = validateProfileForm({ displayName, email, avatar: avatarFile })
+    const validationError = validateProfileForm({ displayName, avatar: avatarFile })
     if (validationError) {
       setError(validationError)
       return
@@ -162,7 +158,6 @@ export function ProfilePage() {
     try {
       const response = await updateProfile(token, {
         displayName,
-        email,
         avatar: avatarFile,
       })
       applyToken(response.token)
@@ -453,14 +448,9 @@ export function ProfilePage() {
           </label>
           <label>
             Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              maxLength={API_CONSTRAINTS.email.max}
-              required
-            />
+            <input type="email" value={user?.email ?? ''} disabled readOnly />
           </label>
+          <p className="profile-edit-note">Email cannot be changed after registration.</p>
           <p className="profile-edit-note">Username @{profile.username} cannot be changed.</p>
           <div className="profile-edit-actions">
             <button type="button" className="btn ghost" onClick={() => setEditing(false)}>

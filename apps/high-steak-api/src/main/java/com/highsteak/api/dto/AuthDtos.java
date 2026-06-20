@@ -23,6 +23,22 @@ public final class AuthDtos {
             @NotBlank @Size(max = ApiConstraints.PASSWORD_MAX) String password
     ) {}
 
+    public record RegisterResponse(
+            boolean verificationRequired,
+            String message,
+            String email,
+            String token,
+            String refreshToken
+    ) {}
+
+    public record VerifyEmailRequest(
+            @NotBlank String token
+    ) {}
+
+    public record ResendVerificationRequest(
+            @NotBlank @Email @Size(max = ApiConstraints.EMAIL_MAX) String email
+    ) {}
+
     public record AuthResponse(
             String token,
             String refreshToken
@@ -63,8 +79,7 @@ public final class AuthDtos {
     ) {}
 
     public record UpdateProfileRequest(
-            @Size(min = ApiConstraints.DISPLAY_NAME_MIN, max = ApiConstraints.DISPLAY_NAME_MAX) String displayName,
-            @Email @Size(max = ApiConstraints.EMAIL_MAX) String email
+            @Size(min = ApiConstraints.DISPLAY_NAME_MIN, max = ApiConstraints.DISPLAY_NAME_MAX) String displayName
     ) {}
 
     public record UpdateProfileResponse(

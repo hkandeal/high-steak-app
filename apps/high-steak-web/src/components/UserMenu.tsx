@@ -115,6 +115,15 @@ export function UserMenu() {
             </Link>
           </RoleGate>
 
+          <Link
+            to="/settings/notifications"
+            className="user-menu-item"
+            role="menuitem"
+            onClick={closeMenu}
+          >
+            Email settings
+          </Link>
+
           <RoleGate scope="users:discover">
             <Link
               to="/discover"

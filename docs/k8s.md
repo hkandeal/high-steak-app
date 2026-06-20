@@ -171,3 +171,79 @@ After infra workflow commits new tags, Argo CD syncs the updated Helm values to 
 ## Local development
 
 Docker Compose remains the local workflow (`npm run docker:up`). Kubernetes manifests are for cluster deployment only.
+
+Local email uses **SendGrid** via `.env.local` (copy from `.env.local.example`). Real emails are sent when `MAIL_ENABLED=true` and a valid API key is set.
+
+## Email (Twilio SendGrid)
+
+Transactional email uses **[Twilio SendGrid](https://www.twilio.com/sendgrid/email-api)** (SaaS). No in-cluster mail server — the API sends via SMTP to `smtp.sendgrid.net`.
+
+Sending domain: **`notify.hossam.io`**. From address must match a verified sender or authenticated domain in SendGrid.
+
+### 1. Twilio / SendGrid account
+
+1. Sign in at [Twilio Console](https://console.twilio.com/) → **Email** (SendGrid), or go directly to [SendGrid](https://app.sendgrid.com/).
+2. **Settings → API Keys → Create API Key**
+   - Name: e.g. `high-steak-prod`
+   - Permission: **Restricted** → **Mail Send** → Full Access (or minimum needed)
+   - Copy the key once — it is shown only at creation.
+
+SendGrid SMTP uses username **`apikey`** and the API key as the password (already reflected in `helm/high-steak/values.yaml`).
+
+### 2. Domain authentication
+
+In SendGrid: **Settings → Sender Authentication → Authenticate Your Domain**
+
+- Domain: `notify.hossam.io`
+- Add the CNAME records SendGrid provides (DKIM + link branding)
+- Wait for verification (usually minutes after DNS propagates)
+
+Set `MAIL_FROM` to an address on that domain, e.g. `High Steak <noreply@notify.hossam.io>` (see `mail.from` in Helm values).
+
+For quick testing only, you can use **Single Sender Verification** instead of full domain auth — not recommended for production.
+
+### 3. Kubernetes secret
+
+Store only the API key (never commit it):
+
+```bash
+kubectl create secret generic high-steak-mail-secret -n apps \
+  --from-literal=sendgrid-api-key='SG.xxxxxxxxxxxxxxxxxxxxx'
+```
+
+### 4. Enable mail in Helm
+
+In `helm/high-steak/values.yaml`:
+
+```yaml
+mail:
+  enabled: true
+  from: 'High Steak <noreply@notify.hossam.io>'
+```
+
+Sync Argo CD (or `helm upgrade`). The API pod gets:
+
+| Env | Source |
+|-----|--------|
+| `SPRING_MAIL_HOST` | `smtp.sendgrid.net` |
+| `SPRING_MAIL_PORT` | `587` |
+| `SPRING_MAIL_USERNAME` | `apikey` |
+| `SPRING_MAIL_PASSWORD` | secret `sendgrid-api-key` |
+| `MAIL_ENABLED` | `true` |
+| `MAIL_FROM` | Helm `mail.from` |
+
+### 5. Verify delivery
+
+1. Register a test user on prod/staging.
+2. Check **SendGrid → Activity** for the welcome email.
+
+### Notification types
+
+| Event | Trigger |
+|-------|---------|
+| Welcome | User registration |
+| New comment | Comment on your post (not self) |
+| New follower | Someone subscribes to you |
+| Post hidden / restored | Moderator action |
+
+Users manage preferences at `/settings/notifications` (`GET/PATCH /users/me/notification-preferences`).

@@ -6,12 +6,14 @@ import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.util.PaginationHelper;
+import com.highsteak.api.notification.NotificationEvent;
 import com.highsteak.api.repository.PostCommentRepository;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
 import com.highsteak.api.security.UserPrincipal;
 import com.highsteak.api.validation.CommentValidation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,6 +35,7 @@ public class PostCommentService {
     private final AuthService authService;
     private final SteakPostService steakPostService;
     private final CommentValidation commentValidation;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public PageDtos.PageResponse<PostDtos.CommentResponse> listComments(
@@ -67,6 +70,11 @@ public class PostCommentService {
                 .build();
 
         comment = commentRepository.save(comment);
+        eventPublisher.publishEvent(new NotificationEvent.NewComment(
+                post.getId(),
+                comment.getId(),
+                post.getUser().getId(),
+                user.getId()));
         return toResponse(comment);
     }
 

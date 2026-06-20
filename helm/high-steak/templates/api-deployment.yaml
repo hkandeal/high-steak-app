@@ -43,6 +43,20 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.mysqlSecret.name }}
                   key: {{ .Values.mysqlSecret.passwordKey }}
+            {{- if and .Values.mail.enabled .Values.mail.secret.name .Values.mail.secret.passwordKey }}
+            - name: SPRING_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mail.secret.name }}
+                  key: {{ .Values.mail.secret.passwordKey }}
+            {{- end }}
+            {{- if and .Values.mail.enabled .Values.mail.secret.name .Values.mail.secret.usernameKey (not .Values.mail.smtp.username) }}
+            - name: SPRING_MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mail.secret.name }}
+                  key: {{ .Values.mail.secret.usernameKey }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.apiService.targetPort }}
           {{- if .Values.persistence.uploads.enabled }}

@@ -93,6 +93,7 @@ export function RegisterPage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null)
   const [usernameCheck, setUsernameCheck] = useState<FieldFeedback>({ tone: 'idle' })
   const [emailCheck, setEmailCheck] = useState<FieldFeedback>({ tone: 'idle' })
 
@@ -236,13 +237,46 @@ export function RegisterPage() {
         password: form.password,
         displayName: form.displayName.trim(),
       })
-      saveAuth(res)
-      navigate('/feed')
+      if (res.verificationRequired) {
+        setVerificationEmail(res.email)
+        return
+      }
+      if (res.token && res.refreshToken) {
+        saveAuth({ token: res.token, refreshToken: res.refreshToken })
+        navigate('/feed')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (verificationEmail) {
+    return (
+      <AuthCard
+        title="Check your email"
+        subtitle="One more step before you join the grill."
+        error={null}
+        onSubmit={(e) => e.preventDefault()}
+        loading={false}
+        submitDisabled
+        footer={
+          <p>
+            Verified already? <Link to="/login">Log in</Link>
+          </p>
+        }
+      >
+        <p className="auth-verify-copy">
+          We sent a verification link to <strong>{verificationEmail}</strong>. Open it to activate
+          your account, then log in.
+        </p>
+        <p className="muted">
+          Didn&apos;t get it? Check spam or use the resend option on the{' '}
+          <Link to="/verify-email">verification page</Link>.
+        </p>
+      </AuthCard>
+    )
   }
 
   return (

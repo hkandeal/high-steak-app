@@ -34,6 +34,11 @@ app:
   bootstrap:
     admin:
       enabled: false
+  mail:
+    enabled: false
+    base-url: http://localhost:5173
+  auth:
+    auto-verify-on-register: true
 
 logging:
   level:

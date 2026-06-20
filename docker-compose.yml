@@ -23,6 +23,9 @@ services:
       context: ./apps/high-steak-api
       dockerfile: Dockerfile
     container_name: high-steak-api
+    env_file:
+      - path: .env.local
+        required: false
     depends_on:
       mysql:
         condition: service_healthy

@@ -20,8 +20,19 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthDtos.AuthResponse register(@Valid @RequestBody AuthDtos.RegisterRequest request) {
+    public AuthDtos.RegisterResponse register(@Valid @RequestBody AuthDtos.RegisterRequest request) {
         return authService.register(request);
+    }
+
+    @PostMapping("/verify-email")
+    public AuthDtos.AuthResponse verifyEmail(@Valid @RequestBody AuthDtos.VerifyEmailRequest request) {
+        return authService.verifyEmailAndLogin(request.token());
+    }
+
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendVerification(@Valid @RequestBody AuthDtos.ResendVerificationRequest request) {
+        authService.resendVerificationEmail(request.email());
     }
 
     @PostMapping("/login")
@@ -61,15 +72,14 @@ public class AuthController {
     public AuthDtos.UpdateProfileResponse updateProfileJson(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody AuthDtos.UpdateProfileRequest request) {
-        return authService.updateProfile(principal, request.displayName(), request.email(), null);
+        return authService.updateProfile(principal, request.displayName(), null);
     }
 
     @PatchMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public AuthDtos.UpdateProfileResponse updateProfileMultipart(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String displayName,
-            @RequestParam(required = false) String email,
             @RequestParam(required = false) MultipartFile avatar) {
-        return authService.updateProfile(principal, displayName, email, avatar);
+        return authService.updateProfile(principal, displayName, avatar);
     }
 }

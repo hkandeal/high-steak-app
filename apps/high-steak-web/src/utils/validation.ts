@@ -154,7 +154,6 @@ export function validateRegisterForm(input: {
 
 export function validateProfileForm(input: {
   displayName: string
-  email: string
   avatar: File | null
 }): string | null {
   const displayNameError = validateTextLength(input.displayName, 'Display name', {
@@ -163,12 +162,6 @@ export function validateProfileForm(input: {
     max: API_CONSTRAINTS.displayName.max,
   })
   if (displayNameError) return displayNameError
-
-  const emailError = validateTextLength(input.email, 'Email', {
-    required: true,
-    max: API_CONSTRAINTS.email.max,
-  })
-  if (emailError) return emailError
 
   if (input.avatar) {
     return validateImageFile(input.avatar)
