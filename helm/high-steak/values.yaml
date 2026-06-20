@@ -78,7 +78,7 @@ persistence:
     storageClass: ''
     accessMode: ReadWriteOnce
 mail:
-  enabled: false
+  enabled: true
   from: High Steaks <noreply@notify.hossam.io>
   baseUrl: https://steaks.apps.hossam.io
   smtp:
