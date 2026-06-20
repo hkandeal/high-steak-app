@@ -1,0 +1,39 @@
+---
+description: Production changes must go through CI/CD — no direct prod hotfixes
+alwaysApply: true
+---
+
+# Production & CI/CD
+
+**Never apply direct fixes to production** unless the user explicitly orders an emergency hotfix.
+
+Production includes: Kubernetes cluster, prod MySQL, Flyway schema history, secrets, DNS, and live pods/services.
+
+## Required flow
+
+1. Fix in the repo (code, migrations, Helm, docs).
+2. Merge via normal Git flow (PR → `main`).
+3. Deploy through **CI/CD** (GitHub Actions, Argo CD, Helm sync).
+4. Let the deployed app run Flyway and startup — do not patch prod by hand to “unblock” faster.
+
+## Do not do without explicit user approval
+
+- `kubectl exec` into prod MySQL to run migration SQL
+- Edit `flyway_schema_history` on prod
+- `kubectl delete pod` / manual rollout to fix migration or config issues
+- Change prod secrets, ConfigMaps, or Helm values outside the repo
+- Push images or bump tags outside the CI/CD pipeline
+
+## When prod is broken
+
+1. Diagnose from logs and explain root cause.
+2. Propose the **repo fix** and the **CI/CD deploy path** (which workflow, what to merge, what will run).
+3. If manual prod intervention is the only option, **ask first** and warn that it can diverge Git from prod until synced.
+
+## Local / dev is fine
+
+Docker Compose, local MySQL, local Flyway repair, and `npm run docker:restart` are OK for development.
+
+## Why
+
+Direct prod patches can leave the database or cluster in a state that does not match what Git and CI/CD would produce — causing repeat failures on the next deploy.
