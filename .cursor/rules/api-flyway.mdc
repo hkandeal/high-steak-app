@@ -32,6 +32,20 @@ Flyway does not auto-discover Java migrations in this project without that regis
 
 - Cannot `DROP PRIMARY KEY` on an `AUTO_INCREMENT` column alone — combine: `DROP PRIMARY KEY, DROP COLUMN id`
 - After breaking schema changes on existing Docker volumes: `docker compose down -v`
+- **FK charset/collation must match referenced columns.** Prod uses `connectionCollation=utf8mb4_unicode_ci` and legacy tables may be `latin1`. Do **not** add explicit `CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci` on `CHAR(36)` FK columns — use plain `CHAR(36)` like V14/V15.
+
+## Failed migration recovery (production)
+
+If Flyway reports `Detected failed migration to version N`:
+
+1. Inspect history: `SELECT version, success, description FROM flyway_schema_history WHERE version = 'N';`
+2. Check for partial schema (e.g. `SHOW TABLES LIKE '…';`)
+3. If partial objects exist, `DROP` them or complete the migration manually with **fixed** SQL
+4. Remove the failed row: `DELETE FROM flyway_schema_history WHERE version = 'N' AND success = 0;`
+5. Redeploy the API (or run `flyway repair` if using the Flyway CLI)
+6. If you applied SQL manually, insert success rows for those versions (checksum `NULL` is acceptable) so Flyway skips re-running them
+
+See `docs/runbook.md` → **Production Flyway failures**.
 
 ## RBAC seeds
 

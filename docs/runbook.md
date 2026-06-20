@@ -72,6 +72,48 @@ Check logs: `docker logs high-steak-api --tail 50`
 
 Confirm `VITE_API_URL=http://localhost:8080/api` in compose or `.env`.
 
+## Production Flyway failures
+
+Symptom: API pod crash-loops with `FlywayValidateException: Detected failed migration to version N`.
+
+### Common cause (V17)
+
+Migrations that set explicit `utf8mb4_0900_ai_ci` on `CHAR(36)` FK columns fail against prod MySQL where `users.id` uses the table default charset (`latin1` or `utf8mb4_unicode_ci`). Use plain `CHAR(36)` without charset/collation on FK columns.
+
+### Recovery steps
+
+Connect to prod MySQL (replace pod name if needed):
+
+```bash
+kubectl exec -it -n apps db-apps-mysql-deployment-67845dcfc6-m4l5z -- \
+  mysql -uroot -p high_steak
+```
+
+```sql
+-- Inspect
+SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;
+
+-- If migration failed mid-way, drop partial objects first
+-- DROP TABLE IF EXISTS user_notification_preferences;
+
+-- Remove failed record
+DELETE FROM flyway_schema_history WHERE version = '17' AND success = 0;
+```
+
+Then either:
+
+- **Redeploy** a fixed API image so Flyway runs the corrected migration, or
+- **Apply fixed SQL manually** and mark versions successful:
+
+```sql
+INSERT INTO flyway_schema_history (installed_rank, version, description, type, script, checksum, installed_by, execution_time, success)
+VALUES (17, '17', 'notification preferences', 'SQL', 'V17__notification_preferences.sql', NULL, 'manual-repair', 0, 1);
+```
+
+Restart the API pod: `kubectl delete pod -n apps -l app.kubernetes.io/name=high-steak-api` (adjust label selector to match your deployment).
+
+Verify: `curl -sf https://steaks.apps.hossam.io/api/health`
+
 ## Tests
 
 ```bash
