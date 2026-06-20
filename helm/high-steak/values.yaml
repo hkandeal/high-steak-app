@@ -77,3 +77,17 @@ persistence:
     size: 5Gi
     storageClass: ''
     accessMode: ReadWriteOnce
+mail:
+  enabled: false
+  from: 'High Steaks <noreply@notify.hossam.io>'
+  baseUrl: https://steaks.apps.hossam.io
+  smtp:
+    # Twilio SendGrid SMTP — https://docs.sendgrid.com/for-developers/sending-email/integrate-with-the-smtp-api
+    host: smtp.sendgrid.net
+    port: 587
+    username: apikey
+    auth: true
+    starttls: true
+  secret:
+    name: high-steak-mail-secret
+    passwordKey: sendgrid-api-key

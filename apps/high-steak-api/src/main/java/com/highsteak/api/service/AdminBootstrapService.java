@@ -68,6 +68,7 @@ public class AdminBootstrapService {
                 .displayName(displayName)
                 .passwordHash(passwordEncoder.encode(properties.getPassword()))
                 .role(adminRole)
+                .emailVerified(true)
                 .build();
 
         userRepository.save(admin);

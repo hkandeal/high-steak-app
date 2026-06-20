@@ -5,11 +5,13 @@ import com.highsteak.api.domain.User;
 import com.highsteak.api.domain.UserSubscription;
 import com.highsteak.api.domain.UserSubscriptionId;
 import com.highsteak.api.dto.SubscriptionDtos;
+import com.highsteak.api.notification.NotificationEvent;
 import com.highsteak.api.repository.SteakPostRepository;
 import com.highsteak.api.repository.UserRepository;
 import com.highsteak.api.repository.UserSubscriptionRepository;
 import com.highsteak.api.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,6 +30,7 @@ public class SubscriptionService {
     private final UserSubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
     private final SteakPostRepository steakPostRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<SubscriptionDtos.SubscriptionSummary> listSubscriptions(UserPrincipal principal) {
@@ -57,6 +60,7 @@ public class SubscriptionService {
                 .build();
 
         subscription = subscriptionRepository.save(subscription);
+        eventPublisher.publishEvent(new NotificationEvent.NewFollower(targetUserId, principal.getId()));
         Set<UUID> subscribedIds = subscriptionRepository.findTargetUserIdsBySubscriberId(principal.getId());
         return toSummary(subscription, subscribedIds);
     }

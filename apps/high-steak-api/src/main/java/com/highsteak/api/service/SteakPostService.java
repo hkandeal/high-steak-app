@@ -9,6 +9,7 @@ import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.PostDtos;
 import com.highsteak.api.dto.PageDtos;
+import com.highsteak.api.notification.NotificationEvent;
 import com.highsteak.api.repository.PostBookmarkRepository;
 import com.highsteak.api.repository.ReviewTagRepository;
 import com.highsteak.api.repository.SteakPostRepository;
@@ -21,6 +22,7 @@ import com.highsteak.api.validation.UploadValidation;
 import com.highsteak.api.util.PaginationHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -57,6 +59,7 @@ public class SteakPostService {
     private final AuthService authService;
     private final SubscriptionService subscriptionService;
     private final UploadValidation uploadValidation;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.uploads.dir}")
     private String uploadsDir;
@@ -379,6 +382,7 @@ public class SteakPostService {
         post.setModerationReason(normalizeModerationReason(reason));
         post.setModerationRestoredAt(null);
         post = steakPostRepository.save(post);
+        eventPublisher.publishEvent(new NotificationEvent.PostHidden(post.getId(), post.getUser().getId()));
         return toResponse(post);
     }
 
@@ -390,6 +394,7 @@ public class SteakPostService {
         post.setModerationReason(null);
         post.setModerationRestoredAt(java.time.Instant.now());
         post = steakPostRepository.save(post);
+        eventPublisher.publishEvent(new NotificationEvent.PostRestored(post.getId(), post.getUser().getId()));
         return toResponse(post);
     }
 

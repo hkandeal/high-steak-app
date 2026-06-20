@@ -70,7 +70,50 @@ type SessionHandlers = {
 }
 
 const REFRESH_BUFFER_MS = 5 * 60 * 1000
-const AUTH_REFRESH_PATHS = ['/auth/refresh', '/auth/login', '/auth/register', '/auth/logout']
+const AUTH_REFRESH_PATHS = [
+  '/auth/refresh',
+  '/auth/login',
+  '/auth/register',
+  '/auth/logout',
+  '/auth/verify-email',
+]
+
+export type RegisterResponse = {
+  verificationRequired: boolean
+  message: string
+  email: string
+  token: string | null
+  refreshToken: string | null
+}
+
+export async function register(payload: {
+  username: string
+  email: string
+  password: string
+  displayName: string
+}): Promise<RegisterResponse> {
+  return apiFetch('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function verifyEmail(token: string): Promise<AuthResponse> {
+  return apiFetch('/auth/verify-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+}
+
+export async function resendVerificationEmail(email: string): Promise<void> {
+  return apiFetch('/auth/resend-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+}
 
 let onUnauthorized: (() => void) | null = null
 let sessionHandlers: SessionHandlers | null = null
@@ -287,19 +330,6 @@ export async function logoutSession(refreshToken: string | null | undefined) {
   }
 }
 
-export async function register(payload: {
-  username: string
-  email: string
-  password: string
-  displayName: string
-}): Promise<AuthResponse> {
-  return apiFetch('/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-}
-
 export async function login(payload: {
   username: string
   password: string
@@ -337,12 +367,11 @@ export type UpdateProfileResponse = {
 
 export async function updateProfile(
   token: string,
-  data: { displayName?: string; email?: string; avatar?: File | null },
+  data: { displayName?: string; avatar?: File | null },
 ): Promise<UpdateProfileResponse> {
   if (data.avatar) {
     const form = new FormData()
     if (data.displayName) form.append('displayName', data.displayName)
-    if (data.email) form.append('email', data.email)
     form.append('avatar', data.avatar)
     return apiFetch('/auth/me', {
       method: 'PATCH',
@@ -356,7 +385,6 @@ export async function updateProfile(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       displayName: data.displayName,
-      email: data.email,
     }),
   })
 }
@@ -484,6 +512,34 @@ export async function unbookmarkPost(token: string, postId: string): Promise<voi
   return apiFetch(`/posts/${postId}/bookmark`, {
     method: 'DELETE',
     token,
+  })
+}
+
+export type NotificationPreferences = {
+  emailEnabled: boolean
+  welcomeEmail: boolean
+  commentEmail: boolean
+  followerEmail: boolean
+  moderationEmail: boolean
+}
+
+export type UpdateNotificationPreferences = Partial<NotificationPreferences>
+
+export async function fetchNotificationPreferences(
+  token: string,
+): Promise<NotificationPreferences> {
+  return apiFetch('/users/me/notification-preferences', { token })
+}
+
+export async function updateNotificationPreferences(
+  token: string,
+  patch: UpdateNotificationPreferences,
+): Promise<NotificationPreferences> {
+  return apiFetch('/users/me/notification-preferences', {
+    method: 'PATCH',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
   })
 }
 

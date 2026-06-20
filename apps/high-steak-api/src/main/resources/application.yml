@@ -14,6 +14,17 @@ spring:
         format_sql: true
   flyway:
     enabled: true
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${SPRING_MAIL_SMTP_STARTTLS:false}
   servlet:
     multipart:
       max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:3MB}
@@ -54,6 +65,13 @@ app:
       password: ${BOOTSTRAP_ADMIN_PASSWORD:AdminPass123!}
       email: ${BOOTSTRAP_ADMIN_EMAIL:admin@high-steak.local}
       display-name: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:System Admin}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:High Steaks <noreply@notify.hossam.io>}
+    base-url: ${APP_BASE_URL:https://steaks.apps.hossam.io}
+  auth:
+    auto-verify-on-register: ${AUTH_AUTO_VERIFY_ON_REGISTER:false}
+    verification-expiration-hours: ${AUTH_VERIFICATION_EXPIRATION_HOURS:24}
 
 logging:
   level:

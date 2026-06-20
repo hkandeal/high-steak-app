@@ -6,12 +6,14 @@ import { ThemeProvider } from './context/ThemeContext'
 import { ModerationNoticesProvider } from './context/ModerationNoticesContext'
 import { BookmarksPage } from './pages/BookmarksPage'
 import { ManagementPage } from './pages/ManagementPage'
+import { NotificationSettingsPage } from './pages/NotificationSettingsPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { DiscoverPage } from './pages/DiscoverPage'
 import { FollowingPage } from './pages/FollowingPage'
 import { FeedPage } from './pages/FeedPage'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage, RegisterPage } from './pages/AuthPages'
+import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import { PostDetailPage } from './pages/PostDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { EditPostPage } from './pages/EditPostPage'
@@ -57,6 +59,7 @@ const router = createBrowserRouter([
       },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'verify-email', element: <VerifyEmailPage /> },
       {
         path: 'post/new',
         element: (
@@ -94,6 +97,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <NotificationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'settings/notifications',
+        element: (
+          <ProtectedRoute>
+            <NotificationSettingsPage />
           </ProtectedRoute>
         ),
       },

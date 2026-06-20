@@ -77,6 +77,11 @@ public class RefreshTokenService {
             throw new ResponseStatusException(UNAUTHORIZED, "Account is blocked");
         }
 
+        if (!user.isEmailVerified()) {
+            refreshTokenRevocationService.revokeAllForUser(user.getId());
+            throw new ResponseStatusException(UNAUTHORIZED, "Please verify your email before logging in");
+        }
+
         stored.setRevokedAt(Instant.now());
         refreshTokenRepository.save(stored);
 
@@ -122,6 +127,14 @@ public class RefreshTokenService {
         byte[] bytes = new byte[TOKEN_BYTES];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    public static String newRawToken() {
+        return generateRawToken();
+    }
+
+    public static String hashToken(String rawToken) {
+        return hash(rawToken);
     }
 
     static String hash(String rawToken) {

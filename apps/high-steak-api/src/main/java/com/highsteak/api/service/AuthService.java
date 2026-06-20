@@ -1,5 +1,6 @@
 package com.highsteak.api.service;
 
+import com.highsteak.api.config.AuthProperties;
 import com.highsteak.api.domain.Role;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.AuthDtos;
@@ -9,12 +10,14 @@ import com.highsteak.api.validation.EmailValidation;
 import com.highsteak.api.validation.TextValidation;
 import com.highsteak.api.validation.UploadValidation;
 import com.highsteak.api.validation.UsernameValidation;
+import com.highsteak.api.notification.NotificationEvent;
 import com.highsteak.api.repository.RoleRepository;
 import com.highsteak.api.repository.UserRepository;
 import com.highsteak.api.security.JwtService;
 import com.highsteak.api.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,12 +50,16 @@ public class AuthService {
     private final PermissionService permissionService;
     private final RefreshTokenService refreshTokenService;
     private final UploadValidation uploadValidation;
+    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final EmailVerificationService emailVerificationService;
+    private final AuthProperties authProperties;
 
     @Value("${app.uploads.dir}")
     private String uploadsDir;
 
     @Transactional
-    public AuthDtos.AuthResponse register(AuthDtos.RegisterRequest request) {
+    public AuthDtos.RegisterResponse register(AuthDtos.RegisterRequest request) {
         String username = UsernameValidation.require(request.username());
         String email = EmailValidation.require(request.email());
         String displayName = TextValidation.bounded(
@@ -76,17 +83,50 @@ public class AuthService {
         Role defaultRole = roleRepository.findByName(DEFAULT_ROLE)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Default role not configured"));
 
+        boolean autoVerify = authProperties.isAutoVerifyOnRegister();
         User user = User.builder()
                 .username(username)
                 .email(email)
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(displayName)
                 .role(defaultRole)
+                .emailVerified(autoVerify)
                 .build();
         user = userRepository.save(user);
+        notificationService.createDefaultPreferences(user);
         user = userRepository.findByIdWithRoleAndPermissions(user.getId()).orElse(user);
 
-        return refreshTokenService.issueSession(user);
+        if (autoVerify) {
+            eventPublisher.publishEvent(new NotificationEvent.Welcome(user.getId()));
+            AuthDtos.AuthResponse session = refreshTokenService.issueSession(user);
+            return new AuthDtos.RegisterResponse(
+                    false,
+                    "Account created",
+                    email,
+                    session.token(),
+                    session.refreshToken());
+        }
+
+        emailVerificationService.sendVerificationEmail(user);
+        return new AuthDtos.RegisterResponse(
+                true,
+                "Check your email to verify your account before logging in",
+                email,
+                null,
+                null);
+    }
+
+    @Transactional
+    public AuthDtos.AuthResponse verifyEmailAndLogin(String token) {
+        EmailVerificationService.EmailVerificationResult result = emailVerificationService.verifyEmail(token);
+        if (result.newlyVerified()) {
+            eventPublisher.publishEvent(new NotificationEvent.Welcome(result.user().getId()));
+        }
+        return refreshTokenService.issueSession(result.user());
+    }
+
+    public void resendVerificationEmail(String email) {
+        emailVerificationService.resendVerificationEmail(email);
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +170,10 @@ public class AuthService {
             throw new ResponseStatusException(UNAUTHORIZED, "Account is blocked");
         }
 
+        if (!user.isEmailVerified()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "Please verify your email before logging in");
+        }
+
         return refreshTokenService.issueSession(user);
     }
 
@@ -152,7 +196,6 @@ public class AuthService {
     public AuthDtos.UpdateProfileResponse updateProfile(
             UserPrincipal principal,
             String displayName,
-            String email,
             MultipartFile avatar) {
         User user = userRepository.findByIdWithRoleAndPermissions(principal.getId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
@@ -163,18 +206,6 @@ public class AuthService {
                     "Display name",
                     ApiConstraints.DISPLAY_NAME_MIN,
                     ApiConstraints.DISPLAY_NAME_MAX));
-        }
-
-        if (email != null) {
-            String normalized = email.trim();
-            if (normalized.isEmpty()) {
-                throw new ResponseStatusException(BAD_REQUEST, "Email is required");
-            }
-            TextValidation.bounded(normalized, "Email", 1, ApiConstraints.EMAIL_MAX);
-            if (!normalized.equals(user.getEmail()) && userRepository.existsByEmail(normalized)) {
-                throw new ResponseStatusException(CONFLICT, "Email already registered");
-            }
-            user.setEmail(normalized);
         }
 
         if (avatar != null && !avatar.isEmpty()) {
