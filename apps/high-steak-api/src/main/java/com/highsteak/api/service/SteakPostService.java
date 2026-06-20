@@ -113,6 +113,15 @@ public class SteakPostService {
     }
 
     @Transactional(readOnly = true)
+    public List<PostDtos.PostResponse> getMyModerationNotices(UserPrincipal principal) {
+        List<SteakPost> posts = steakPostRepository.findModerationNoticesByUserId(principal.getId());
+        Set<UUID> bookmarkedIds = resolveBookmarkedIds(principal, posts);
+        return posts.stream()
+                .map(post -> toResponse(post, principal, bookmarkedIds.contains(post.getId())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public PageDtos.PageResponse<PostDtos.PostResponse> getHiddenPosts(int page, int size) {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByHiddenTrueOrderByCreatedAtDesc(pageable);

@@ -73,6 +73,10 @@ class PostModerationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].hidden").value(true));
 
+        mockMvc.perform(get("/posts/mine/moderation-notices").header("Authorization", bearer(authorToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].hidden").value(true));
+
         mockMvc.perform(get("/users/" + authorId + "/posts").header("Authorization", bearer(authorToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].hidden").value(true));
@@ -90,6 +94,10 @@ class PostModerationIntegrationTest {
         mockMvc.perform(get("/posts/mine").header("Authorization", bearer(authorToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].moderationRestoredAt").exists());
+
+        mockMvc.perform(get("/posts/mine/moderation-notices").header("Authorization", bearer(authorToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].moderationRestoredAt").exists());
 
         assertTrue(feedContainsPost(strangerToken, postId));
     }

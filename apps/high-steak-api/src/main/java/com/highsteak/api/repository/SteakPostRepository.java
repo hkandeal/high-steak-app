@@ -36,6 +36,15 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
     List<SteakPost> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
+    @Query("""
+            SELECT p FROM SteakPost p
+            WHERE p.user.id = :userId
+              AND (p.hidden = true OR p.moderationRestoredAt IS NOT NULL)
+            ORDER BY p.createdAt DESC
+            """)
+    List<SteakPost> findModerationNoticesByUserId(@Param("userId") UUID userId);
+
+    @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
     Page<SteakPost> findByUserIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
             UUID userId, PostVisibility visibility, Pageable pageable);
 

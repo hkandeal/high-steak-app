@@ -543,17 +543,8 @@ export async function updateNotificationPreferences(
   })
 }
 
-export async function fetchAllMyPosts(token: string): Promise<SteakPost[]> {
-  const all: SteakPost[] = []
-  let page = 0
-  let totalPages = 1
-  while (page < totalPages) {
-    const response = await fetchMyPosts(token, { page, size: FEED_PAGE_SIZE })
-    all.push(...response.content)
-    totalPages = response.totalPages
-    page += 1
-  }
-  return all
+export async function fetchMyModerationNotices(token: string): Promise<SteakPost[]> {
+  return apiFetch('/posts/mine/moderation-notices', { token })
 }
 
 export async function createPost(

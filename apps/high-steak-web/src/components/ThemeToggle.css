@@ -49,7 +49,17 @@
     font-size: 0.75rem;
   }
 
-  .theme-toggle-label {
+  .theme-toggle-header .theme-toggle-label {
     display: none;
   }
+}
+
+.theme-toggle-menu {
+  flex-shrink: 0;
+  padding: 0.15rem;
+}
+
+.theme-toggle-menu .theme-toggle-option {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
 }
