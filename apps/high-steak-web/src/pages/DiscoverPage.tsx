@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {
+  postImageUrl,
   searchUsers,
   subscribeToUser,
   unsubscribeFromUser,
@@ -111,7 +112,7 @@ export function DiscoverPage() {
           <li key={user.id} className="discover-card">
             <div className="discover-avatar">
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" />
+                <img src={postImageUrl(user.avatarUrl)} alt="" />
               ) : (
                 <span>{displayInitials(user.displayName)}</span>
               )}

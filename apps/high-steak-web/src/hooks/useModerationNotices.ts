@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchAllMyPosts, type SteakPost } from '../api/client'
+import { fetchMyModerationNotices, type SteakPost } from '../api/client'
 import {
   countUnseenModerationPosts,
   countUnseenRestoredPosts,
@@ -31,7 +31,7 @@ export function useModerationNotices(token: string | null, userId: string | unde
     }
     setLoading(true)
     try {
-      const posts = await fetchAllMyPosts(token)
+      const posts = await fetchMyModerationNotices(token)
       setHiddenPosts(posts.filter((post) => post.hidden))
       setRestoredPosts(
         posts.filter((post) => !post.hidden && post.moderationRestoredAt),

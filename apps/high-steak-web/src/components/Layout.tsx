@@ -22,37 +22,39 @@ export function Layout() {
             High <em>Steaks</em>
           </span>
         </Link>
-        <nav className="nav-links">
-          <ThemeToggle />
+        <nav className="nav-links" aria-label="Main">
           {isAuthenticated ? (
             <>
-              <NavLink to="/feed" className="nav-link">
-                <span className="nav-link-icon" aria-hidden="true">
-                  ⌂
-                </span>
-                <span className="nav-link-label">Feed</span>
-              </NavLink>
-              <NavLink to="/notifications" className="nav-link nav-notifications">
-                <span className="nav-link-icon" aria-hidden="true">
-                  🔔
-                </span>
-                <span className="nav-link-label">Notifications</span>
-                {unreadCount > 0 && (
-                  <span className="nav-notifications-badge">{unreadCount}</span>
-                )}
-              </NavLink>
-              <RoleGate scope="users:discover">
-                <NavLink to="/discover" className="nav-link nav-discover">
+              <div className="nav-primary-rail">
+                <NavLink to="/feed" className="nav-link">
                   <span className="nav-link-icon" aria-hidden="true">
-                    👥
+                    ⌂
                   </span>
-                  <span className="nav-link-label">Steak lovers</span>
+                  <span className="nav-link-label">Feed</span>
                 </NavLink>
-              </RoleGate>
+                <RoleGate scope="users:discover">
+                  <NavLink to="/discover" className="nav-link">
+                    <span className="nav-link-icon" aria-hidden="true">
+                      👥
+                    </span>
+                    <span className="nav-link-label">The Herd</span>
+                  </NavLink>
+                </RoleGate>
+                <NavLink to="/notifications" className="nav-link nav-notifications">
+                  <span className="nav-link-icon" aria-hidden="true">
+                    🔔
+                  </span>
+                  <span className="nav-link-label">Notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="nav-notifications-badge">{unreadCount}</span>
+                  )}
+                </NavLink>
+              </div>
               <UserMenu />
             </>
           ) : (
             <>
+              <ThemeToggle />
               <NavLink to="/login">Log in</NavLink>
               <NavLink to="/register" className="btn primary small">
                 Join

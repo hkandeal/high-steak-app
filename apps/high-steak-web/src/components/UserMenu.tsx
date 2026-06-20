@@ -2,9 +2,28 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { postImageUrl } from '../api/client'
 import { RoleGate } from './RoleGate'
+import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '../context/AuthContext'
 import { displayInitials } from '../utils/displayInitials'
 import './UserMenu.css'
+
+type MenuItemProps = {
+  to: string
+  icon: string
+  label: string
+  onSelect: () => void
+}
+
+function MenuLink({ to, icon, label, onSelect }: MenuItemProps) {
+  return (
+    <Link to={to} className="user-menu-item" role="menuitem" onClick={onSelect}>
+      <span className="user-menu-item-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="user-menu-item-label">{label}</span>
+    </Link>
+  )
+}
 
 export function UserMenu() {
   const { user, logout } = useAuth()
@@ -84,66 +103,44 @@ export function UserMenu() {
             </div>
           </div>
 
-          <hr className="user-menu-divider" />
+          <div className="user-menu-section">
+            <p className="user-menu-section-label">You</p>
+            <MenuLink
+              to={`/users/${user.id}`}
+              icon="👤"
+              label="My profile"
+              onSelect={closeMenu}
+            />
+            <MenuLink to="/following" icon="📋" label="Following" onSelect={closeMenu} />
+            <RoleGate scope="bookmarks:read">
+              <MenuLink to="/bookmarks" icon="🔖" label="Bookmarks" onSelect={closeMenu} />
+            </RoleGate>
+          </div>
 
-          <Link
-            to={`/users/${user.id}`}
-            className="user-menu-item"
-            role="menuitem"
-            onClick={closeMenu}
-          >
-            My profile
-          </Link>
-
-          <Link
-            to="/following"
-            className="user-menu-item"
-            role="menuitem"
-            onClick={closeMenu}
-          >
-            Following
-          </Link>
-
-          <RoleGate scope="bookmarks:read">
-            <Link
-              to="/bookmarks"
-              className="user-menu-item"
-              role="menuitem"
-              onClick={closeMenu}
-            >
-              Bookmarks
-            </Link>
-          </RoleGate>
-
-          <Link
-            to="/settings/notifications"
-            className="user-menu-item"
-            role="menuitem"
-            onClick={closeMenu}
-          >
-            Email settings
-          </Link>
-
-          <RoleGate scope="users:discover">
-            <Link
-              to="/discover"
-              className="user-menu-item user-menu-discover"
-              role="menuitem"
-              onClick={closeMenu}
-            >
-              Steak lovers
-            </Link>
-          </RoleGate>
+          <div className="user-menu-section">
+            <p className="user-menu-section-label">Settings</p>
+            <MenuLink
+              to="/settings/notifications"
+              icon="✉️"
+              label="Email notifications"
+              onSelect={closeMenu}
+            />
+            <div className="user-menu-theme-row" role="none">
+              <span className="user-menu-theme-label">
+                <span className="user-menu-item-icon" aria-hidden="true">
+                  🌓
+                </span>
+                <span className="user-menu-item-label">Theme</span>
+              </span>
+              <ThemeToggle variant="menu" />
+            </div>
+          </div>
 
           <RoleGate anyScope={['posts:moderate', 'users:read']}>
-            <Link
-              to="/manage"
-              className="user-menu-item"
-              role="menuitem"
-              onClick={closeMenu}
-            >
-              Manage
-            </Link>
+            <div className="user-menu-section">
+              <p className="user-menu-section-label">Moderation</p>
+              <MenuLink to="/manage" icon="🛡" label="Manage" onSelect={closeMenu} />
+            </div>
           </RoleGate>
 
           <hr className="user-menu-divider" />
@@ -154,7 +151,10 @@ export function UserMenu() {
             role="menuitem"
             onClick={handleLogout}
           >
-            Log out
+            <span className="user-menu-item-icon" aria-hidden="true">
+              ↪
+            </span>
+            <span className="user-menu-item-label">Log out</span>
           </button>
         </div>
       )}

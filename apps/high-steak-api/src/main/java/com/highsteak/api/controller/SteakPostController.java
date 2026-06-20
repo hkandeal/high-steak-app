@@ -48,6 +48,13 @@ public class SteakPostController {
         return steakPostService.getMyPosts(principal, page, size);
     }
 
+    @GetMapping("/mine/moderation-notices")
+    @PreAuthorize("hasAuthority('posts:read:own')")
+    public List<PostDtos.PostResponse> getMyModerationNotices(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return steakPostService.getMyModerationNotices(principal);
+    }
+
     @GetMapping("/hidden")
     @PreAuthorize("hasAuthority('posts:moderate')")
     public PageDtos.PageResponse<PostDtos.PostResponse> getHiddenPosts(

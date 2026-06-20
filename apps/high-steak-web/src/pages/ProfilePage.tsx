@@ -24,6 +24,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
 import { ImageLightbox } from '../components/ImageLightbox'
 import { PageBackLink } from '../components/BackLink'
+import { PostBookmarkButton } from '../components/PostBookmarkButton'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
@@ -249,21 +250,6 @@ export function ProfilePage() {
 
   function buildPostMenuItems(post: SteakPost): PostCardMenuItem[] {
     const items: PostCardMenuItem[] = []
-
-    if (!isOwnProfile && hasScope('bookmarks:write')) {
-      items.push({
-        kind: 'action',
-        label:
-          pendingBookmarkId === post.id
-            ? 'Saving…'
-            : post.bookmarked
-              ? 'Remove bookmark'
-              : 'Bookmark',
-        onSelect: () => {
-          void toggleBookmark(post)
-        },
-      })
-    }
 
     if (isOwnProfile && hasScope('posts:write')) {
       items.push({ kind: 'link', label: 'Edit post', to: `/posts/${post.id}/edit` })
@@ -511,93 +497,63 @@ export function ProfilePage() {
       <div className="post-grid">
         {posts.map((post) => {
           const menuItems = buildPostMenuItems(post)
-          const useInteractiveCard = menuItems.length > 0 || (isOwnProfile && post.hidden)
-
-          if (useInteractiveCard) {
-            return (
-              <article
-                key={post.id}
-                className={`post-card ${isOwnProfile && post.hidden ? 'post-card--moderated' : ''}`}
-              >
-                <div className="post-card-media-wrap">
-                  <div className="post-card-media">
-                    <button
-                      type="button"
-                      className="post-image-lightbox-trigger"
-                      onClick={() =>
-                        openLightbox(
-                          post.imageUrls.map((url) => postImageUrl(url)),
-                          0,
-                          post.title,
-                        )
-                      }
-                      aria-label={`View photos for ${post.title}`}
-                    >
-                      <div className="post-image-wrap">
-                        <img
-                          src={postImageUrl(primaryPostImage(post))}
-                          alt={post.title}
-                          loading="lazy"
-                        />
-                        {post.imageUrls.length > 1 && (
-                          <span className="photo-count">+{post.imageUrls.length - 1}</span>
-                        )}
-                      </div>
-                    </button>
-                  </div>
-                  {menuItems.length > 0 && (
-                    <PostCardMenu label={`Actions for ${post.title}`} items={menuItems} />
-                  )}
-                </div>
-                <div className="post-body">
-                  {isOwnProfile && post.hidden && (
-                    <AuthorPostModerationNotice
-                      reason={post.moderationReason}
-                      variant="card"
-                    />
-                  )}
-                  <div className="post-meta">
-                    <time>{new Date(post.createdAt).toLocaleDateString()}</time>
-                  </div>
-                  <Link
-                    to={`/posts/${post.id}`}
-                    state={listItemBackState(`/users/${userId}`, 'Back to profile')}
-                    className="post-title-link"
-                  >
-                    <h2>{post.title}</h2>
-                  </Link>
-                  <StarRating value={post.rating} readOnly />
-                  <ReviewTagChips tags={post.tags ?? []} compact />
-                  {post.restaurantName && (
-                    <p className="post-restaurant">{post.restaurantName}</p>
-                  )}
-                </div>
-              </article>
-            )
-          }
+          const showVisibilityBadge =
+            !isOwnProfile && post.visibility === 'FOLLOWERS_ONLY' && !post.hidden
 
           return (
-            <article key={post.id} className="post-card">
-              <button
-                type="button"
-                className="post-image-lightbox-trigger"
-                onClick={() =>
-                  openLightbox(
-                    post.imageUrls.map((url) => postImageUrl(url)),
-                    0,
-                    post.title,
-                  )
-                }
-                aria-label={`View photos for ${post.title}`}
+            <article
+              key={post.id}
+              className={`post-card ${post.bookmarked ? 'post-card--bookmarked' : ''} ${isOwnProfile && post.hidden ? 'post-card--moderated' : ''}`}
+            >
+              <div
+                className={`post-card-media-wrap ${showVisibilityBadge ? 'has-visibility-badge' : ''}`}
               >
-                <div className="post-image-wrap">
-                  <img src={postImageUrl(primaryPostImage(post))} alt={post.title} loading="lazy" />
-                  {post.imageUrls.length > 1 && (
-                    <span className="photo-count">+{post.imageUrls.length - 1}</span>
-                  )}
+                {hasScope('bookmarks:write') && (
+                  <PostBookmarkButton
+                    bookmarked={Boolean(post.bookmarked)}
+                    busy={pendingBookmarkId === post.id}
+                    postTitle={post.title}
+                    onToggle={() => {
+                      void toggleBookmark(post)
+                    }}
+                  />
+                )}
+                <div className="post-card-media">
+                  <button
+                    type="button"
+                    className="post-image-lightbox-trigger"
+                    onClick={() =>
+                      openLightbox(
+                        post.imageUrls.map((url) => postImageUrl(url)),
+                        0,
+                        post.title,
+                      )
+                    }
+                    aria-label={`View photos for ${post.title}`}
+                  >
+                    <div className="post-image-wrap">
+                      <img
+                        src={postImageUrl(primaryPostImage(post))}
+                        alt={post.title}
+                        loading="lazy"
+                      />
+                      {post.imageUrls.length > 1 && (
+                        <span className="photo-count">+{post.imageUrls.length - 1}</span>
+                      )}
+                      {showVisibilityBadge && (
+                        <span className="visibility-badge">Followers only</span>
+                      )}
+                    </div>
+                  </button>
                 </div>
-              </button>
+                {menuItems.length > 0 && (
+                  <PostCardMenu label={`Actions for ${post.title}`} items={menuItems} />
+                )}
+              </div>
               <div className="post-body">
+                {isOwnProfile && post.hidden && (
+                  <AuthorPostModerationNotice reason={post.moderationReason} variant="card" />
+                )}
                 <div className="post-meta">
                   <time>{new Date(post.createdAt).toLocaleDateString()}</time>
                 </div>
@@ -610,9 +566,7 @@ export function ProfilePage() {
                 </Link>
                 <StarRating value={post.rating} readOnly />
                 <ReviewTagChips tags={post.tags ?? []} compact />
-                {post.restaurantName && (
-                  <p className="post-restaurant">{post.restaurantName}</p>
-                )}
+                {post.restaurantName && <p className="post-restaurant">{post.restaurantName}</p>}
               </div>
             </article>
           )
