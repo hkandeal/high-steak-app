@@ -457,6 +457,31 @@ export async function addPostComment(
   })
 }
 
+export async function updatePostComment(
+  token: string,
+  postId: string,
+  commentId: string,
+  body: string,
+): Promise<PostComment> {
+  return apiFetch(`/posts/${postId}/comments/${commentId}`, {
+    method: 'PATCH',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+}
+
+export async function deletePostComment(
+  token: string,
+  postId: string,
+  commentId: string,
+): Promise<void> {
+  await apiFetch(`/posts/${postId}/comments/${commentId}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function searchUsers(token: string, q: string): Promise<UserPublicProfile[]> {
   const params = new URLSearchParams({ q })
   return apiFetch(`/users/search?${params}`, { token })

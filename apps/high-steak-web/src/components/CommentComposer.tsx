@@ -12,6 +12,10 @@ type CommentComposerProps = {
   onSubmit: () => void
   submitting?: boolean
   placeholder?: string
+  submitLabel?: string
+  submittingLabel?: string
+  onCancel?: () => void
+  variant?: 'create' | 'edit'
 }
 
 function insertAtCursor(textarea: HTMLTextAreaElement, current: string, insert: string, maxLength: number) {
@@ -36,6 +40,10 @@ export function CommentComposer({
   onSubmit,
   submitting = false,
   placeholder = 'Share your thoughts…',
+  submitLabel = 'Post comment',
+  submittingLabel,
+  onCancel,
+  variant = 'create',
 }: CommentComposerProps) {
   const pickerId = useId()
   const { theme } = useTheme()
@@ -75,8 +83,14 @@ export function CommentComposer({
     onSubmit()
   }
 
+  const busyLabel = submittingLabel ?? (variant === 'edit' ? 'Saving…' : 'Posting…')
+
   return (
-    <form className="comment-composer" onSubmit={handleSubmit} ref={rootRef}>
+    <form
+      className={`comment-composer${variant === 'edit' ? ' comment-composer--edit' : ''}`}
+      onSubmit={handleSubmit}
+      ref={rootRef}
+    >
       <div className="comment-composer-input-wrap">
         <textarea
           ref={textareaRef}
@@ -87,6 +101,7 @@ export function CommentComposer({
           maxLength={maxLength}
           required
           aria-label="Comment"
+          disabled={submitting}
         />
         <div className="comment-composer-toolbar">
           <button
@@ -96,12 +111,25 @@ export function CommentComposer({
             aria-controls={pickerId}
             onClick={() => setPickerOpen((open) => !open)}
             title="Add emoji"
+            disabled={submitting}
           >
             😀
           </button>
-          <button type="submit" className="btn primary" disabled={submitting || !value.trim()}>
-            {submitting ? 'Posting…' : 'Post comment'}
-          </button>
+          <div className="comment-composer-actions">
+            {onCancel && (
+              <button
+                type="button"
+                className="btn ghost small"
+                disabled={submitting}
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+            )}
+            <button type="submit" className="btn primary small" disabled={submitting || !value.trim()}>
+              {submitting ? busyLabel : submitLabel}
+            </button>
+          </div>
         </div>
       </div>
 

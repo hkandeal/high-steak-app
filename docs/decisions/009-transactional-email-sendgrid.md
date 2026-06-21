@@ -119,11 +119,56 @@ Secret: `kubectl create secret generic high-steak-mail-secret -n apps --from-lit
 - **SendGrid HTTP API** — SMTP sufficient for current volume; same API key works if we switch later
 - **Mailpit in Compose** — removed; local dev uses real SendGrid via `.env.local` for faithful deliverability testing
 
+### Provider abstraction
+
+The API does **not** integrate SendGrid by name. Outbound mail uses **Spring Boot Mail** (`JavaMailSender`) over **SMTP**. SendGrid is selected only via environment / Helm:
+
+- `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`
+- `MAIL_ENABLED`, `MAIL_FROM`, `APP_BASE_URL`
+
+Switching providers is an **ops/config change** (SMTP host, credentials, DNS, secret) — no Java change required if the replacement offers SMTP.
+
+### Re-evaluation planned (SendGrid trial)
+
+SendGrid is the **current** provider. Revisit alternatives when the SendGrid trial ends (**August 2026**) based on:
+
+- Cost at actual volume
+- Deliverability (inbox vs junk/deferred, e.g. Yahoo throttling on shared IPs)
+- Activity/logs and domain auth UX
+
+### Alternatives for post-trial (SMTP-compatible)
+
+| Provider | Typical free tier | Paid (rough) | SMTP | Domain auth | Notes |
+|----------|-------------------|--------------|------|-------------|-------|
+| **Twilio SendGrid** (current) | ~100/day or trial | ~$20/mo+ | `smtp.sendgrid.net:587`, user `apikey`, password = API key | DKIM CNAMEs + SPF on sending domain | Configured on `notify.hossam.io` |
+| **Brevo** (Sendinblue) | ~300 emails/day | Paid above free | `smtp-relay.brevo.com:587`, **SMTP login + SMTP key** (not REST API key) | **Senders, Domains & Dedicated IPs** → add domain → DKIM (+ DMARC); create sender e.g. `noreply@notify.hossam.io` | Strong free tier for low volume; [Brevo SMTP docs](https://help.brevo.com/hc/en-us/articles/7924908994450) |
+| **Resend** | ~3,000/mo | ~$20/mo+ | SMTP available | Domain verification in dashboard | Modern DX; good startup default |
+| **Amazon SES** | AWS credits / low $ | ~$0.10 / 1k emails | `email-smtp.<region>.amazonaws.com` | Easy DKIM in SES + Cloudflare | Cheapest at scale; more AWS/ops (sandbox, bounces) |
+| **Postmark** | Test tier only | ~$15/mo / 10k | SMTP available | Domain signatures in UI | Premium deliverability; not cheaper |
+
+**Not planned:** self-hosted Postal (rejected above).
+
+### If migrating off SendGrid (checklist)
+
+1. Create account on chosen provider; generate **SMTP** credentials (for Brevo: **SMTP key**, not API v3 key).
+2. Add and authenticate **`notify.hossam.io`** (or new subdomain) — new DKIM/DMARC DNS in Cloudflare (**DNS only** on provider CNAMEs).
+3. Update Helm `mail.smtp.*` and K8s secret (e.g. rename `sendgrid-api-key` → provider-specific key).
+4. Update `.env.local.example` for local Docker.
+5. Deploy via **CI/CD**; verify register → verification email and provider activity UI.
+6. Update this ADR status or add a follow-up ADR if the provider choice changes.
+
+### Deliverability notes (provider-agnostic)
+
+- **Deferred** events (e.g. Yahoo throttling shared sending IPs) are recipient-side temporary delays — not an application bug.
+- Shared IPs on free/low tiers affect all SaaS providers similarly until domain reputation improves.
+- SPF/DKIM/DMARC on the sending domain remain required regardless of provider.
+
 ## Consequences
 
 - API key is a production secret; rotate if exposed; never commit to Git or chat
 - New domains may land in junk until reputation builds; users should mark not junk and add SPF
 - Free/shared SendGrid IPs can affect deliverability; dedicated IP optional at higher volume
+- SendGrid trial ends ~August 2026; provider choice may change per re-evaluation above without API code changes (SMTP abstraction)
 - Email is fire-and-forget async; failures are logged, not retried in v1
 - `APP_BASE_URL` must match the public web URL so links in emails resolve correctly
 - Users who registered before V17 get preferences via migration backfill; new users get defaults on register

@@ -19,6 +19,7 @@ import {
   type UserPublicProfile,
 } from '../api/client'
 import { AvatarCropModal } from '../components/AvatarCropModal'
+import { EmailNotificationSettings } from '../components/EmailNotificationSettings'
 import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
@@ -109,6 +110,20 @@ export function ProfilePage() {
       setDisplayName(user.displayName)
     }
   }, [isOwnProfile, user])
+
+  useEffect(() => {
+    if (!isOwnProfile || loading) return
+    const shouldOpenEdit =
+      window.location.hash === '#email-settings' ||
+      new URLSearchParams(window.location.search).get('edit') === '1'
+    if (!shouldOpenEdit) return
+    setEditing(true)
+    if (window.location.hash === '#email-settings') {
+      requestAnimationFrame(() => {
+        document.getElementById('email-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  }, [isOwnProfile, loading])
 
   function startEditing() {
     if (!user) return
@@ -400,21 +415,29 @@ export function ProfilePage() {
       {profile && editing && isOwnProfile && (
         <form className="profile-edit" onSubmit={handleSaveProfile}>
           <h2>Edit profile</h2>
-          <div className="profile-edit-avatar">
-            <div className="profile-avatar">
-              {avatarSrc ? (
-                <img src={avatarSrc} alt="" />
-              ) : (
-                <span>{displayInitials(displayName)}</span>
-              )}
-            </div>
-            <label className="btn ghost small">
-              Change avatar
-              <span className="field-hint">Max {MAX_IMAGE_MB} MB</span>
+          <div className="profile-photo-field">
+            <span className="profile-photo-label" id="profile-photo-label">
+              Profile photo
+            </span>
+            <label className="profile-photo-picker" aria-labelledby="profile-photo-label">
+              <span className="profile-photo-preview">
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt="" />
+                ) : (
+                  <span className="profile-photo-initials">{displayInitials(displayName)}</span>
+                )}
+                <span className="profile-photo-badge" aria-hidden="true">
+                  <span className="profile-photo-badge-icon">📷</span>
+                </span>
+              </span>
+              <span className="profile-photo-copy">
+                <strong>Change photo</strong>
+                <span className="muted">JPEG, PNG, or WebP · up to {MAX_IMAGE_MB} MB</span>
+              </span>
               <input
                 type="file"
                 accept="image/*"
-                hidden
+                className="profile-photo-input"
                 onChange={(e) => {
                   handleAvatarPick(e.target.files?.[0] ?? null)
                   e.target.value = ''
@@ -438,6 +461,9 @@ export function ProfilePage() {
           </label>
           <p className="profile-edit-note">Email cannot be changed after registration.</p>
           <p className="profile-edit-note">Username @{profile.username} cannot be changed.</p>
+
+          <EmailNotificationSettings embedded />
+
           <div className="profile-edit-actions">
             <button type="button" className="btn ghost" onClick={() => setEditing(false)}>
               Cancel
@@ -449,7 +475,7 @@ export function ProfilePage() {
         </form>
       )}
 
-      {isOwnProfile && hiddenPostCount > 0 && !loading && !postsLoading && (
+      {!(isOwnProfile && editing) && isOwnProfile && hiddenPostCount > 0 && !loading && !postsLoading && (
         <div className="profile-moderation-alert">
           <button
             type="button"
@@ -483,7 +509,7 @@ export function ProfilePage() {
         </div>
       )}
 
-      {!loading && !postsLoading && !error && !postsError && posts.length === 0 && (
+      {!(isOwnProfile && editing) && !loading && !postsLoading && !error && !postsError && posts.length === 0 && (
         <div className="empty-feed">
           <p>{isOwnProfile ? "You haven't posted yet." : 'No public posts yet.'}</p>
           {canPost && (
@@ -494,7 +520,9 @@ export function ProfilePage() {
         </div>
       )}
 
-      <div className="post-grid">
+      {!(isOwnProfile && editing) && (
+        <>
+          <div className="post-grid">
         {posts.map((post) => {
           const menuItems = buildPostMenuItems(post)
           const showVisibilityBadge =
@@ -571,14 +599,16 @@ export function ProfilePage() {
             </article>
           )
         })}
-      </div>
+          </div>
 
-      {postsLoading && !loading && <p className="muted">Loading posts…</p>}
+          {postsLoading && !loading && <p className="muted">Loading posts…</p>}
 
-      {postsHasMore && !postsLoading && (
-        <div ref={postsSentinelRef} className="infinite-scroll-sentinel">
-          {postsLoadingMore && <p className="muted">Loading more posts…</p>}
-        </div>
+          {postsHasMore && !postsLoading && (
+            <div ref={postsSentinelRef} className="infinite-scroll-sentinel">
+              {postsLoadingMore && <p className="muted">Loading more posts…</p>}
+            </div>
+          )}
+        </>
       )}
 
       {cropImageSrc && (

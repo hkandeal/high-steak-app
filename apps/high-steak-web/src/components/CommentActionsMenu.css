@@ -1,0 +1,91 @@
+.comment-actions-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.comment-actions-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.comment-actions-menu-trigger:hover,
+.comment-actions-menu-trigger:focus-visible,
+.comment-actions-menu-trigger[aria-expanded='true'] {
+  background: var(--accent-hover-bg);
+  border-color: var(--card-border);
+  color: var(--cream);
+  outline: none;
+}
+
+.comment-actions-menu-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  align-items: center;
+}
+
+.comment-actions-menu-dots span {
+  display: block;
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.comment-actions-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  min-width: 132px;
+  padding: 0.3rem 0;
+  border-radius: 0.55rem;
+  border: 1px solid var(--card-border);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-md);
+  z-index: 4;
+}
+
+.comment-actions-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--cream);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.comment-actions-menu-item:hover:not(:disabled),
+.comment-actions-menu-item:focus-visible {
+  background: var(--menu-hover);
+  outline: none;
+}
+
+.comment-actions-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comment-actions-menu-item.danger {
+  color: var(--ember);
+}
+
+.comment-actions-menu-item.danger:hover:not(:disabled),
+.comment-actions-menu-item.danger:focus-visible {
+  background: var(--logout-hover);
+}
