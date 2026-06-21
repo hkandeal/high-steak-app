@@ -269,6 +269,49 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /auth/request-account-deletion:
+    post:
+      tags: [Auth]
+      summary: Request account deletion
+      description: |
+        Sends a confirmation email with a link to permanently delete the account and all associated data.
+        Staff accounts (ADMIN, MODERATOR) cannot use self-service deletion.
+      operationId: requestAccountDeletion
+      x-required-scopes: []
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Confirmation email sent
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /auth/confirm-account-deletion:
+    post:
+      tags: [Auth]
+      summary: Confirm account deletion
+      description: |
+        Permanently deletes the user and all cascaded data after validating the email link token.
+        Sends a final goodbye email to the former account address.
+      operationId: confirmAccountDeletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmAccountDeletionRequest'
+      responses:
+        '204':
+          description: Account deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /posts:
     get:
       tags: [Posts]
@@ -1354,6 +1397,14 @@ components:
         token:
           type: string
           description: Token from the verification email link.
+
+    ConfirmAccountDeletionRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Token from the account deletion confirmation email link.
 
     ResendVerificationRequest:
       type: object

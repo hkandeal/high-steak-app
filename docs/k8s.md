@@ -127,6 +127,8 @@ Ensure `mysql-secrets` and `high-steak-secret` exist in `apps` before applying.
 
 The API writes to `/app/uploads` (PVC). The container runs as non-root user `spring` (UID/GID **1001**). The chart sets `podSecurityContext.fsGroup: 1001` so the volume is writable.
 
+**Docker vs Kubernetes:** `docker-entrypoint.sh` only runs `chown` + `su` when the container starts as **root** (local Docker Compose). On Kubernetes, `runAsUser: 1001` and `runAsNonRoot: true` apply before the entrypoint, so the script execs `java` directly — same as the previous image. Upload permissions on prod rely on `fsGroup`, not the entrypoint.
+
 After changing the API `Dockerfile` or deployment security context, **rebuild and redeploy the API image**, then restart the pod:
 
 ```bash

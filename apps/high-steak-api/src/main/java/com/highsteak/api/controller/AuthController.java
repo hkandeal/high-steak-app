@@ -2,6 +2,7 @@ package com.highsteak.api.controller;
 
 import com.highsteak.api.dto.AuthDtos;
 import com.highsteak.api.security.UserPrincipal;
+import com.highsteak.api.service.AccountDeletionService;
 import com.highsteak.api.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountDeletionService accountDeletionService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -81,5 +83,17 @@ public class AuthController {
             @RequestParam(required = false) String displayName,
             @RequestParam(required = false) MultipartFile avatar) {
         return authService.updateProfile(principal, displayName, avatar);
+    }
+
+    @PostMapping("/request-account-deletion")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestAccountDeletion(@AuthenticationPrincipal UserPrincipal principal) {
+        accountDeletionService.requestDeletion(principal);
+    }
+
+    @PostMapping("/confirm-account-deletion")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmAccountDeletion(@Valid @RequestBody AuthDtos.ConfirmAccountDeletionRequest request) {
+        accountDeletionService.confirmDeletion(request.token());
     }
 }

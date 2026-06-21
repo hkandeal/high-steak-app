@@ -35,6 +35,10 @@ public final class AuthDtos {
             @NotBlank String token
     ) {}
 
+    public record ConfirmAccountDeletionRequest(
+            @NotBlank String token
+    ) {}
+
     public record ResendVerificationRequest(
             @NotBlank @Email @Size(max = ApiConstraints.EMAIL_MAX) String email
     ) {}

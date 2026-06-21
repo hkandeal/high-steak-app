@@ -9,6 +9,7 @@ import {
   hidePost,
   postImageUrl,
   primaryPostImage,
+  requestAccountDeletion,
   setUserBlocked,
   unbookmarkPost,
   unhidePost,
@@ -44,7 +45,7 @@ import './ProfilePage.css'
 
 export function ProfilePage() {
   const { userId } = useParams<{ userId: string }>()
-  const { user, token, isAuthenticated, hasScope, applyToken } = useAuth()
+  const { user, token, isAuthenticated, hasScope, hasRole, applyToken } = useAuth()
   const { hiddenPosts: moderatedHiddenPosts } = useModerationNoticesContext()
   const [profile, setProfile] = useState<UserPublicProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -63,6 +64,9 @@ export function ProfilePage() {
   const [deleting, setDeleting] = useState(false)
   const [pendingBookmarkId, setPendingBookmarkId] = useState<string | null>(null)
   const [profileAlertExpanded, setProfileAlertExpanded] = useState(false)
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteAccountRequested, setDeleteAccountRequested] = useState(false)
   const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
   const isOwnProfile = isAuthenticated && user?.id === userId
@@ -71,6 +75,8 @@ export function ProfilePage() {
   const canModerateProfile = hasScope('posts:moderate') && !isOwnProfile
   const canBlockProfile =
     hasScope('users:block') && !isOwnProfile && profile?.role === 'USER'
+  const canDeleteAccount =
+    isOwnProfile && !hasRole('ADMIN') && !hasRole('MODERATOR')
 
   const loadPostsPage = useCallback(
     async (page: number) => {
@@ -133,7 +139,24 @@ export function ProfilePage() {
     setAvatarPreview(null)
     if (cropImageSrc) URL.revokeObjectURL(cropImageSrc)
     setCropImageSrc(null)
+    setDeleteAccountRequested(false)
     setEditing(true)
+  }
+
+  async function handleRequestAccountDeletion() {
+    if (!token) return
+    setDeletingAccount(true)
+    setError(null)
+    try {
+      await requestAccountDeletion(token)
+      setDeleteAccountOpen(false)
+      setDeleteAccountRequested(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to request account deletion')
+      setDeleteAccountOpen(false)
+    } finally {
+      setDeletingAccount(false)
+    }
   }
 
   function handleAvatarPick(file: File | null) {
@@ -464,6 +487,31 @@ export function ProfilePage() {
 
           <EmailNotificationSettings embedded />
 
+          {canDeleteAccount && (
+            <section className="profile-danger-zone" aria-labelledby="profile-danger-heading">
+              <h3 id="profile-danger-heading">Delete account</h3>
+              {deleteAccountRequested ? (
+                <p className="profile-danger-notice">
+                  We sent a confirmation link to <strong>{user?.email}</strong>. Open it to
+                  permanently delete your account. The link expires in 24 hours.
+                </p>
+              ) : (
+                <>
+                  <p className="muted">
+                    Permanently remove your profile, posts, comments, and all associated data.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn ghost danger-text"
+                    onClick={() => setDeleteAccountOpen(true)}
+                  >
+                    Delete account
+                  </button>
+                </>
+              )}
+            </section>
+          )}
+
           <div className="profile-edit-actions">
             <button type="button" className="btn ghost" onClick={() => setEditing(false)}>
               Cancel
@@ -648,6 +696,26 @@ export function ProfilePage() {
         }}
         onCancel={() => {
           if (!deleting) setDeleteTarget(null)
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteAccountOpen}
+        title="Delete your account?"
+        message={
+          user?.email
+            ? `This will permanently remove your profile, posts, comments, and all data. We'll email ${user.email} with a link to confirm.`
+            : 'This will permanently remove your profile, posts, comments, and all data. We will email you a link to confirm.'
+        }
+        confirmLabel="Send confirmation email"
+        cancelLabel="Keep account"
+        variant="danger"
+        loading={deletingAccount}
+        onConfirm={() => {
+          void handleRequestAccountDeletion()
+        }}
+        onCancel={() => {
+          if (!deletingAccount) setDeleteAccountOpen(false)
         }}
       />
 

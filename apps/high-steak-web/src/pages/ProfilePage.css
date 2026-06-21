@@ -230,6 +230,33 @@
   gap: 0.5rem;
 }
 
+.profile-danger-zone {
+  margin-top: 0.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.profile-danger-zone h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--ember);
+}
+
+.profile-danger-zone .muted {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+}
+
+.profile-danger-notice {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: rgba(201, 162, 39, 0.06);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .post-card-link {
   display: block;
   text-decoration: none;
