@@ -76,6 +76,68 @@ public class EmailTemplateService {
         return new EmailMessage(subject, html, text);
     }
 
+    public EmailMessage confirmAccountDeletion(String displayName, String confirmUrl, int expirationHours) {
+        String subject = "Confirm deletion of your High Steaks account";
+        String text = """
+                Hi %s,
+
+                We received a request to permanently delete your High Steaks account and all associated data.
+
+                If you made this request, confirm deletion here:
+
+                %s
+
+                This link expires in %d hours. If you did not request account deletion, ignore this email — your account will stay active.
+
+                — High Steaks
+                """.formatted(displayName, confirmUrl, expirationHours);
+        String bodyHtml = """
+                <p style="margin:0 0 16px;">Hi <strong>%s</strong>,</p>
+                <p style="margin:0 0 16px;">We received a request to <strong>permanently delete</strong> your High Steaks account — including your posts, comments, and profile.</p>
+                <p style="margin:0;color:#a89878;">This link expires in %d hours. If this wasn't you, ignore this email and your account will stay active.</p>
+                """
+                .formatted(escape(displayName), expirationHours);
+        String html = EmailHtmlLayout.render(
+                "Confirm account deletion",
+                "Delete your High Steaks account",
+                bodyHtml,
+                "Confirm deletion",
+                confirmUrl,
+                "Keep my account",
+                mailProperties.getBaseUrl() + "/feed",
+                mailProperties.getBaseUrl() + "/login");
+        return new EmailMessage(subject, html, text);
+    }
+
+    public EmailMessage accountDeletedGoodbye(String displayName) {
+        String subject = "Your High Steaks account has been deleted";
+        String text = """
+                Hi %s,
+
+                Your High Steaks account and all associated data have been permanently removed.
+
+                We're sorry to see you go. If you ever want to share another sear, you're welcome to join again.
+
+                — High Steaks
+                """.formatted(displayName);
+        String bodyHtml = """
+                <p style="margin:0 0 16px;">Hi <strong>%s</strong>,</p>
+                <p style="margin:0 0 16px;">Your High Steaks account and all associated data have been <strong>permanently removed</strong>.</p>
+                <p style="margin:0;">We're sorry to see you go. If you ever want to share another sear, you're welcome to join again.</p>
+                """
+                .formatted(escape(displayName));
+        String html = EmailHtmlLayout.render(
+                "Account deleted",
+                "Goodbye from High Steaks",
+                bodyHtml,
+                "Visit High Steaks",
+                mailProperties.getBaseUrl(),
+                "Create a new account",
+                mailProperties.getBaseUrl() + "/register",
+                mailProperties.getBaseUrl());
+        return new EmailMessage(subject, html, text);
+    }
+
     public EmailMessage newComment(
             String recipientName,
             String commenterName,

@@ -9,7 +9,9 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 RUN groupadd --system -g 1001 spring && useradd --system -u 1001 -g spring spring
 COPY --from=build /app/target/*.jar app.jar
-RUN mkdir -p /app/uploads && chown -R spring:spring /app
-USER spring:spring
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN mkdir -p /app/uploads \
+    && chown -R spring:spring /app \
+    && chmod +x /docker-entrypoint.sh
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

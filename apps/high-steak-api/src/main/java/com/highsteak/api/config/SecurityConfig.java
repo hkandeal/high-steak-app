@@ -62,6 +62,7 @@ public class SecurityConfig {
                                 "/auth/logout",
                                 "/auth/verify-email",
                                 "/auth/resend-verification",
+                                "/auth/confirm-account-deletion",
                                 "/auth/check-username",
                                 "/auth/check-email",
                                 "/v3/api-docs/**",

@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import { ModerationNoticesProvider } from './context/ModerationNoticesContext'
 import { BookmarksPage } from './pages/BookmarksPage'
 import { ManagementPage } from './pages/ManagementPage'
+import { ConfirmAccountDeletionPage } from './pages/ConfirmAccountDeletionPage'
 import { NotificationSettingsPage } from './pages/NotificationSettingsPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { DiscoverPage } from './pages/DiscoverPage'
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'verify-email', element: <VerifyEmailPage /> },
+      { path: 'confirm-account-deletion', element: <ConfirmAccountDeletionPage /> },
       {
         path: 'post/new',
         element: (

@@ -35,6 +35,25 @@ class EmailTemplateServiceTest {
         assertThat(message.text()).contains(verifyUrl);
     }
 
+    @Test
+    void confirmAccountDeletionTemplateIncludesConfirmLink() {
+        String confirmUrl = "http://localhost:5173/confirm-account-deletion?token=abc";
+        EmailTemplateService.EmailMessage message = templates.confirmAccountDeletion("Hossam", confirmUrl, 24);
+
+        assertThat(message.subject()).contains("Confirm deletion");
+        assertThat(message.html()).contains(confirmUrl);
+        assertThat(message.text()).contains(confirmUrl);
+    }
+
+    @Test
+    void accountDeletedGoodbyeTemplateMentionsRemoval() {
+        EmailTemplateService.EmailMessage message = templates.accountDeletedGoodbye("Hossam");
+
+        assertThat(message.subject()).contains("deleted");
+        assertThat(message.html()).contains("permanently removed");
+        assertThat(message.text()).contains("permanently removed");
+    }
+
     private static final class MailPropertiesStub extends com.highsteak.api.config.MailProperties {
         MailPropertiesStub() {
             setBaseUrl("http://localhost:5173");

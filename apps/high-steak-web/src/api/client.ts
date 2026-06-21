@@ -115,6 +115,21 @@ export async function resendVerificationEmail(email: string): Promise<void> {
   })
 }
 
+export async function requestAccountDeletion(token: string): Promise<void> {
+  await apiFetch('/auth/request-account-deletion', {
+    method: 'POST',
+    token,
+  })
+}
+
+export async function confirmAccountDeletion(deletionToken: string): Promise<void> {
+  await apiFetch('/auth/confirm-account-deletion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: deletionToken }),
+  })
+}
+
 let onUnauthorized: (() => void) | null = null
 let sessionHandlers: SessionHandlers | null = null
 let refreshInFlight: Promise<AuthResponse | null> | null = null
