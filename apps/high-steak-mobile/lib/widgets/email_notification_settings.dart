@@ -85,14 +85,13 @@ class _EmailNotificationSettingsState extends State<EmailNotificationSettings> {
   }
 
   Future<void> _load() async {
-    final token = widget.auth.token;
-    if (token == null) return;
+    if (!widget.auth.isAuthenticated) return;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final prefs = await widget.api.fetchNotificationPreferences(token);
+      final prefs = await widget.api.fetchNotificationPreferences();
       if (!mounted) return;
       setState(() {
         _prefs = prefs;
@@ -121,9 +120,10 @@ class _EmailNotificationSettingsState extends State<EmailNotificationSettings> {
   }
 
   Future<void> _toggle(PreferenceKey key) async {
-    final token = widget.auth.token;
     final prefs = _prefs;
-    if (token == null || prefs == null || _savingKey != null) return;
+    if (!widget.auth.isAuthenticated || prefs == null || _savingKey != null) {
+      return;
+    }
 
     setState(() {
       _savingKey = key;
@@ -131,7 +131,6 @@ class _EmailNotificationSettingsState extends State<EmailNotificationSettings> {
     });
     try {
       final updated = await widget.api.updateNotificationPreferences(
-        token,
         {key: !_valueFor(key)},
       );
       if (!mounted) return;

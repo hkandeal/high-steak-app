@@ -25,9 +25,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   @override
   void initState() {
     super.initState();
-    final token = widget.auth.token!;
     _controller = PaginatedListController<SteakPost>(
-      (page) => widget.api.fetchBookmarkedPosts(token, page: page),
+      (page) => widget.api.fetchBookmarkedPosts(page: page),
     );
     _controller.reload();
   }

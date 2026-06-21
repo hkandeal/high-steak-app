@@ -99,8 +99,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
 
   Future<void> _loadTags() async {
     try {
-      final catalog =
-          await widget.api.fetchReviewTags(widget.auth.token!);
+      final catalog = await widget.api.fetchReviewTags();
       if (!mounted) return;
       setState(() {
         _tagCatalog = catalog;
@@ -117,10 +116,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
 
   Future<void> _loadPost() async {
     try {
-      final post = await widget.api.fetchPost(
-        widget.auth.token!,
-        widget.postId!,
-      );
+      final post = await widget.api.fetchPost(widget.postId!);
       if (!mounted) return;
 
       if (post.author.id != widget.auth.user?.id) {
@@ -233,7 +229,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       final SteakPost post;
       if (widget.isEditing) {
         post = await widget.api.updatePost(
-          widget.auth.token!,
           widget.postId!,
           title: _title.text.trim(),
           comment: _comment.text.trim(),
@@ -251,7 +246,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
         );
       } else {
         post = await widget.api.createPost(
-          widget.auth.token!,
           title: _title.text.trim(),
           comment: _comment.text.trim(),
           rating: _rating,

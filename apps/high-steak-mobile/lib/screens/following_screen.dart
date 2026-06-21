@@ -44,7 +44,7 @@ class _FollowingScreenState extends State<FollowingScreen> {
     });
 
     try {
-      final list = await widget.api.listSubscriptions(widget.auth.token!);
+      final list = await widget.api.listSubscriptions();
       if (!mounted) return;
       setState(() {
         _subscriptions = list;
@@ -68,7 +68,7 @@ class _FollowingScreenState extends State<FollowingScreen> {
     });
 
     try {
-      await widget.api.unsubscribeFromUser(widget.auth.token!, userId);
+      await widget.api.unsubscribeFromUser(userId);
       if (!mounted) return;
       setState(() {
         _subscriptions =

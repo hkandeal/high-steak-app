@@ -42,12 +42,11 @@ class _FeedScreenState extends State<FeedScreen> {
 
   void _initController() {
     _controller?.dispose();
-    final token = widget.auth.token!;
     _controller = PaginatedListController<SteakPost>((page) {
       if (_tab == FeedTab.following) {
-        return widget.api.fetchFollowingPosts(token, page: page);
+        return widget.api.fetchFollowingPosts(page: page);
       }
-      return widget.api.fetchPosts(token, page: page);
+      return widget.api.fetchPosts(page: page);
     });
     _controller!.reload();
   }
