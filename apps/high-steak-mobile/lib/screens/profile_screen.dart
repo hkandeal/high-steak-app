@@ -426,18 +426,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: AuthErrorBanner(message: _profileError!),
           ),
         ],
-        if (_isOwnProfile && !_isStaff) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: _AccountDeletionSection(
-              userEmail: userEmail,
-              deletionRequested: _deletionRequested,
-              deletionBusy: _deletionBusy,
-              saving: _savingProfile,
-              onRequestDeletion: _requestAccountDeletion,
-            ),
-          ),
-        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
