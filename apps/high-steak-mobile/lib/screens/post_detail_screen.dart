@@ -50,9 +50,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   @override
   void initState() {
     super.initState();
-    final token = widget.auth.token!;
     _comments = PaginatedListController<PostComment>(
-      (page) => widget.api.fetchPostComments(token, widget.postId, page: page),
+      (page) => widget.api.fetchPostComments(widget.postId, page: page),
     );
     _loadPost();
     _comments.reload().then((_) {
@@ -75,7 +74,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       _postError = null;
     });
     try {
-      final post = await widget.api.fetchPost(widget.auth.token!, widget.postId);
+      final post = await widget.api.fetchPost(widget.postId);
       if (!mounted) return;
       setState(() {
         _post = post;
@@ -96,11 +95,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (body.isEmpty || _submitting) return;
     setState(() => _submitting = true);
     try {
-      final created = await widget.api.addPostComment(
-        widget.auth.token!,
-        widget.postId,
-        body,
-      );
+      final created = await widget.api.addPostComment(widget.postId, body);
       _comments.addItem(created);
       _commentController.clear();
       setState(() => _totalComments += 1);
@@ -119,9 +114,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     setState(() => _bookmarkBusy = true);
     try {
       if (_bookmarked) {
-        await widget.api.unbookmarkPost(widget.auth.token!, widget.postId);
+        await widget.api.unbookmarkPost(widget.postId);
       } else {
-        await widget.api.bookmarkPost(widget.auth.token!, widget.postId);
+        await widget.api.bookmarkPost(widget.postId);
       }
       if (!mounted) return;
       setState(() => _bookmarked = !_bookmarked);
@@ -158,7 +153,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     setState(() => _deleteBusy = true);
     try {
-      await widget.api.deletePost(widget.auth.token!, widget.postId);
+      await widget.api.deletePost(widget.postId);
       if (!mounted) return;
       context.pop();
     } catch (e) {
@@ -172,7 +167,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Future<void> _updateComment(PostComment comment, String body) async {
     final updated = await widget.api.updatePostComment(
-      widget.auth.token!,
       widget.postId,
       comment.id,
       body,
@@ -185,11 +179,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Future<void> _deleteComment(PostComment comment) async {
-    await widget.api.deletePostComment(
-      widget.auth.token!,
-      widget.postId,
-      comment.id,
-    );
+    await widget.api.deletePostComment(widget.postId, comment.id);
     _comments.removeItem((item) => item.id == comment.id);
     if (mounted) {
       setState(() => _totalComments = (_totalComments - 1).clamp(0, 999999));

@@ -31,9 +31,13 @@ class AuthController extends ChangeNotifier {
   bool hasScope(String scope) => _user?.hasScope(scope) ?? false;
 
   Future<void> initialize() async {
-    _api.onUnauthorized = () {
-      unawaited(_tryRefreshSession());
-    };
+    _api.sessionHandlers = ApiSessionHandlers(
+      getAccessToken: () => _token,
+      getRefreshToken: () => _refreshToken,
+      onSessionRefreshed: _onSessionRefreshedFromApi,
+      onLogout: logout,
+    );
+
     final savedAccess = await _storage.readToken();
     final savedRefresh = await _storage.readRefreshToken();
     if (savedAccess != null && savedRefresh != null) {
@@ -88,6 +92,17 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onSessionRefreshedFromApi(String accessToken, String refreshToken) {
+    _token = accessToken;
+    _refreshToken = refreshToken;
+    _user = JwtUtils.userFromToken(accessToken);
+    unawaited(
+      _storage.saveTokens(accessToken: accessToken, refreshToken: refreshToken),
+    );
+    _scheduleProactiveRefresh(accessToken, refreshToken);
+    notifyListeners();
+  }
+
   Future<void> _applyTokens(
     String accessToken,
     String refreshToken, {
@@ -98,7 +113,7 @@ class AuthController extends ChangeNotifier {
     var summary = JwtUtils.userFromToken(accessToken);
     if (refreshProfile) {
       try {
-        final profile = await _api.getMe(accessToken);
+        final profile = await _api.getMe();
         summary = summary.copyWithProfile(profile);
       } catch (_) {
         // Keep JWT claims if profile refresh fails transiently.
@@ -117,6 +132,19 @@ class AuthController extends ChangeNotifier {
     _refreshTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
       unawaited(_tryRefreshSession());
     });
+  }
+
+  Future<void> refreshSessionIfNeeded() async {
+    final token = _token;
+    if (token == null || _refreshToken == null) return;
+
+    final expiry = JwtUtils.expiryFromToken(token);
+    if (expiry == null) return;
+
+    final refreshBy = expiry.subtract(const Duration(minutes: 5));
+    if (DateTime.now().isBefore(refreshBy)) return;
+
+    await _tryRefreshSession();
   }
 
   Future<void> _tryRefreshSession() async {

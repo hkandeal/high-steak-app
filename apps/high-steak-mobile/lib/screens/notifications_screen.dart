@@ -43,7 +43,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _error = null;
     });
     try {
-      final posts = await widget.api.fetchMyModerationNotices(widget.auth.token!);
+      final posts = await widget.api.fetchMyModerationNotices();
       final notices = <_ModerationNotice>[
         ...posts
             .where((post) => post.hidden)

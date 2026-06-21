@@ -70,14 +70,13 @@ class _PostCardState extends State<PostCard> {
 
   Future<void> _toggleBookmark() async {
     if (!_canBookmark || _bookmarkBusy) return;
-    final token = widget.auth!.token!;
     final api = widget.api!;
     setState(() => _bookmarkBusy = true);
     try {
       if (_bookmarked) {
-        await api.unbookmarkPost(token, widget.post.id);
+        await api.unbookmarkPost(widget.post.id);
       } else {
-        await api.bookmarkPost(token, widget.post.id);
+        await api.bookmarkPost(widget.post.id);
       }
       if (!mounted) return;
       setState(() => _bookmarked = !_bookmarked);
@@ -115,7 +114,7 @@ class _PostCardState extends State<PostCard> {
 
     setState(() => _deleteBusy = true);
     try {
-      await widget.api!.deletePost(widget.auth!.token!, widget.post.id);
+      await widget.api!.deletePost(widget.post.id);
       widget.onDeleted?.call();
     } catch (e) {
       if (!mounted) return;

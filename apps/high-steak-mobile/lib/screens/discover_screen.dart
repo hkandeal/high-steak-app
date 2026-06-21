@@ -77,7 +77,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     });
 
     try {
-      final results = await widget.api.searchUsers(widget.auth.token!, q);
+      final results = await widget.api.searchUsers(q);
       if (!mounted) return;
       setState(() {
         _results = results;
@@ -102,9 +102,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
     try {
       if (user.subscribed) {
-        await widget.api.unsubscribeFromUser(widget.auth.token!, user.id);
+        await widget.api.unsubscribeFromUser(user.id);
       } else {
-        await widget.api.subscribeToUser(widget.auth.token!, user.id);
+        await widget.api.subscribeToUser(user.id);
       }
       if (!mounted) return;
       setState(() {

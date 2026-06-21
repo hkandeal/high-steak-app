@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -149,7 +151,7 @@ GoRouter createAppRouter({
   );
 }
 
-class AuthBootstrap extends StatelessWidget {
+class AuthBootstrap extends StatefulWidget {
   const AuthBootstrap({
     super.key,
     required this.auth,
@@ -162,12 +164,36 @@ class AuthBootstrap extends StatelessWidget {
   final ThemeController theme;
 
   @override
+  State<AuthBootstrap> createState() => _AuthBootstrapState();
+}
+
+class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(widget.auth.refreshSessionIfNeeded());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (auth.initializing || theme.initializing) {
+    if (widget.auth.initializing || widget.theme.initializing) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         scrollBehavior: const AppScrollBehavior(),
-        theme: AppTheme.build(theme.variant),
+        theme: AppTheme.build(widget.theme.variant),
         home: const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         ),
@@ -178,8 +204,8 @@ class AuthBootstrap extends StatelessWidget {
       title: 'High Steaks',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const AppScrollBehavior(),
-      theme: AppTheme.build(theme.variant),
-      routerConfig: createAppRouter(auth: auth, api: api, theme: theme),
+      theme: AppTheme.build(widget.theme.variant),
+      routerConfig: createAppRouter(auth: widget.auth, api: widget.api, theme: widget.theme),
     );
   }
 }

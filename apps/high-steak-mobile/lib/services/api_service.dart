@@ -15,13 +15,34 @@ import '../models/steak_post.dart';
 import '../models/user.dart';
 import '../utils/post_image_picker.dart';
 
-typedef UnauthorizedHandler = void Function();
+class ApiSessionHandlers {
+  const ApiSessionHandlers({
+    required this.getAccessToken,
+    required this.getRefreshToken,
+    required this.onSessionRefreshed,
+    required this.onLogout,
+  });
+
+  final String? Function() getAccessToken;
+  final String? Function() getRefreshToken;
+  final void Function(String accessToken, String refreshToken) onSessionRefreshed;
+  final Future<void> Function() onLogout;
+}
 
 class ApiService {
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
+  static const _authRefreshPaths = [
+    '/auth/refresh',
+    '/auth/login',
+    '/auth/register',
+    '/auth/logout',
+    '/auth/verify-email',
+  ];
+
   final http.Client _client;
-  UnauthorizedHandler? onUnauthorized;
+  ApiSessionHandlers? sessionHandlers;
+  Future<bool>? _refreshInFlight;
 
   Uri _uri(String path, [Map<String, String>? query]) {
     final normalized = path.startsWith('/') ? path : '/$path';
@@ -37,19 +58,97 @@ class ApiService {
     return headers;
   }
 
-  Future<T> _handle<T>(http.Response res, T Function(dynamic body) parse) async {
+  String _requireAccessToken() {
+    final token = sessionHandlers?.getAccessToken();
+    if (token == null || token.isEmpty) {
+      throw ApiException('Not authenticated');
+    }
+    return token;
+  }
+
+  bool _shouldAttemptRefresh(String path) {
+    return !_authRefreshPaths.any((segment) => path.startsWith(segment));
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    if (_refreshInFlight != null) {
+      return _refreshInFlight!;
+    }
+
+    final refreshToken = sessionHandlers?.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      return false;
+    }
+
+    _refreshInFlight = () async {
+      try {
+        final res = await _client.post(
+          _uri('/auth/refresh'),
+          headers: _headers(json: true),
+          body: jsonEncode({'refreshToken': refreshToken}),
+        );
+        if (res.statusCode != 200) return false;
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final access = body['token'] as String?;
+        final nextRefresh = body['refreshToken'] as String?;
+        if (access == null || nextRefresh == null) return false;
+        sessionHandlers?.onSessionRefreshed(access, nextRefresh);
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        _refreshInFlight = null;
+      }
+    }();
+
+    return _refreshInFlight!;
+  }
+
+  Future<T> _parseResponse<T>(
+    http.Response res,
+    T Function(dynamic body) parse,
+  ) async {
     dynamic body;
     if (res.body.isNotEmpty) {
       body = jsonDecode(res.body);
-    }
-    if (res.statusCode == 401) {
-      onUnauthorized?.call();
     }
     if (res.statusCode >= 400) {
       final message = body is Map ? body['message']?.toString() : null;
       throw ApiException(message ?? 'Request failed (${res.statusCode})');
     }
     return parse(body);
+  }
+
+  Future<T> _authorized<T>(
+    String path,
+    Future<http.Response> Function(String token) send,
+    T Function(dynamic body) parse,
+  ) async {
+    Future<http.Response> sendWithCurrentToken() => send(_requireAccessToken());
+
+    var res = await sendWithCurrentToken();
+    if (res.statusCode == 401 && _shouldAttemptRefresh(path)) {
+      final refreshed = await _refreshAccessToken();
+      if (refreshed) {
+        res = await sendWithCurrentToken();
+      } else {
+        await sessionHandlers?.onLogout();
+        throw ApiException('Session expired. Please sign in again.');
+      }
+    }
+    return _parseResponse(res, parse);
+  }
+
+  Future<T> _authorizedMultipart<T>(
+    String path,
+    Future<http.StreamedResponse> Function(String token) send,
+    T Function(dynamic body) parse,
+  ) async {
+    return _authorized(
+      path,
+      (token) async => http.Response.fromStream(await send(token)),
+      parse,
+    );
   }
 
   Future<Map<String, dynamic>> register({
@@ -68,21 +167,21 @@ class ApiService {
         'displayName': displayName,
       }),
     );
-    return _handle(res, (body) => body as Map<String, dynamic>);
+    return _parseResponse(res, (body) => body as Map<String, dynamic>);
   }
 
   Future<AvailabilityResult> checkUsernameAvailability(String username) async {
     final res = await _client.get(
       _uri('/auth/check-username', {'username': username.trim()}),
     );
-    return _handle(res, (body) => AvailabilityResult.fromJson(body as Map<String, dynamic>));
+    return _parseResponse(res, (body) => AvailabilityResult.fromJson(body as Map<String, dynamic>));
   }
 
   Future<AvailabilityResult> checkEmailAvailability(String email) async {
     final res = await _client.get(
       _uri('/auth/check-email', {'email': email.trim()}),
     );
-    return _handle(res, (body) => AvailabilityResult.fromJson(body as Map<String, dynamic>));
+    return _parseResponse(res, (body) => AvailabilityResult.fromJson(body as Map<String, dynamic>));
   }
 
   Future<Map<String, dynamic>> login({
@@ -95,7 +194,7 @@ class ApiService {
         headers: _headers(json: true),
         body: jsonEncode({'username': username, 'password': password}),
       );
-      return _handle(res, (body) => body as Map<String, dynamic>);
+      return _parseResponse(res, (body) => body as Map<String, dynamic>);
     } on SocketException {
       throw ApiException(
         'Cannot reach the API at $apiBaseUrl. '
@@ -111,7 +210,7 @@ class ApiService {
       headers: _headers(json: true),
       body: jsonEncode({'refreshToken': refreshToken}),
     );
-    return _handle(res, (body) => body as Map<String, dynamic>);
+    return _parseResponse(res, (body) => body as Map<String, dynamic>);
   }
 
   Future<void> logout({required String refreshToken}) async {
@@ -127,331 +226,289 @@ class ApiService {
 
   Future<Map<String, dynamic>> fetchAppConfig() async {
     final res = await _client.get(_uri('/config'));
-    return _handle(res, (body) => body as Map<String, dynamic>);
+    return _parseResponse(res, (body) => body as Map<String, dynamic>);
   }
 
-  Future<UserProfile> getMe(String token) async {
-    final res = await _client.get(
-      _uri('/auth/me'),
-      headers: _headers(token: token),
+  Future<UserProfile> getMe() async {
+    return _authorized(
+      '/auth/me',
+      (token) => _client.get(_uri('/auth/me'), headers: _headers(token: token)),
+      (body) => UserProfile.fromJson(body as Map<String, dynamic>),
     );
-    return _handle(res, (body) => UserProfile.fromJson(body as Map<String, dynamic>));
   }
 
-  Future<PageResponse<SteakPost>> fetchPosts(
-    String token, {
+  Future<PageResponse<SteakPost>> fetchPosts({
     int page = 0,
     int size = feedPageSize,
   }) async {
-    final res = await _client.get(
-      _uri('/posts', {'page': '$page', 'size': '$size'}),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+    return _authorized(
+      '/posts',
+      (token) => _client.get(
+        _uri('/posts', {'page': '$page', 'size': '$size'}),
+        headers: _headers(token: token),
+      ),
       (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
     );
   }
 
-  Future<PageResponse<SteakPost>> fetchFollowingPosts(
-    String token, {
+  Future<PageResponse<SteakPost>> fetchFollowingPosts({
     int page = 0,
     int size = feedPageSize,
   }) async {
-    final res = await _client.get(
-      _uri('/posts/following', {'page': '$page', 'size': '$size'}),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+    return _authorized(
+      '/posts/following',
+      (token) => _client.get(
+        _uri('/posts/following', {'page': '$page', 'size': '$size'}),
+        headers: _headers(token: token),
+      ),
       (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
     );
   }
 
-  Future<SteakPost> fetchPost(String token, String postId) async {
-    final res = await _client.get(
-      _uri('/posts/$postId'),
-      headers: _headers(token: token),
+  Future<SteakPost> fetchPost(String postId) async {
+    return _authorized(
+      '/posts',
+      (token) => _client.get(_uri('/posts/$postId'), headers: _headers(token: token)),
+      (body) => SteakPost.fromJson(body as Map<String, dynamic>),
     );
-    return _handle(res, (body) => SteakPost.fromJson(body as Map<String, dynamic>));
   }
 
   Future<PageResponse<PostComment>> fetchPostComments(
-    String token,
     String postId, {
     int page = 0,
     int size = feedPageSize,
   }) async {
-    final res = await _client.get(
-      _uri('/posts/$postId/comments', {'page': '$page', 'size': '$size'}),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+    return _authorized(
+      '/posts',
+      (token) => _client.get(
+        _uri('/posts/$postId/comments', {'page': '$page', 'size': '$size'}),
+        headers: _headers(token: token),
+      ),
       (body) => PageResponse.fromJson(body as Map<String, dynamic>, PostComment.fromJson),
     );
   }
 
-  Future<PostComment> addPostComment(
-    String token,
-    String postId,
-    String bodyText,
-  ) async {
-    final res = await _client.post(
-      _uri('/posts/$postId/comments'),
-      headers: _headers(token: token, json: true),
-      body: jsonEncode({'body': bodyText}),
+  Future<PostComment> addPostComment(String postId, String bodyText) async {
+    return _authorized(
+      '/posts',
+      (token) => _client.post(
+        _uri('/posts/$postId/comments'),
+        headers: _headers(token: token, json: true),
+        body: jsonEncode({'body': bodyText}),
+      ),
+      (body) => PostComment.fromJson(body as Map<String, dynamic>),
     );
-    return _handle(res, (body) => PostComment.fromJson(body as Map<String, dynamic>));
   }
 
   Future<PostComment> updatePostComment(
-    String token,
     String postId,
     String commentId,
     String bodyText,
   ) async {
-    final res = await _client.patch(
-      _uri('/posts/$postId/comments/$commentId'),
-      headers: _headers(token: token, json: true),
-      body: jsonEncode({'body': bodyText}),
+    return _authorized(
+      '/posts',
+      (token) => _client.patch(
+        _uri('/posts/$postId/comments/$commentId'),
+        headers: _headers(token: token, json: true),
+        body: jsonEncode({'body': bodyText}),
+      ),
+      (body) => PostComment.fromJson(body as Map<String, dynamic>),
     );
-    return _handle(res, (body) => PostComment.fromJson(body as Map<String, dynamic>));
   }
 
-  Future<void> deletePostComment(
-    String token,
-    String postId,
-    String commentId,
-  ) async {
-    final res = await _client.delete(
-      _uri('/posts/$postId/comments/$commentId'),
-      headers: _headers(token: token),
+  Future<void> deletePostComment(String postId, String commentId) async {
+    await _authorized(
+      '/posts',
+      (token) => _client.delete(
+        _uri('/posts/$postId/comments/$commentId'),
+        headers: _headers(token: token),
+      ),
+      (_) => null,
     );
-    if (res.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (res.statusCode >= 400) {
-      dynamic body;
-      if (res.body.isNotEmpty) {
-        body = jsonDecode(res.body);
-      }
-      final message = body is Map ? body['message']?.toString() : null;
-      throw ApiException(message ?? 'Request failed (${res.statusCode})');
-    }
   }
 
-  Future<void> deletePost(String token, String postId) async {
-    final res = await _client.delete(
-      _uri('/posts/$postId'),
-      headers: _headers(token: token),
+  Future<void> deletePost(String postId) async {
+    await _authorized(
+      '/posts',
+      (token) => _client.delete(_uri('/posts/$postId'), headers: _headers(token: token)),
+      (_) => null,
     );
-    if (res.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (res.statusCode >= 400) {
-      dynamic body;
-      if (res.body.isNotEmpty) {
-        body = jsonDecode(res.body);
-      }
-      final message = body is Map ? body['message']?.toString() : null;
-      throw ApiException(message ?? 'Request failed (${res.statusCode})');
-    }
   }
 
-  Future<PageResponse<SteakPost>> fetchBookmarkedPosts(
-    String token, {
+  Future<PageResponse<SteakPost>> fetchBookmarkedPosts({
     int page = 0,
     int size = feedPageSize,
   }) async {
-    final res = await _client.get(
-      _uri('/bookmarks', {'page': '$page', 'size': '$size'}),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+    return _authorized(
+      '/bookmarks',
+      (token) => _client.get(
+        _uri('/bookmarks', {'page': '$page', 'size': '$size'}),
+        headers: _headers(token: token),
+      ),
       (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
     );
   }
 
-  Future<void> bookmarkPost(String token, String postId) async {
-    final res = await _client.post(
-      _uri('/posts/$postId/bookmark'),
-      headers: _headers(token: token),
+  Future<void> bookmarkPost(String postId) async {
+    await _authorized(
+      '/posts',
+      (token) => _client.post(
+        _uri('/posts/$postId/bookmark'),
+        headers: _headers(token: token),
+      ),
+      (_) => null,
     );
-    await _handle(res, (_) => null);
   }
 
-  Future<void> unbookmarkPost(String token, String postId) async {
-    final res = await _client.delete(
-      _uri('/posts/$postId/bookmark'),
-      headers: _headers(token: token),
+  Future<void> unbookmarkPost(String postId) async {
+    await _authorized(
+      '/posts',
+      (token) => _client.delete(
+        _uri('/posts/$postId/bookmark'),
+        headers: _headers(token: token),
+      ),
+      (_) => null,
     );
-    if (res.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (res.statusCode >= 400) {
-      dynamic body;
-      if (res.body.isNotEmpty) {
-        body = jsonDecode(res.body);
-      }
-      final message = body is Map ? body['message']?.toString() : null;
-      throw ApiException(message ?? 'Request failed (${res.statusCode})');
-    }
   }
 
-  Future<List<SteakPost>> fetchMyModerationNotices(String token) async {
-    final res = await _client.get(
-      _uri('/posts/mine/moderation-notices'),
-      headers: _headers(token: token),
+  Future<List<SteakPost>> fetchMyModerationNotices() async {
+    return _authorized(
+      '/posts/mine/moderation-notices',
+      (token) => _client.get(
+        _uri('/posts/mine/moderation-notices'),
+        headers: _headers(token: token),
+      ),
+      (body) {
+        final list = body as List<dynamic>? ?? [];
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(SteakPost.fromJson)
+            .toList(growable: false);
+      },
     );
-    return _handle(res, (body) {
-      final list = body as List<dynamic>? ?? [];
-      return list
-          .whereType<Map<String, dynamic>>()
-          .map(SteakPost.fromJson)
-          .toList(growable: false);
-    });
   }
 
-  Future<NotificationPreferences> fetchNotificationPreferences(String token) async {
-    final res = await _client.get(
-      _uri('/users/me/notification-preferences'),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+  Future<NotificationPreferences> fetchNotificationPreferences() async {
+    return _authorized(
+      '/users/me/notification-preferences',
+      (token) => _client.get(
+        _uri('/users/me/notification-preferences'),
+        headers: _headers(token: token),
+      ),
       (body) => NotificationPreferences.fromJson(body as Map<String, dynamic>),
     );
   }
 
   Future<NotificationPreferences> updateNotificationPreferences(
-    String token,
     Map<String, bool> patch,
   ) async {
-    final res = await _client.patch(
-      _uri('/users/me/notification-preferences'),
-      headers: _headers(token: token, json: true),
-      body: jsonEncode(patch),
-    );
-    return _handle(
-      res,
+    return _authorized(
+      '/users/me/notification-preferences',
+      (token) => _client.patch(
+        _uri('/users/me/notification-preferences'),
+        headers: _headers(token: token, json: true),
+        body: jsonEncode(patch),
+      ),
       (body) => NotificationPreferences.fromJson(body as Map<String, dynamic>),
     );
   }
 
-  Future<void> requestAccountDeletion(String token) async {
-    final res = await _client.post(
-      _uri('/auth/request-account-deletion'),
-      headers: _headers(token: token),
+  Future<void> requestAccountDeletion() async {
+    await _authorized(
+      '/auth/request-account-deletion',
+      (token) => _client.post(
+        _uri('/auth/request-account-deletion'),
+        headers: _headers(token: token),
+      ),
+      (_) => null,
     );
-    if (res.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (res.statusCode >= 400) {
-      dynamic body;
-      if (res.body.isNotEmpty) {
-        body = jsonDecode(res.body);
-      }
-      final message = body is Map ? body['message']?.toString() : null;
-      throw ApiException(message ?? 'Request failed (${res.statusCode})');
-    }
   }
 
-  Future<UserPublicProfile> fetchUserProfile(String token, String userId) async {
-    final res = await _client.get(
-      _uri('/users/$userId'),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+  Future<UserPublicProfile> fetchUserProfile(String userId) async {
+    return _authorized(
+      '/users',
+      (token) => _client.get(_uri('/users/$userId'), headers: _headers(token: token)),
       (body) => UserPublicProfile.fromJson(body as Map<String, dynamic>),
     );
   }
 
-  Future<List<UserPublicProfile>> searchUsers(String token, String query) async {
-    final res = await _client.get(
-      _uri('/users/search', {'q': query}),
-      headers: _headers(token: token),
+  Future<List<UserPublicProfile>> searchUsers(String query) async {
+    return _authorized(
+      '/users/search',
+      (token) => _client.get(
+        _uri('/users/search', {'q': query}),
+        headers: _headers(token: token),
+      ),
+      (body) {
+        final list = body as List<dynamic>? ?? [];
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(UserPublicProfile.fromJson)
+            .toList(growable: false);
+      },
     );
-    return _handle(res, (body) {
-      final list = body as List<dynamic>? ?? [];
-      return list
-          .whereType<Map<String, dynamic>>()
-          .map(UserPublicProfile.fromJson)
-          .toList(growable: false);
-    });
   }
 
-  Future<List<SubscriptionSummary>> listSubscriptions(String token) async {
-    final res = await _client.get(
-      _uri('/subscriptions'),
-      headers: _headers(token: token),
+  Future<List<SubscriptionSummary>> listSubscriptions() async {
+    return _authorized(
+      '/subscriptions',
+      (token) => _client.get(_uri('/subscriptions'), headers: _headers(token: token)),
+      (body) {
+        final list = body as List<dynamic>? ?? [];
+        return list
+            .whereType<Map<String, dynamic>>()
+            .map(SubscriptionSummary.fromJson)
+            .toList(growable: false);
+      },
     );
-    return _handle(res, (body) {
-      final list = body as List<dynamic>? ?? [];
-      return list
-          .whereType<Map<String, dynamic>>()
-          .map(SubscriptionSummary.fromJson)
-          .toList(growable: false);
-    });
   }
 
-  Future<void> subscribeToUser(String token, String userId) async {
-    final res = await _client.post(
-      _uri('/subscriptions/$userId'),
-      headers: _headers(token: token),
+  Future<void> subscribeToUser(String userId) async {
+    await _authorized(
+      '/subscriptions',
+      (token) => _client.post(
+        _uri('/subscriptions/$userId'),
+        headers: _headers(token: token),
+      ),
+      (_) => null,
     );
-    await _handle(res, (_) => null);
   }
 
-  Future<void> unsubscribeFromUser(String token, String userId) async {
-    final res = await _client.delete(
-      _uri('/subscriptions/$userId'),
-      headers: _headers(token: token),
+  Future<void> unsubscribeFromUser(String userId) async {
+    await _authorized(
+      '/subscriptions',
+      (token) => _client.delete(
+        _uri('/subscriptions/$userId'),
+        headers: _headers(token: token),
+      ),
+      (_) => null,
     );
-    if (res.statusCode == 401) {
-      onUnauthorized?.call();
-    }
-    if (res.statusCode >= 400) {
-      dynamic body;
-      if (res.body.isNotEmpty) {
-        body = jsonDecode(res.body);
-      }
-      final message = body is Map ? body['message']?.toString() : null;
-      throw ApiException(message ?? 'Request failed (${res.statusCode})');
-    }
   }
 
   Future<PageResponse<SteakPost>> fetchUserPosts(
-    String token,
     String userId, {
     int page = 0,
     int size = feedPageSize,
   }) async {
-    final res = await _client.get(
-      _uri('/users/$userId/posts', {'page': '$page', 'size': '$size'}),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+    return _authorized(
+      '/users',
+      (token) => _client.get(
+        _uri('/users/$userId/posts', {'page': '$page', 'size': '$size'}),
+        headers: _headers(token: token),
+      ),
       (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
     );
   }
 
-  Future<ReviewTagCatalog> fetchReviewTags(String token) async {
-    final res = await _client.get(
-      _uri('/posts/review-tags'),
-      headers: _headers(token: token),
-    );
-    return _handle(
-      res,
+  Future<ReviewTagCatalog> fetchReviewTags() async {
+    return _authorized(
+      '/posts/review-tags',
+      (token) => _client.get(_uri('/posts/review-tags'), headers: _headers(token: token)),
       (body) => ReviewTagCatalog.fromJson(body as Map<String, dynamic>),
     );
   }
 
-  Future<SteakPost> createPost(
-    String token, {
+  Future<SteakPost> createPost({
     required String title,
     required String comment,
     required int rating,
@@ -465,32 +522,34 @@ class ApiService {
       throw ApiException('At least one photo is required.');
     }
 
-    final request = http.MultipartRequest('POST', _uri('/posts'));
-    request.headers.addAll(_headers(token: token));
-    request.fields['title'] = title;
-    request.fields['comment'] = comment;
-    request.fields['rating'] = '$rating';
-    request.fields['visibility'] = visibility;
-    if (restaurantName != null && restaurantName.isNotEmpty) {
-      request.fields['restaurantName'] = restaurantName;
-    }
-    if (restaurantLocation != null && restaurantLocation.isNotEmpty) {
-      request.fields['restaurantLocation'] = restaurantLocation;
-    }
-    for (final tagId in tagIds) {
-      request.files.add(http.MultipartFile.fromString('tagIds', tagId));
-    }
-    for (final image in images) {
-      request.files.add(await buildPostImagePart(image));
-    }
-
-    final streamed = await _client.send(request);
-    final res = await http.Response.fromStream(streamed);
-    return _handle(res, (body) => SteakPost.fromJson(body as Map<String, dynamic>));
+    return _authorizedMultipart(
+      '/posts',
+      (token) async {
+        final request = http.MultipartRequest('POST', _uri('/posts'));
+        request.headers.addAll(_headers(token: token));
+        request.fields['title'] = title;
+        request.fields['comment'] = comment;
+        request.fields['rating'] = '$rating';
+        request.fields['visibility'] = visibility;
+        if (restaurantName != null && restaurantName.isNotEmpty) {
+          request.fields['restaurantName'] = restaurantName;
+        }
+        if (restaurantLocation != null && restaurantLocation.isNotEmpty) {
+          request.fields['restaurantLocation'] = restaurantLocation;
+        }
+        for (final tagId in tagIds) {
+          request.files.add(http.MultipartFile.fromString('tagIds', tagId));
+        }
+        for (final image in images) {
+          request.files.add(await buildPostImagePart(image));
+        }
+        return _client.send(request);
+      },
+      (body) => SteakPost.fromJson(body as Map<String, dynamic>),
+    );
   }
 
   Future<SteakPost> updatePost(
-    String token,
     String postId, {
     required String title,
     required String comment,
@@ -506,72 +565,80 @@ class ApiService {
       throw ApiException('At least one photo is required.');
     }
 
-    final request = http.MultipartRequest('PATCH', _uri('/posts/$postId'));
-    request.headers.addAll(_headers(token: token));
-    request.fields['title'] = title;
-    request.fields['comment'] = comment;
-    request.fields['rating'] = '$rating';
-    request.fields['visibility'] = visibility;
-    if (restaurantName != null && restaurantName.isNotEmpty) {
-      request.fields['restaurantName'] = restaurantName;
-    }
-    if (restaurantLocation != null && restaurantLocation.isNotEmpty) {
-      request.fields['restaurantLocation'] = restaurantLocation;
-    }
-    for (final url in keepImageUrls) {
-      request.files.add(http.MultipartFile.fromString('keepImageUrls', url));
-    }
-    for (final tagId in tagIds) {
-      request.files.add(http.MultipartFile.fromString('tagIds', tagId));
-    }
-    for (final image in newImages) {
-      request.files.add(await buildPostImagePart(image));
-    }
-
-    final streamed = await _client.send(request);
-    final res = await http.Response.fromStream(streamed);
-    return _handle(res, (body) => SteakPost.fromJson(body as Map<String, dynamic>));
+    return _authorizedMultipart(
+      '/posts',
+      (token) async {
+        final request = http.MultipartRequest('PATCH', _uri('/posts/$postId'));
+        request.headers.addAll(_headers(token: token));
+        request.fields['title'] = title;
+        request.fields['comment'] = comment;
+        request.fields['rating'] = '$rating';
+        request.fields['visibility'] = visibility;
+        if (restaurantName != null && restaurantName.isNotEmpty) {
+          request.fields['restaurantName'] = restaurantName;
+        }
+        if (restaurantLocation != null && restaurantLocation.isNotEmpty) {
+          request.fields['restaurantLocation'] = restaurantLocation;
+        }
+        for (final url in keepImageUrls) {
+          request.files.add(http.MultipartFile.fromString('keepImageUrls', url));
+        }
+        for (final tagId in tagIds) {
+          request.files.add(http.MultipartFile.fromString('tagIds', tagId));
+        }
+        for (final image in newImages) {
+          request.files.add(await buildPostImagePart(image));
+        }
+        return _client.send(request);
+      },
+      (body) => SteakPost.fromJson(body as Map<String, dynamic>),
+    );
   }
 
-  Future<({String token, UserProfile user})> updateProfile(
-    String token, {
+  Future<({String token, UserProfile user})> updateProfile({
     String? displayName,
     String? email,
     XFile? avatar,
   }) async {
     if (avatar != null) {
-      final request = http.MultipartRequest('PATCH', _uri('/auth/me'));
-      request.headers.addAll(_headers(token: token));
-      if (displayName != null) request.fields['displayName'] = displayName;
-      if (email != null) request.fields['email'] = email;
-      request.files.add(await buildAvatarPart(avatar));
+      return _authorizedMultipart(
+        '/auth/me',
+        (token) async {
+          final request = http.MultipartRequest('PATCH', _uri('/auth/me'));
+          request.headers.addAll(_headers(token: token));
+          if (displayName != null) request.fields['displayName'] = displayName;
+          if (email != null) request.fields['email'] = email;
+          request.files.add(await buildAvatarPart(avatar));
+          return _client.send(request);
+        },
+        (body) {
+          final map = body as Map<String, dynamic>;
+          return (
+            token: map['token'] as String,
+            user: UserProfile.fromJson(map['user'] as Map<String, dynamic>),
+          );
+        },
+      );
+    }
 
-      final streamed = await _client.send(request);
-      final res = await http.Response.fromStream(streamed);
-      return _handle(res, (body) {
+    return _authorized(
+      '/auth/me',
+      (token) => _client.patch(
+        _uri('/auth/me'),
+        headers: _headers(token: token, json: true),
+        body: jsonEncode({
+          if (displayName != null) 'displayName': displayName,
+          if (email != null) 'email': email,
+        }),
+      ),
+      (body) {
         final map = body as Map<String, dynamic>;
         return (
           token: map['token'] as String,
           user: UserProfile.fromJson(map['user'] as Map<String, dynamic>),
         );
-      });
-    }
-
-    final res = await _client.patch(
-      _uri('/auth/me'),
-      headers: _headers(token: token, json: true),
-      body: jsonEncode({
-        if (displayName != null) 'displayName': displayName,
-        if (email != null) 'email': email,
-      }),
+      },
     );
-    return _handle(res, (body) {
-      final map = body as Map<String, dynamic>;
-      return (
-        token: map['token'] as String,
-        user: UserProfile.fromJson(map['user'] as Map<String, dynamic>),
-      );
-    });
   }
 }
 

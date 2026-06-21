@@ -65,11 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _posts = PaginatedListController<SteakPost>(
-      (page) => widget.api.fetchUserPosts(
-        widget.auth.token!,
-        widget.userId,
-        page: page,
-      ),
+      (page) => widget.api.fetchUserPosts(widget.userId, page: page),
     );
     _loadProfile();
     _posts!.reload();
@@ -88,10 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _profileError = null;
     });
     try {
-      final profile = await widget.api.fetchUserProfile(
-        widget.auth.token!,
-        widget.userId,
-      );
+      final profile = await widget.api.fetchUserProfile(widget.userId);
       if (!mounted) return;
       setState(() {
         _profile = profile;
@@ -183,7 +176,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final result = await widget.api.updateProfile(
-        widget.auth.token!,
         displayName: _displayName.text.trim(),
         avatar: _avatarFile,
       );
@@ -222,9 +214,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _followBusy = true);
     try {
       if (profile.subscribed) {
-        await widget.api.unsubscribeFromUser(widget.auth.token!, profile.id);
+        await widget.api.unsubscribeFromUser(profile.id);
       } else {
-        await widget.api.subscribeToUser(widget.auth.token!, profile.id);
+        await widget.api.subscribeToUser(profile.id);
       }
       if (!mounted) return;
       setState(() {
@@ -267,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _profileError = null;
     });
     try {
-      await widget.api.requestAccountDeletion(widget.auth.token!);
+      await widget.api.requestAccountDeletion();
       if (!mounted) return;
       setState(() {
         _deletionRequested = true;
