@@ -304,7 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_editing) {
       return SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -335,17 +335,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 displayNameLabel: profile.displayName,
                 pickingAvatar: _pickingAvatar,
                 saving: _savingProfile,
-                deletionBusy: _deletionBusy,
-                deletionRequested: _deletionRequested,
-                showDeletion: !_isStaff,
                 auth: widget.auth,
                 api: widget.api,
                 onPickAvatar: _pickAvatar,
                 onCancel: _cancelEditing,
                 onSave: _saveProfile,
-                onRequestDeletion: _requestAccountDeletion,
               ),
             ),
+            if (!_isStaff) ...[
+              const SizedBox(height: 28),
+              _AccountDeletionSection(
+                userEmail: userEmail,
+                deletionRequested: _deletionRequested,
+                deletionBusy: _deletionBusy,
+                saving: _savingProfile,
+                onRequestDeletion: _requestAccountDeletion,
+              ),
+            ],
           ],
         ),
       );
@@ -428,6 +434,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: AuthErrorBanner(message: _profileError!),
           ),
         ],
+        if (_isOwnProfile && !_isStaff) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _AccountDeletionSection(
+              userEmail: userEmail,
+              deletionRequested: _deletionRequested,
+              deletionBusy: _deletionBusy,
+              saving: _savingProfile,
+              onRequestDeletion: _requestAccountDeletion,
+            ),
+          ),
+        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
@@ -457,6 +475,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+class _AccountDeletionSection extends StatelessWidget {
+  const _AccountDeletionSection({
+    required this.userEmail,
+    required this.deletionRequested,
+    required this.deletionBusy,
+    required this.saving,
+    required this.onRequestDeletion,
+  });
+
+  final String userEmail;
+  final bool deletionRequested;
+  final bool deletionBusy;
+  final bool saving;
+  final VoidCallback onRequestDeletion;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.ember.withValues(alpha: 0.45)),
+        color: palette.ember.withValues(alpha: 0.08),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Delete account',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: palette.errorText,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (deletionRequested)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: palette.accentSelectedBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: palette.cardBorder),
+              ),
+              child: Text(
+                userEmail.isEmpty
+                    ? 'Check your email for a confirmation link to finish deleting your account.'
+                    : 'We sent a confirmation link to $userEmail. Open it to permanently delete your account.',
+                style: theme.textTheme.bodyMedium,
+              ),
+            )
+          else ...[
+            Text(
+              'Permanently remove your profile, posts, comments, and all associated data. '
+              'This is separate from saving profile changes — you will need to confirm by email.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: palette.creamMuted,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: deletionBusy || saving ? null : onRequestDeletion,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: palette.errorText,
+                side: BorderSide(color: palette.errorText.withValues(alpha: 0.55)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              icon: deletionBusy
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: palette.errorText,
+                      ),
+                    )
+                  : const Icon(Icons.delete_forever_outlined, size: 18),
+              label: Text(deletionBusy ? 'Sending…' : 'Delete account'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ProfileEditForm extends StatefulWidget {
   const _ProfileEditForm({
     required this.displayName,
@@ -466,15 +575,11 @@ class _ProfileEditForm extends StatefulWidget {
     required this.displayNameLabel,
     required this.pickingAvatar,
     required this.saving,
-    required this.deletionBusy,
-    required this.deletionRequested,
-    required this.showDeletion,
     required this.auth,
     required this.api,
     required this.onPickAvatar,
     required this.onCancel,
     required this.onSave,
-    required this.onRequestDeletion,
   });
 
   final TextEditingController displayName;
@@ -484,15 +589,11 @@ class _ProfileEditForm extends StatefulWidget {
   final String displayNameLabel;
   final bool pickingAvatar;
   final bool saving;
-  final bool deletionBusy;
-  final bool deletionRequested;
-  final bool showDeletion;
   final AuthController auth;
   final ApiService api;
   final VoidCallback onPickAvatar;
   final VoidCallback onCancel;
   final VoidCallback onSave;
-  final VoidCallback onRequestDeletion;
 
   @override
   State<_ProfileEditForm> createState() => _ProfileEditFormState();
@@ -586,54 +687,6 @@ class _ProfileEditFormState extends State<_ProfileEditForm> {
         ),
         const SizedBox(height: 24),
         EmailNotificationSettings(auth: widget.auth, api: widget.api),
-        const SizedBox(height: 24),
-        if (widget.showDeletion) ...[
-          Divider(color: palette.cardBorder),
-          const SizedBox(height: 16),
-          Text(
-            'Danger zone',
-            style: theme.textTheme.titleMedium?.copyWith(color: palette.errorText),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Permanently delete your account and all your data.',
-            style: theme.textTheme.bodySmall?.copyWith(color: palette.creamMuted),
-          ),
-          const SizedBox(height: 12),
-          if (widget.deletionRequested)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: palette.accentSelectedBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: palette.cardBorder),
-              ),
-              child: Text(
-                'Check your email for a confirmation link to finish deleting your account.',
-                style: theme.textTheme.bodyMedium,
-              ),
-            )
-          else
-            OutlinedButton.icon(
-              onPressed: widget.deletionBusy || widget.saving ? null : widget.onRequestDeletion,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: palette.errorText,
-                side: BorderSide(color: palette.errorText.withValues(alpha: 0.5)),
-              ),
-              icon: widget.deletionBusy
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: palette.errorText,
-                      ),
-                    )
-                  : const Icon(Icons.delete_forever_outlined, size: 18),
-              label: Text(widget.deletionBusy ? 'Sending…' : 'Delete account'),
-            ),
-        ],
         const SizedBox(height: 20),
         Row(
           children: [
