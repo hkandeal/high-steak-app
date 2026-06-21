@@ -465,8 +465,6 @@ export function ProfilePage() {
         </header>
       )}
 
-      {profile && !editing && isOwnProfile && accountDeletionSection}
-
       {profile && editing && isOwnProfile && (
         <>
         <form className="profile-edit" onSubmit={handleSaveProfile}>
