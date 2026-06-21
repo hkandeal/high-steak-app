@@ -14,6 +14,7 @@ import '../theme/app_palette.dart';
 import '../utils/post_image_picker.dart';
 import '../utils/profile_validation.dart';
 import '../widgets/auth_card.dart';
+import '../widgets/email_notification_settings.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/paginated_list_view.dart';
 import '../widgets/post_card.dart';
@@ -43,13 +44,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _editing = false;
   final _displayName = TextEditingController();
-  final _email = TextEditingController();
   final _avatarPicker = ImagePicker();
   XFile? _avatarFile;
   bool _pickingAvatar = false;
   bool _savingProfile = false;
+  bool _followBusy = false;
+  bool _deletionRequested = false;
+  bool _deletionBusy = false;
 
   bool get _isOwnProfile => widget.auth.user?.id == widget.userId;
+
+  bool get _isStaff =>
+      widget.auth.user?.hasRole('ADMIN') == true ||
+      widget.auth.user?.hasRole('MODERATOR') == true;
+
+  bool get _canFollow =>
+      !_isOwnProfile && widget.auth.hasScope('subscriptions:write');
 
   @override
   void initState() {
@@ -68,7 +78,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _displayName.dispose();
-    _email.dispose();
     _posts?.dispose();
     super.dispose();
   }
@@ -101,11 +110,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = widget.auth.user;
     if (user == null) return;
     _displayName.text = user.displayName;
-    _email.text = user.email;
     setState(() {
       _editing = true;
       _avatarFile = null;
       _profileError = null;
+      _deletionRequested = false;
     });
   }
 
@@ -114,6 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _editing = false;
       _avatarFile = null;
       _profileError = null;
+      _deletionRequested = false;
     });
   }
 
@@ -125,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final picked = await pickAvatarImage(_avatarPicker);
+      final picked = await pickAvatarImageInteractive(context, _avatarPicker);
       if (!mounted) return;
       if (picked == null) {
         setState(() => _pickingAvatar = false);
@@ -158,7 +168,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _saveProfile() async {
     final validationError = validateProfileForm(
       displayName: _displayName.text,
-      email: _email.text,
       hasNewAvatar: _avatarFile != null,
       avatarBytes: _avatarFile != null ? await _avatarFile!.length() : 0,
     );
@@ -176,7 +185,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final result = await widget.api.updateProfile(
         widget.auth.token!,
         displayName: _displayName.text.trim(),
-        email: _email.text.trim(),
         avatar: _avatarFile,
       );
       await widget.auth.applySessionUpdate(result.token);
@@ -207,6 +215,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _toggleFollow() async {
+    final profile = _profile;
+    if (profile == null || !_canFollow || _followBusy) return;
+
+    setState(() => _followBusy = true);
+    try {
+      if (profile.subscribed) {
+        await widget.api.unsubscribeFromUser(widget.auth.token!, profile.id);
+      } else {
+        await widget.api.subscribeToUser(widget.auth.token!, profile.id);
+      }
+      if (!mounted) return;
+      setState(() {
+        _profile = profile.copyWith(subscribed: !profile.subscribed);
+        _followBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _profileError = e.toString();
+        _followBusy = false;
+      });
+    }
+  }
+
+  Future<void> _requestAccountDeletion() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+          'We will email you a confirmation link. Your account stays active until you confirm.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send email'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _deletionBusy = true;
+      _profileError = null;
+    });
+    try {
+      await widget.api.requestAccountDeletion(widget.auth.token!);
+      if (!mounted) return;
+      setState(() {
+        _deletionRequested = true;
+        _deletionBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _profileError = e.toString();
+        _deletionBusy = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loadingProfile && _profile == null) {
@@ -224,6 +299,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profile = _profile!;
     final theme = Theme.of(context);
     final palette = context.palette;
+    final userEmail = widget.auth.user?.email ?? '';
+
+    if (_editing) {
+      return SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_profileError != null) ...[
+              AuthErrorBanner(message: _profileError!),
+              const SizedBox(height: 12),
+            ],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: palette.cardBorderStrong),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    palette.gold.withValues(alpha: 0.1),
+                    palette.cardBg,
+                  ],
+                ),
+              ),
+              child: _ProfileEditForm(
+                displayName: _displayName,
+                email: userEmail,
+                avatarFile: _avatarFile,
+                currentAvatarUrl: profile.avatarUrl,
+                displayNameLabel: profile.displayName,
+                pickingAvatar: _pickingAvatar,
+                saving: _savingProfile,
+                deletionBusy: _deletionBusy,
+                deletionRequested: _deletionRequested,
+                showDeletion: !_isStaff,
+                auth: widget.auth,
+                api: widget.api,
+                onPickAvatar: _pickAvatar,
+                onCancel: _cancelEditing,
+                onSave: _saveProfile,
+                onRequestDeletion: _requestAccountDeletion,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,57 +371,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            child: _editing
-                ? _ProfileEditForm(
-                    displayName: _displayName,
-                    email: _email,
-                    avatarFile: _avatarFile,
-                    currentAvatarUrl: profile.avatarUrl,
-                    displayNameLabel: profile.displayName,
-                    pickingAvatar: _pickingAvatar,
-                    saving: _savingProfile,
-                    onPickAvatar: _pickAvatar,
-                    onCancel: _cancelEditing,
-                    onSave: _saveProfile,
-                  )
-                : Row(
+            child: Row(
+              children: [
+                UserAvatar(
+                  displayName: profile.displayName,
+                  avatarUrl: profile.avatarUrl,
+                  radius: 36,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      UserAvatar(
-                        displayName: profile.displayName,
-                        avatarUrl: profile.avatarUrl,
-                        radius: 36,
+                      Text(
+                        profile.displayName,
+                        style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              profile.displayName,
-                              style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '@${profile.username}',
-                              style: theme.textTheme.bodyMedium?.copyWith(color: palette.gold),
-                            ),
-                            const SizedBox(height: 10),
-                            _StatChip(
-                              icon: Icons.local_fire_department_outlined,
-                              label: '${profile.postCount} posts',
-                              palette: palette,
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '@${profile.username}',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: palette.gold),
                       ),
-                      if (_isOwnProfile)
-                        IconButton(
-                          tooltip: 'Edit profile',
-                          onPressed: _startEditing,
-                          icon: Icon(Icons.edit_outlined, color: palette.gold),
-                        ),
+                      const SizedBox(height: 10),
+                      _StatChip(
+                        icon: Icons.local_fire_department_outlined,
+                        label: '${profile.postCount} posts',
+                        palette: palette,
+                      ),
                     ],
                   ),
+                ),
+                if (_isOwnProfile)
+                  IconButton(
+                    tooltip: 'Edit profile',
+                    onPressed: _startEditing,
+                    icon: Icon(Icons.edit_outlined, color: palette.gold),
+                  )
+                else if (_canFollow)
+                  FilledButton.tonal(
+                    onPressed: _followBusy ? null : _toggleFollow,
+                    child: Text(
+                      _followBusy
+                          ? '…'
+                          : profile.subscribed
+                              ? 'Following'
+                              : 'Follow',
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         if (_profileError != null && _profile != null) ...[
@@ -318,7 +442,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? "You haven't posted yet."
                 : 'No public posts yet.',
             emptyIcon: Icons.restaurant_outlined,
-            itemBuilder: (context, item) => PostCard(post: item),
+            itemBuilder: (context, item) => PostCard(
+              post: item,
+              auth: widget.auth,
+              api: widget.api,
+              showBookmark: widget.auth.hasScope('bookmarks:write'),
+              showOwnerActions: _isOwnProfile,
+              onDeleted: () => _posts!.removeItem((post) => post.id == item.id),
+            ),
           ),
         ),
       ],
@@ -326,7 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _ProfileEditForm extends StatelessWidget {
+class _ProfileEditForm extends StatefulWidget {
   const _ProfileEditForm({
     required this.displayName,
     required this.email,
@@ -335,85 +466,264 @@ class _ProfileEditForm extends StatelessWidget {
     required this.displayNameLabel,
     required this.pickingAvatar,
     required this.saving,
+    required this.deletionBusy,
+    required this.deletionRequested,
+    required this.showDeletion,
+    required this.auth,
+    required this.api,
     required this.onPickAvatar,
     required this.onCancel,
     required this.onSave,
+    required this.onRequestDeletion,
   });
 
   final TextEditingController displayName;
-  final TextEditingController email;
+  final String email;
   final XFile? avatarFile;
   final String? currentAvatarUrl;
   final String displayNameLabel;
   final bool pickingAvatar;
   final bool saving;
+  final bool deletionBusy;
+  final bool deletionRequested;
+  final bool showDeletion;
+  final AuthController auth;
+  final ApiService api;
   final VoidCallback onPickAvatar;
   final VoidCallback onCancel;
   final VoidCallback onSave;
+  final VoidCallback onRequestDeletion;
+
+  @override
+  State<_ProfileEditForm> createState() => _ProfileEditFormState();
+}
+
+class _ProfileEditFormState extends State<_ProfileEditForm> {
+  late final TextEditingController _emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.email);
+  }
+
+  @override
+  void didUpdateWidget(_ProfileEditForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.email != widget.email && _emailController.text != widget.email) {
+      _emailController.text = widget.email;
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _fieldDecoration({String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      floatingLabelBehavior: FloatingLabelBehavior.never,
+      alignLabelWithHint: false,
+      isCollapsed: false,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final theme = Theme.of(context);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AvatarPreview(
-              avatarFile: avatarFile,
-              currentAvatarUrl: currentAvatarUrl,
-              displayName: displayNameLabel,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: pickingAvatar || saving ? null : onPickAvatar,
-                icon: pickingAvatar
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: palette.gold),
-                      )
-                    : const Icon(Icons.photo_camera_outlined, size: 18),
-                label: Text(avatarFile == null ? 'Change photo' : 'Replace photo'),
-              ),
-            ),
-          ],
+        Center(
+          child: _AvatarPickerCard(
+            avatarFile: widget.avatarFile,
+            currentAvatarUrl: widget.currentAvatarUrl,
+            displayName: widget.displayNameLabel,
+            picking: widget.pickingAvatar,
+            disabled: widget.saving,
+            onTap: widget.onPickAvatar,
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+        Text(
+          'Display name',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: palette.creamMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         TextField(
-          controller: displayName,
-          decoration: const InputDecoration(labelText: 'Display name'),
+          controller: widget.displayName,
           textInputAction: TextInputAction.next,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: email,
-          decoration: const InputDecoration(labelText: 'Email'),
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.done,
+          decoration: _fieldDecoration(hint: 'How you appear on posts'),
         ),
         const SizedBox(height: 16),
+        Text(
+          'Email',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: palette.creamMuted,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _emailController,
+          readOnly: true,
+          enableInteractiveSelection: true,
+          style: theme.textTheme.bodyLarge?.copyWith(color: palette.creamMuted),
+          decoration: _fieldDecoration(),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Email cannot be changed here.',
+          style: theme.textTheme.bodySmall?.copyWith(color: palette.creamMuted),
+        ),
+        const SizedBox(height: 24),
+        EmailNotificationSettings(auth: widget.auth, api: widget.api),
+        const SizedBox(height: 24),
+        if (widget.showDeletion) ...[
+          Divider(color: palette.cardBorder),
+          const SizedBox(height: 16),
+          Text(
+            'Danger zone',
+            style: theme.textTheme.titleMedium?.copyWith(color: palette.errorText),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Permanently delete your account and all your data.',
+            style: theme.textTheme.bodySmall?.copyWith(color: palette.creamMuted),
+          ),
+          const SizedBox(height: 12),
+          if (widget.deletionRequested)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: palette.accentSelectedBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: palette.cardBorder),
+              ),
+              child: Text(
+                'Check your email for a confirmation link to finish deleting your account.',
+                style: theme.textTheme.bodyMedium,
+              ),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: widget.deletionBusy || widget.saving ? null : widget.onRequestDeletion,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: palette.errorText,
+                side: BorderSide(color: palette.errorText.withValues(alpha: 0.5)),
+              ),
+              icon: widget.deletionBusy
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: palette.errorText,
+                      ),
+                    )
+                  : const Icon(Icons.delete_forever_outlined, size: 18),
+              label: Text(widget.deletionBusy ? 'Sending…' : 'Delete account'),
+            ),
+        ],
+        const SizedBox(height: 20),
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: saving ? null : onCancel,
+                onPressed: widget.saving ? null : widget.onCancel,
                 child: const Text('Cancel'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: saving ? null : onSave,
-                child: Text(saving ? 'Saving…' : 'Save'),
+                onPressed: widget.saving ? null : widget.onSave,
+                child: Text(widget.saving ? 'Saving…' : 'Save'),
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _AvatarPickerCard extends StatelessWidget {
+  const _AvatarPickerCard({
+    required this.avatarFile,
+    required this.currentAvatarUrl,
+    required this.displayName,
+    required this.picking,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final XFile? avatarFile;
+  final String? currentAvatarUrl;
+  final String displayName;
+  final bool picking;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Material(
+      color: palette.cardBg,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: disabled || picking ? null : onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: palette.cardBorderStrong),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _AvatarPreview(
+                avatarFile: avatarFile,
+                currentAvatarUrl: currentAvatarUrl,
+                displayName: displayName,
+              ),
+              Positioned(
+                right: -4,
+                bottom: -4,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: palette.gold,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: palette.charcoal, width: 2),
+                  ),
+                  child: picking
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: palette.charcoal,
+                          ),
+                        )
+                      : Icon(Icons.photo_camera_outlined, size: 18, color: palette.charcoal),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -435,7 +745,7 @@ class _AvatarPreview extends StatelessWidget {
       final path = avatarFile!.path;
       if (!kIsWeb && path.isNotEmpty) {
         return CircleAvatar(
-          radius: 36,
+          radius: 48,
           backgroundImage: FileImage(File(path)),
         );
       }
@@ -444,17 +754,17 @@ class _AvatarPreview extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return CircleAvatar(
-              radius: 36,
+              radius: 48,
               backgroundColor: context.palette.charcoalLight,
               child: const SizedBox(
-                width: 20,
-                height: 20,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             );
           }
           return CircleAvatar(
-            radius: 36,
+            radius: 48,
             backgroundImage: MemoryImage(Uint8List.fromList(snapshot.data!)),
           );
         },
@@ -464,7 +774,7 @@ class _AvatarPreview extends StatelessWidget {
     return UserAvatar(
       displayName: displayName,
       avatarUrl: currentAvatarUrl,
-      radius: 36,
+      radius: 48,
     );
   }
 }

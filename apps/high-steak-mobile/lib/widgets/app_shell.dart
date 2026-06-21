@@ -34,6 +34,17 @@ List<_ShellDestination> _shellDestinations(AuthController auth) {
     ),
   ];
 
+  if (auth.hasScope('bookmarks:read')) {
+    destinations.add(
+      const _ShellDestination(
+        path: '/bookmarks',
+        label: 'Saved',
+        icon: Icons.bookmark_border,
+        selectedIcon: Icons.bookmark,
+      ),
+    );
+  }
+
   if (auth.hasScope('users:discover')) {
     destinations.add(
       const _ShellDestination(
@@ -78,6 +89,9 @@ int _selectedIndex(String path, List<_ShellDestination> destinations) {
         (path.startsWith('/posts/') || path == '/post/new')) {
       return i;
     }
+    if (destPath.startsWith('/users/') && path.startsWith('/users/')) {
+      return i;
+    }
   }
   return 0;
 }
@@ -86,7 +100,7 @@ bool _isRootShellRoute(String path, List<_ShellDestination> destinations) {
   for (final dest in destinations) {
     if (dest.path == path) return true;
   }
-  return false;
+  return path == '/notifications';
 }
 
 class AppShell extends StatelessWidget {
@@ -104,14 +118,16 @@ class AppShell extends StatelessWidget {
   final Widget child;
 
   String _title(String path) {
-    if (path == '/feed') return 'High Steak';
+    if (path == '/feed') return 'High Steaks';
+    if (path == '/bookmarks') return 'Bookmarks';
     if (path == '/discover') return 'Discover';
     if (path == '/following') return 'Following';
+    if (path == '/notifications') return 'Notifications';
     if (path == '/post/new') return 'New post';
     if (path.endsWith('/edit') && path.startsWith('/posts/')) return 'Edit post';
     if (path.startsWith('/posts/')) return 'Steak post';
     if (path.startsWith('/users/')) return 'Profile';
-    return 'High Steak';
+    return 'High Steaks';
   }
 
   bool _canCreatePost(String path) =>
@@ -138,6 +154,11 @@ class AppShell extends StatelessWidget {
               : null,
           title: Text(_title(path)),
           actions: [
+            IconButton(
+              tooltip: 'Notifications',
+              onPressed: () => context.push('/notifications'),
+              icon: Icon(Icons.notifications_outlined, color: palette.gold),
+            ),
             ThemeToggle(themeController: themeController),
             const SizedBox(width: 4),
             PopupMenuButton<String>(
@@ -152,10 +173,14 @@ class AppShell extends StatelessWidget {
                   if (userId != null) context.go('/users/$userId');
                 } else if (value == 'new-post') {
                   context.push('/post/new');
+                } else if (value == 'bookmarks') {
+                  context.go('/bookmarks');
                 } else if (value == 'discover') {
                   context.go('/discover');
                 } else if (value == 'following') {
                   context.go('/following');
+                } else if (value == 'notifications') {
+                  context.push('/notifications');
                 }
               },
               itemBuilder: (context) => [
@@ -163,6 +188,12 @@ class AppShell extends StatelessWidget {
                   const PopupMenuItem(
                     value: 'new-post',
                     child: Text('Rate a steak'),
+                  ),
+                if (auth.hasScope('bookmarks:read') &&
+                    !destinations.any((d) => d.path == '/bookmarks'))
+                  const PopupMenuItem(
+                    value: 'bookmarks',
+                    child: Text('Bookmarks'),
                   ),
                 if (auth.hasScope('users:discover') &&
                     !destinations.any((d) => d.path == '/discover'))
@@ -176,6 +207,10 @@ class AppShell extends StatelessWidget {
                     value: 'following',
                     child: Text('Following'),
                   ),
+                const PopupMenuItem(
+                  value: 'notifications',
+                  child: Text('Notifications'),
+                ),
                 if (auth.user?.id != null)
                   const PopupMenuItem(value: 'profile', child: Text('My profile')),
                 const PopupMenuItem(value: 'logout', child: Text('Log out')),

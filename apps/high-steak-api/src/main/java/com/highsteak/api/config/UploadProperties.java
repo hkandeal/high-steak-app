@@ -15,7 +15,7 @@ public class UploadProperties {
 
     @Min(1)
     @Max(50)
-    private int maxImageSizeMb = 3;
+    private int maxImageSizeMb = 5;
 
     @Min(1)
     @Max(20)

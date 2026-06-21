@@ -51,7 +51,7 @@ class LandingScreen extends StatelessWidget {
                   child: const Text('🥩', style: TextStyle(fontSize: 36)),
                 ),
                 const SizedBox(height: 24),
-                Text('High Steak', style: theme.textTheme.headlineLarge),
+                Text('High Steaks', style: theme.textTheme.headlineLarge),
                 const SizedBox(height: 12),
                 Text(
                   'Rate steak meals. Share photos. Join the grill.',

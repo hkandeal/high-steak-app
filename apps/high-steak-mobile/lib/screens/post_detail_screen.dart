@@ -39,8 +39,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _submitting = false;
   int _totalComments = 0;
   int _activeImage = 0;
+  bool _bookmarked = false;
+  bool _bookmarkBusy = false;
+  bool _deleteBusy = false;
 
   bool get _canComment => widget.auth.hasScope('comments:write');
+  bool get _canBookmark => widget.auth.hasScope('bookmarks:write');
+  bool get _isOwner => _post?.author.id == widget.auth.user?.id;
 
   @override
   void initState() {
@@ -74,6 +79,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       if (!mounted) return;
       setState(() {
         _post = post;
+        _bookmarked = post.bookmarked;
         _loadingPost = false;
       });
     } catch (e) {
@@ -108,6 +114,88 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
+  Future<void> _toggleBookmark() async {
+    if (!_canBookmark || _bookmarkBusy) return;
+    setState(() => _bookmarkBusy = true);
+    try {
+      if (_bookmarked) {
+        await widget.api.unbookmarkPost(widget.auth.token!, widget.postId);
+      } else {
+        await widget.api.bookmarkPost(widget.auth.token!, widget.postId);
+      }
+      if (!mounted) return;
+      setState(() => _bookmarked = !_bookmarked);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _bookmarkBusy = false);
+    }
+  }
+
+  Future<void> _confirmDeletePost() async {
+    if (!_isOwner || !widget.auth.hasScope('posts:write') || _deleteBusy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This steak review will be removed permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleteBusy = true);
+    try {
+      await widget.api.deletePost(widget.auth.token!, widget.postId);
+      if (!mounted) return;
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+      setState(() => _deleteBusy = false);
+    }
+  }
+
+  Future<void> _updateComment(PostComment comment, String body) async {
+    final updated = await widget.api.updatePostComment(
+      widget.auth.token!,
+      widget.postId,
+      comment.id,
+      body,
+    );
+    _comments.replaceItem(
+      (item) => item.id == comment.id,
+      updated,
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _deleteComment(PostComment comment) async {
+    await widget.api.deletePostComment(
+      widget.auth.token!,
+      widget.postId,
+      comment.id,
+    );
+    _comments.removeItem((item) => item.id == comment.id);
+    if (mounted) {
+      setState(() => _totalComments = (_totalComments - 1).clamp(0, 999999));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loadingPost) {
@@ -122,6 +210,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final images = post.imageUrls;
     final theme = Theme.of(context);
     final palette = context.palette;
+    final userId = widget.auth.user?.id;
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
@@ -219,12 +308,39 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ),
               ),
-              if (post.author.id == widget.auth.user?.id &&
-                  widget.auth.hasScope('posts:write'))
+              if (_canBookmark)
                 IconButton(
-                  tooltip: 'Edit post',
-                  onPressed: () => context.push('/posts/${post.id}/edit'),
-                  icon: Icon(Icons.edit_outlined, color: palette.gold),
+                  tooltip: _bookmarked ? 'Remove bookmark' : 'Bookmark',
+                  onPressed: _bookmarkBusy ? null : _toggleBookmark,
+                  icon: _bookmarkBusy
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: palette.gold,
+                          ),
+                        )
+                      : Icon(
+                          _bookmarked ? Icons.bookmark : Icons.bookmark_border,
+                          color: _bookmarked ? palette.gold : palette.creamMuted,
+                        ),
+                ),
+              if (_isOwner && widget.auth.hasScope('posts:write'))
+                PopupMenuButton<String>(
+                  enabled: !_deleteBusy,
+                  icon: Icon(Icons.more_vert, color: palette.gold),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      context.push('/posts/${post.id}/edit');
+                    } else if (value == 'delete') {
+                      _confirmDeletePost();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Edit post')),
+                    const PopupMenuItem(value: 'delete', child: Text('Delete post')),
+                  ],
                 ),
             ],
           ),
@@ -305,7 +421,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               icon: Icons.chat_bubble_outline,
             ),
           ..._comments.items.map(
-            (comment) => CommentTile(comment: comment),
+            (comment) => CommentTile(
+              comment: comment,
+              currentUserId: userId,
+              postAuthorId: post.author.id,
+              canEdit: widget.auth.hasScope('comments:write'),
+              onEdit: (body) => _updateComment(comment, body),
+              onDelete: () => _deleteComment(comment),
+            ),
           ),
           if (_comments.loadingMore)
             const Padding(

@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 function resolveMaxImageSizeMbFromBuild(): number {
   const parsed = Number(import.meta.env.VITE_MAX_IMAGE_SIZE_MB)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5
 }
 
 function buildConstraints(maxImageSizeMb: number) {

@@ -17,7 +17,7 @@ env:
   API_IMAGE_NAME: high-steak-api
   VITE_API_URL: https://steaks.apps.hossam.io/api
   VITE_SITE_URL: https://steaks.apps.hossam.io
-  VITE_MAX_IMAGE_SIZE_MB: "3"
+  VITE_MAX_IMAGE_SIZE_MB: "5"
 
 jobs:
   verify:

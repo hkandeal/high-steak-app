@@ -2,10 +2,22 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+/// Production API (same as web `VITE_API_URL` in Docker prod / Helm ingress).
+const productionApiBaseUrl = 'https://steaks.apps.hossam.io/api';
+
 /// Base URL for the High Steak API (must include `/api` context path).
 ///
 /// Override at build/run time:
-/// `flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/api`
+/// ```bash
+/// # Physical phone against production
+/// flutter run --dart-define=API_BASE_URL=https://steaks.apps.hossam.io/api
+///
+/// # Or shorthand
+/// flutter run --dart-define=ENV=production
+///
+/// # Physical phone against local Docker on your Mac (same Wi‑Fi)
+/// flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/api
+/// ```
 ///
 /// **HTTP Toolkit / Charles / mitmproxy on Android emulator:** use localhost +
 /// adb port reverse so the proxy on your Mac can reach the API:
@@ -13,8 +25,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 /// adb reverse tcp:8080 tcp:8080
 /// flutter run --dart-define=API_PROXY_DEBUG=true
 /// ```
-/// (`10.0.2.2` works without a proxy, but hangs when traffic is intercepted
-/// because the proxy forwards to `10.0.2.2` on the host, not your machine.)
 ///
 /// Defaults when not overridden:
 /// - Android emulator → `10.0.2.2` (host machine)
@@ -22,6 +32,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 String get apiBaseUrl {
   const fromEnv = String.fromEnvironment('API_BASE_URL');
   if (fromEnv.isNotEmpty) return fromEnv;
+
+  const env = String.fromEnvironment('ENV');
+  if (env == 'production' || env == 'prd') return productionApiBaseUrl;
 
   const proxyDebug = bool.fromEnvironment('API_PROXY_DEBUG');
 

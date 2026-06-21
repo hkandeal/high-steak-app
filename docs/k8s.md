@@ -81,11 +81,11 @@ Ensure `mysql-secrets` and `high-steak-secret` exist in `apps` before the first 
 
 ### Upload size
 
-Per-image limit defaults to **3 MB**. Configure in `helm/high-steak/values.yaml`:
+Per-image limit defaults to **5 MB**. Configure in `helm/high-steak/values.yaml`:
 
 ```yaml
 uploads:
-  maxImageSizeMb: 3
+  maxImageSizeMb: 5
   maxImagesPerPost: 10
 ```
 

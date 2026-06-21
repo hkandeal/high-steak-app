@@ -147,13 +147,28 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   Future<void> _pickImages() async {
     if (_pickingPhotos) return;
 
+    final remaining = ApiConstraints.maxImagesPerPost -
+        _keepImageUrls.length -
+        _newImages.length;
+    if (remaining <= 0) {
+      setState(() {
+        _error =
+            'You can add up to ${ApiConstraints.maxImagesPerPost} photos per post.';
+      });
+      return;
+    }
+
     setState(() {
       _pickingPhotos = true;
       _error = null;
     });
 
     try {
-      final picked = await pickPostImages(_picker);
+      final picked = await pickPostImagesInteractive(
+        context,
+        _picker,
+        remainingSlots: remaining,
+      );
       if (!mounted) return;
 
       if (picked.isEmpty) {
@@ -296,6 +311,22 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
+        if (_error != null) ...[
+          AuthErrorBanner(message: _error!),
+          const SizedBox(height: 16),
+        ],
+        Text(
+          'JPEG, PNG, or WebP · max ${ApiConstraints.maxImageMb} MB each',
+          style: TextStyle(color: palette.creamMuted, fontSize: 13),
+        ),
+        if (isDesktopPicker) ...[
+          const SizedBox(height: 4),
+          Text(
+            'On macOS, use the file picker to select images from your Mac.',
+            style: TextStyle(color: palette.creamMuted, fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: 16),
         PostPhotoSection(
           existingImageUrls: _keepImageUrls,
           newImages: _newImages,
@@ -362,10 +393,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           value: _visibility,
           onChanged: (v) => setState(() => _visibility = v),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 16),
-          AuthErrorBanner(message: _error!),
-        ],
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -378,20 +405,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'JPEG, PNG, or WebP · max ${ApiConstraints.maxImageMb} MB each',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: palette.creamMuted, fontSize: 12),
-        ),
-        if (isDesktopPicker) ...[
-          const SizedBox(height: 6),
-          Text(
-            'On macOS, use the file picker to select images from your Mac.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: palette.creamMuted, fontSize: 12),
-          ),
-        ],
       ],
     );
   }

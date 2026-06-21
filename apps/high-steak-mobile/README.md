@@ -26,9 +26,14 @@ flutter run --dart-define=API_PROXY_DEBUG=true
 
 # Physical phone on same Wi‑Fi (replace with your machine's IP)
 flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/api
+
+# Physical phone against production API (no laptop/Docker required)
+flutter run --dart-define=ENV=production
+# same as:
+flutter run --dart-define=API_BASE_URL=https://steaks.apps.hossam.io/api
 ```
 
-The app picks a sensible default per platform. You only need `--dart-define` when the default is wrong (Android emulator override is optional since Android is auto-detected).
+The app picks a sensible default per platform. You only need `--dart-define` when the default is wrong (Android emulator override is optional since Android is auto-detected). Image size is loaded from `GET /api/config` at startup (default 5 MB); override locally with `--dart-define=MAX_IMAGE_SIZE_MB=5`.
 
 ## Phase 1 (current)
 

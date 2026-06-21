@@ -53,7 +53,7 @@ class AuthController extends ChangeNotifier {
     );
   }
 
-  Future<void> register({
+  Future<RegisterResult> register({
     required String username,
     required String email,
     required String password,
@@ -65,10 +65,21 @@ class AuthController extends ChangeNotifier {
       password: password,
       displayName: displayName,
     );
-    await _persistTokens(
-      result['token'] as String,
-      result['refreshToken'] as String,
-    );
+
+    if (result['verificationRequired'] == true) {
+      return RegisterResult.verificationPending(
+        result['email']?.toString() ?? email,
+      );
+    }
+
+    final token = result['token'] as String?;
+    final refreshToken = result['refreshToken'] as String?;
+    if (token == null || refreshToken == null) {
+      throw ApiException('Registration succeeded but no session was returned.');
+    }
+
+    await _persistTokens(token, refreshToken);
+    return RegisterResult.loggedIn();
   }
 
   Future<void> _persistTokens(String accessToken, String refreshToken) async {
@@ -162,4 +173,24 @@ class AuthController extends ChangeNotifier {
     _refreshTimer?.cancel();
     super.dispose();
   }
+}
+
+class RegisterResult {
+  const RegisterResult._({
+    required this.verificationRequired,
+    this.verificationEmail,
+    this.loggedIn = false,
+  });
+
+  factory RegisterResult.loggedIn() =>
+      const RegisterResult._(verificationRequired: false, loggedIn: true);
+
+  factory RegisterResult.verificationPending(String email) => RegisterResult._(
+        verificationRequired: true,
+        verificationEmail: email,
+      );
+
+  final bool verificationRequired;
+  final String? verificationEmail;
+  final bool loggedIn;
 }

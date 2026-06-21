@@ -1,7 +1,20 @@
 /// Field limits aligned with the API OpenAPI spec and database columns.
-/// Override at build time: `--dart-define=MAX_IMAGE_SIZE_MB=3`
+/// Image size default: 5 MB. Override at build time: `--dart-define=MAX_IMAGE_SIZE_MB=5`
+/// At runtime the app also loads the live limit from `GET /api/config`.
 class ApiConstraints {
   ApiConstraints._();
+
+  static int _maxImageMb = int.fromEnvironment('MAX_IMAGE_SIZE_MB', defaultValue: 5);
+
+  static int get maxImageMb => _maxImageMb;
+
+  static void applyRemoteConfig(int maxImageSizeMb) {
+    if (maxImageSizeMb > 0) {
+      _maxImageMb = maxImageSizeMb;
+    }
+  }
+
+  static int get maxImageBytes => maxImageMb * 1048576;
 
   static const usernameMin = 3;
   static const usernameMax = 50;
@@ -18,8 +31,5 @@ class ApiConstraints {
   static const searchQueryMin = 2;
   static const searchQueryMax = 100;
   static const maxReviewTags = 12;
-
-  static const int maxImageMb = int.fromEnvironment('MAX_IMAGE_SIZE_MB', defaultValue: 3);
-
-  static int get maxImageBytes => maxImageMb * 1048576;
+  static const maxImagesPerPost = 10;
 }

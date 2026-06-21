@@ -53,6 +53,7 @@ class SteakPost {
     required this.visibility,
     required this.author,
     required this.tags,
+    this.bookmarked = false,
     this.moderationReason,
     this.moderationRestoredAt,
   });
@@ -69,8 +70,29 @@ class SteakPost {
   final PostVisibility visibility;
   final PostAuthor author;
   final List<ReviewTag> tags;
+  final bool bookmarked;
   final String? moderationReason;
   final String? moderationRestoredAt;
+
+  SteakPost copyWith({bool? bookmarked}) {
+    return SteakPost(
+      id: id,
+      title: title,
+      comment: comment,
+      rating: rating,
+      imageUrls: imageUrls,
+      restaurantName: restaurantName,
+      restaurantLocation: restaurantLocation,
+      createdAt: createdAt,
+      hidden: hidden,
+      visibility: visibility,
+      author: author,
+      tags: tags,
+      bookmarked: bookmarked ?? this.bookmarked,
+      moderationReason: moderationReason,
+      moderationRestoredAt: moderationRestoredAt,
+    );
+  }
 
   String? get primaryImageUrl =>
       imageUrls.isEmpty ? null : imageUrls.first;
@@ -96,6 +118,7 @@ class SteakPost {
           .whereType<Map<String, dynamic>>()
           .map(ReviewTag.fromJson)
           .toList(growable: false),
+      bookmarked: json['bookmarked'] as bool? ?? false,
       moderationReason: json['moderationReason'] as String?,
       moderationRestoredAt: json['moderationRestoredAt'] as String?,
     );
