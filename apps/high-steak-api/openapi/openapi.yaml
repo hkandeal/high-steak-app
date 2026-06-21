@@ -602,6 +602,60 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /posts/{id}/comments/{commentId}:
+    patch:
+      tags: [Posts]
+      summary: Edit your comment on a post
+      description: Only the comment author may update the comment body.
+      operationId: updatePostComment
+      x-required-scopes:
+        - comments:write
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/CommentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommentRequest'
+      responses:
+        '200':
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Posts]
+      summary: Delete a comment on a post
+      description: The post author may delete any comment on their post. Comment authors may delete their own comments.
+      operationId: deletePostComment
+      x-required-scopes:
+        - posts:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - $ref: '#/components/parameters/CommentId'
+      responses:
+        '204':
+          description: Comment deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /posts/following:
     get:
       tags: [Posts]
@@ -1089,6 +1143,16 @@ components:
         type: string
         format: uuid
       example: b2c3d4e5-f6a7-8901-bcde-f12345678901
+
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      description: Post comment UUID.
+      schema:
+        type: string
+        format: uuid
+      example: d4e5f6a7-b8c9-0123-def0-234567890123
 
     PageNumber:
       name: page
@@ -1749,6 +1813,17 @@ components:
             Plain-text comment (1–2000 characters). Emoji and line breaks are allowed.
             HTML and other markup are rejected. Post captions and other fields remain plain text only.
           example: What temperature did you pull it at? 🔥
+
+    UpdateCommentRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Updated plain-text comment body (same rules as create).
+          example: Pulled at 125°F — rested 10 minutes.
 
     ApiError:
       type: object

@@ -61,4 +61,8 @@ public final class PostDtos {
     public record CreateCommentRequest(
             @NotBlank @Size(max = ApiConstraints.COMMENT_BODY_MAX) String body
     ) {}
+
+    public record UpdateCommentRequest(
+            @NotBlank @Size(max = ApiConstraints.COMMENT_BODY_MAX) String body
+    ) {}
 }

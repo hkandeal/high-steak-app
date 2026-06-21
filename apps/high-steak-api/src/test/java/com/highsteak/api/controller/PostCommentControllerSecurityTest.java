@@ -20,7 +20,9 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PostCommentControllerSecurityTest {
 
     private static final UUID POST_ID = UUID.fromString("00000000-0000-0000-0000-000000000010");
+    private static final UUID COMMENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000011");
 
     @Autowired
     private MockMvc mockMvc;
@@ -77,6 +80,47 @@ class PostCommentControllerSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"body\":\"Nice sear!\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateCommentRequiresAuthentication() throws Exception {
+        mockMvc.perform(patch("/posts/" + POST_ID + "/comments/" + COMMENT_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\":\"Updated\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"comments:write"})
+    void updateCommentAllowedWithWriteScope() throws Exception {
+        when(commentService.updateComment(any(), eq(POST_ID), eq(COMMENT_ID), eq("Updated")))
+                .thenReturn(sampleComment());
+        mockMvc.perform(patch("/posts/" + POST_ID + "/comments/" + COMMENT_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\":\"Updated\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"posts:read"})
+    void updateCommentForbiddenWithoutWriteScope() throws Exception {
+        mockMvc.perform(patch("/posts/" + POST_ID + "/comments/" + COMMENT_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\":\"Updated\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteCommentRequiresAuthentication() throws Exception {
+        mockMvc.perform(delete("/posts/" + POST_ID + "/comments/" + COMMENT_ID))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"posts:read"})
+    void deleteCommentAllowedWithReadScope() throws Exception {
+        mockMvc.perform(delete("/posts/" + POST_ID + "/comments/" + COMMENT_ID))
+                .andExpect(status().isNoContent());
     }
 
     private PostDtos.CommentResponse sampleComment() {

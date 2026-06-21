@@ -119,12 +119,6 @@ export function UserMenu() {
 
           <div className="user-menu-section">
             <p className="user-menu-section-label">Settings</p>
-            <MenuLink
-              to="/settings/notifications"
-              icon="✉️"
-              label="Email notifications"
-              onSelect={closeMenu}
-            />
             <div className="user-menu-theme-row" role="none">
               <span className="user-menu-theme-label">
                 <span className="user-menu-item-icon" aria-hidden="true">

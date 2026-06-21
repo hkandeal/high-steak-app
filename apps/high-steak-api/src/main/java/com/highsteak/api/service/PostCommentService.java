@@ -23,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -76,6 +77,38 @@ public class PostCommentService {
                 post.getUser().getId(),
                 user.getId()));
         return toResponse(comment);
+    }
+
+    @Transactional
+    public PostDtos.CommentResponse updateComment(
+            UserPrincipal principal, UUID postId, UUID commentId, String body) {
+        String normalized = commentValidation.normalizeAndValidate(body);
+        PostComment comment = loadCommentOnViewablePost(principal, postId, commentId);
+        if (!comment.getUser().getId().equals(principal.getId())) {
+            throw new ResponseStatusException(FORBIDDEN, "Not allowed to edit this comment");
+        }
+        comment.setBody(normalized);
+        return toResponse(commentRepository.save(comment));
+    }
+
+    @Transactional
+    public void deleteComment(UserPrincipal principal, UUID postId, UUID commentId) {
+        PostComment comment = loadCommentOnViewablePost(principal, postId, commentId);
+        boolean isCommentAuthor = comment.getUser().getId().equals(principal.getId());
+        boolean isPostAuthor = comment.getPost().getUser().getId().equals(principal.getId());
+        if (!isCommentAuthor && !isPostAuthor) {
+            throw new ResponseStatusException(FORBIDDEN, "Not allowed to delete this comment");
+        }
+        commentRepository.delete(comment);
+    }
+
+    private PostComment loadCommentOnViewablePost(UserPrincipal viewer, UUID postId, UUID commentId) {
+        PostComment comment = commentRepository.findByIdAndPost_Id(commentId, postId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Comment not found"));
+        if (!steakPostService.canViewPost(viewer, comment.getPost())) {
+            throw new ResponseStatusException(NOT_FOUND, "Comment not found");
+        }
+        return comment;
     }
 
     private PostDtos.CommentResponse toResponse(PostComment comment) {

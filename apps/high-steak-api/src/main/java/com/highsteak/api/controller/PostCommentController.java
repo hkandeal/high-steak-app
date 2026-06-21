@@ -39,4 +39,24 @@ public class PostCommentController {
             @Valid @RequestBody PostDtos.CreateCommentRequest request) {
         return commentService.addComment(principal, postId, request.body());
     }
+
+    @PatchMapping("/{commentId}")
+    @PreAuthorize("hasAuthority('comments:write')")
+    public PostDtos.CommentResponse updateComment(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID postId,
+            @PathVariable UUID commentId,
+            @Valid @RequestBody PostDtos.UpdateCommentRequest request) {
+        return commentService.updateComment(principal, postId, commentId, request.body());
+    }
+
+    @DeleteMapping("/{commentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('posts:read')")
+    public void deleteComment(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID postId,
+            @PathVariable UUID commentId) {
+        commentService.deleteComment(principal, postId, commentId);
+    }
 }

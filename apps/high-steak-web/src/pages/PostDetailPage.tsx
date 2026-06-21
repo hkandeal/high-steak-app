@@ -3,13 +3,16 @@ import { Link, useParams } from 'react-router-dom'
 import {
   addPostComment,
   bookmarkPost,
+  deletePostComment,
   fetchPost,
   fetchPostComments,
   FEED_PAGE_SIZE,
   postImageUrl,
   unbookmarkPost,
+  updatePostComment,
   type SteakPost,
 } from '../api/client'
+import { CommentActionsMenu, type CommentActionItem } from '../components/CommentActionsMenu'
 import { CommentBody } from '../components/CommentBody'
 import { CommentComposer } from '../components/CommentComposer'
 import { StarRating } from '../components/StarRating'
@@ -32,6 +35,9 @@ export function PostDetailPage() {
   const [post, setPost] = useState<SteakPost | null>(null)
   const [activeImage, setActiveImage] = useState(0)
   const [commentBody, setCommentBody] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editBody, setEditBody] = useState('')
+  const [commentActionId, setCommentActionId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [bookmarking, setBookmarking] = useState(false)
@@ -61,6 +67,7 @@ export function PostDetailPage() {
   } = useInfiniteComments(loadCommentsPage, `${postId}:${token ?? 'anon'}`)
 
   const canComment = isAuthenticated && hasScope('comments:write')
+  const canEditComments = canComment
   const canEdit = isAuthenticated && hasScope('posts:write') && user?.id === post?.author.id
   const canBookmark = isAuthenticated && hasScope('bookmarks:write')
 
@@ -128,6 +135,57 @@ export function PostDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to add comment')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  function startEditingComment(commentId: string, body: string) {
+    setEditingCommentId(commentId)
+    setEditBody(body)
+    setError(null)
+  }
+
+  function cancelEditingComment() {
+    setEditingCommentId(null)
+    setEditBody('')
+  }
+
+  async function handleSaveComment(commentId: string) {
+    if (!token || !post || !editBody.trim()) return
+    const validationError = validateCommentBody(editBody)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    setCommentActionId(commentId)
+    setError(null)
+    try {
+      const updated = await updatePostComment(token, post.id, commentId, editBody.trim())
+      setComments((current) =>
+        current.map((comment) => (comment.id === commentId ? updated : comment)),
+      )
+      cancelEditingComment()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update comment')
+    } finally {
+      setCommentActionId(null)
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!token || !post) return
+    setCommentActionId(commentId)
+    setError(null)
+    try {
+      await deletePostComment(token, post.id, commentId)
+      setComments((current) => current.filter((comment) => comment.id !== commentId))
+      setTotalElements((count) => Math.max(0, count - 1))
+      if (editingCommentId === commentId) {
+        cancelEditingComment()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete comment')
+    } finally {
+      setCommentActionId(null)
     }
   }
 
@@ -249,15 +307,67 @@ export function PostDetailPage() {
             {commentsLoading && !loading && <p className="muted">Loading comments…</p>}
 
             <ul className="comment-list">
-              {comments.map((comment) => (
-                <li key={comment.id} className="comment-item">
-                  <div className="comment-meta">
-                    <Link to={`/users/${comment.author.id}`}>{comment.author.displayName}</Link>
-                    <time>{new Date(comment.createdAt).toLocaleString()}</time>
-                  </div>
-                  <CommentBody text={comment.body} />
-                </li>
-              ))}
+              {comments.map((comment) => {
+                const isOwnComment = user?.id === comment.author.id
+                const isPostAuthor = user?.id === post.author.id
+                const canEditComment = canEditComments && isOwnComment
+                const canDeleteComment = isAuthenticated && (isPostAuthor || isOwnComment)
+                const isEditing = editingCommentId === comment.id
+                const isBusy = commentActionId === comment.id
+
+                const menuItems: CommentActionItem[] = []
+                if (canEditComment && !isEditing) {
+                  menuItems.push({
+                    label: 'Edit',
+                    onSelect: () => startEditingComment(comment.id, comment.body),
+                    disabled: isBusy,
+                  })
+                }
+                if (canDeleteComment && !isEditing) {
+                  menuItems.push({
+                    label: isBusy ? 'Deleting…' : 'Delete',
+                    tone: 'danger',
+                    disabled: isBusy,
+                    onSelect: () => {
+                      void handleDeleteComment(comment.id)
+                    },
+                  })
+                }
+
+                return (
+                  <li key={comment.id} className="comment-item">
+                    <div className="comment-meta">
+                      <div className="comment-meta-left">
+                        <Link to={`/users/${comment.author.id}`}>{comment.author.displayName}</Link>
+                        <time>{new Date(comment.createdAt).toLocaleString()}</time>
+                      </div>
+                      {menuItems.length > 0 && (
+                        <CommentActionsMenu
+                          label={`Actions for comment by ${comment.author.displayName}`}
+                          items={menuItems}
+                        />
+                      )}
+                    </div>
+                    {isEditing ? (
+                      <CommentComposer
+                        variant="edit"
+                        value={editBody}
+                        onChange={setEditBody}
+                        submitting={isBusy}
+                        submitLabel="Save"
+                        submittingLabel="Saving…"
+                        placeholder="Update your comment…"
+                        onCancel={cancelEditingComment}
+                        onSubmit={() => {
+                          void handleSaveComment(comment.id)
+                        }}
+                      />
+                    ) : (
+                      <CommentBody text={comment.body} />
+                    )}
+                  </li>
+                )
+              })}
             </ul>
 
             {commentsHasMore && !commentsLoading && (
