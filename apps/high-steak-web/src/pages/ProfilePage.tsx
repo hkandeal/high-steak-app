@@ -372,6 +372,36 @@ export function ProfilePage() {
   const avatarSrc = avatarPreview
     ?? (profile?.avatarUrl ? postImageUrl(profile.avatarUrl) : null)
 
+  const accountDeletionSection = canDeleteAccount ? (
+    <section
+      id="account-deletion"
+      className="profile-account-deletion"
+      aria-labelledby="profile-danger-heading"
+    >
+      <h3 id="profile-danger-heading">Delete account</h3>
+      {deleteAccountRequested ? (
+        <p className="profile-danger-notice">
+          We sent a confirmation link to <strong>{user?.email}</strong>. Open it to permanently
+          delete your account. The link expires in 24 hours.
+        </p>
+      ) : (
+        <>
+          <p className="profile-account-deletion-copy">
+            Permanently remove your profile, posts, comments, and all associated data. You will need
+            to confirm by email — this is separate from saving profile changes.
+          </p>
+          <button
+            type="button"
+            className="btn ghost danger-text profile-account-deletion-btn"
+            onClick={() => setDeleteAccountOpen(true)}
+          >
+            Delete account
+          </button>
+        </>
+      )}
+    </section>
+  ) : null
+
   return (
     <section className="profile-page">
       <PageBackLink defaultTo="/feed" defaultLabel="Back to feed" />
@@ -435,7 +465,10 @@ export function ProfilePage() {
         </header>
       )}
 
+      {profile && !editing && isOwnProfile && accountDeletionSection}
+
       {profile && editing && isOwnProfile && (
+        <>
         <form className="profile-edit" onSubmit={handleSaveProfile}>
           <h2>Edit profile</h2>
           <div className="profile-photo-field">
@@ -487,31 +520,6 @@ export function ProfilePage() {
 
           <EmailNotificationSettings embedded />
 
-          {canDeleteAccount && (
-            <section className="profile-danger-zone" aria-labelledby="profile-danger-heading">
-              <h3 id="profile-danger-heading">Delete account</h3>
-              {deleteAccountRequested ? (
-                <p className="profile-danger-notice">
-                  We sent a confirmation link to <strong>{user?.email}</strong>. Open it to
-                  permanently delete your account. The link expires in 24 hours.
-                </p>
-              ) : (
-                <>
-                  <p className="muted">
-                    Permanently remove your profile, posts, comments, and all associated data.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn ghost danger-text"
-                    onClick={() => setDeleteAccountOpen(true)}
-                  >
-                    Delete account
-                  </button>
-                </>
-              )}
-            </section>
-          )}
-
           <div className="profile-edit-actions">
             <button type="button" className="btn ghost" onClick={() => setEditing(false)}>
               Cancel
@@ -521,6 +529,9 @@ export function ProfilePage() {
             </button>
           </div>
         </form>
+
+        {accountDeletionSection}
+        </>
       )}
 
       {!(isOwnProfile && editing) && isOwnProfile && hiddenPostCount > 0 && !loading && !postsLoading && (

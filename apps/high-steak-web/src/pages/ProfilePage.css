@@ -230,21 +230,32 @@
   gap: 0.5rem;
 }
 
-.profile-danger-zone {
-  margin-top: 0.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--card-border);
+.profile-account-deletion {
+  max-width: 42rem;
+  margin-top: 0;
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(196, 58, 42, 0.45);
+  background: rgba(196, 58, 42, 0.06);
 }
 
-.profile-danger-zone h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
+.profile-account-deletion h3 {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
   color: var(--ember);
 }
 
-.profile-danger-zone .muted {
-  margin: 0 0 0.85rem;
+.profile-account-deletion-copy {
+  margin: 0 0 1rem;
   font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--cream-muted);
+}
+
+.profile-account-deletion-btn {
+  width: 100%;
+  justify-content: center;
 }
 
 .profile-danger-notice {
