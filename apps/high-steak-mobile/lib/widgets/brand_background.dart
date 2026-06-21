@@ -23,15 +23,17 @@ class BrandBackground extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0, -0.85),
-                radius: 1.1,
-                colors: [
-                  palette.flameGlow,
-                  Colors.transparent,
-                ],
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0, -0.85),
+                  radius: 1.1,
+                  colors: [
+                    palette.flameGlow,
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),

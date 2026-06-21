@@ -1,39 +1,165 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../auth/auth_controller.dart';
 import '../models/steak_post.dart';
+import '../services/api_service.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
 import '../utils/date_format.dart';
+import 'image_lightbox.dart';
 import 'star_rating.dart';
 import 'user_avatar.dart';
 
-class PostCard extends StatelessWidget {
-  const PostCard({super.key, required this.post});
+class PostCard extends StatefulWidget {
+  const PostCard({
+    super.key,
+    required this.post,
+    this.auth,
+    this.api,
+    this.showBookmark = false,
+    this.showOwnerActions = false,
+    this.onBookmarkChanged,
+    this.onDeleted,
+  });
 
   final SteakPost post;
+  final AuthController? auth;
+  final ApiService? api;
+  final bool showBookmark;
+  final bool showOwnerActions;
+  final VoidCallback? onBookmarkChanged;
+  final VoidCallback? onDeleted;
+
+  @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  late bool _bookmarked;
+  bool _bookmarkBusy = false;
+  bool _deleteBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bookmarked = widget.post.bookmarked;
+  }
+
+  @override
+  void didUpdateWidget(PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id ||
+        oldWidget.post.bookmarked != widget.post.bookmarked) {
+      _bookmarked = widget.post.bookmarked;
+    }
+  }
+
+  bool get _canBookmark =>
+      widget.showBookmark &&
+      widget.auth != null &&
+      widget.api != null &&
+      widget.auth!.hasScope('bookmarks:write');
+
+  bool get _canDelete =>
+      widget.showOwnerActions &&
+      widget.auth != null &&
+      widget.api != null &&
+      widget.auth!.hasScope('posts:write') &&
+      widget.auth!.user?.id == widget.post.author.id;
+
+  Future<void> _toggleBookmark() async {
+    if (!_canBookmark || _bookmarkBusy) return;
+    final token = widget.auth!.token!;
+    final api = widget.api!;
+    setState(() => _bookmarkBusy = true);
+    try {
+      if (_bookmarked) {
+        await api.unbookmarkPost(token, widget.post.id);
+      } else {
+        await api.bookmarkPost(token, widget.post.id);
+      }
+      if (!mounted) return;
+      setState(() => _bookmarked = !_bookmarked);
+      widget.onBookmarkChanged?.call();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _bookmarkBusy = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    if (!_canDelete || _deleteBusy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This steak review will be removed permanently.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleteBusy = true);
+    try {
+      await widget.api!.deletePost(widget.auth!.token!, widget.post.id);
+      widget.onDeleted?.call();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _deleteBusy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final palette = context.palette;
     final imageUrl = resolveApiImageUrl(post.primaryImageUrl);
     final theme = Theme.of(context);
+    final showActions = _canBookmark || _canDelete;
 
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.only(bottom: 14),
-      child: InkWell(
-        onTap: () => context.push('/posts/${post.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (imageUrl.isNotEmpty)
-              _PostHeroImage(
-                imageUrl: imageUrl,
-                extraCount: post.imageUrls.length - 1,
-                followersOnly: post.visibility == PostVisibility.followersOnly,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (imageUrl.isNotEmpty)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => ImageLightbox.show(
+                  context,
+                  imageUrls: post.imageUrls,
+                  title: post.title,
+                ),
+                child: _PostHeroImage(
+                  imageUrl: imageUrl,
+                  extraCount: post.imageUrls.length - 1,
+                  followersOnly: post.visibility == PostVisibility.followersOnly,
+                ),
               ),
-            Padding(
+            ),
+          InkWell(
+            onTap: () => context.push('/posts/${post.id}'),
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,7 +172,8 @@ class PostCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: InkWell(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
                           onTap: () => context.push('/users/${post.author.id}'),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,6 +195,21 @@ class PostCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (_canDelete)
+                        IconButton(
+                          tooltip: 'Delete post',
+                          onPressed: _deleteBusy ? null : _confirmDelete,
+                          icon: _deleteBusy
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: palette.creamMuted,
+                                  ),
+                                )
+                              : Icon(Icons.delete_outline, color: palette.creamMuted),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -98,11 +240,38 @@ class PostCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (showActions) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (_canBookmark)
+                          IconButton(
+                            tooltip: _bookmarked ? 'Remove bookmark' : 'Bookmark',
+                            onPressed: _bookmarkBusy ? null : _toggleBookmark,
+                            icon: _bookmarkBusy
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: palette.gold,
+                                    ),
+                                  )
+                                : Icon(
+                                    _bookmarked
+                                        ? Icons.bookmark
+                                        : Icons.bookmark_border,
+                                    color: _bookmarked ? palette.gold : palette.creamMuted,
+                                  ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -141,16 +310,18 @@ class _PostHeroImage extends StatelessWidget {
               ),
             ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  palette.charcoal.withValues(alpha: 0.55),
-                ],
-                stops: const [0.55, 1.0],
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    palette.charcoal.withValues(alpha: 0.55),
+                  ],
+                  stops: const [0.55, 1.0],
+                ),
               ),
             ),
           ),

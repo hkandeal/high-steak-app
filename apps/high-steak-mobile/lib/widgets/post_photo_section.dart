@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import 'image_lightbox.dart';
 
 class PostPhotoSection extends StatelessWidget {
   const PostPhotoSection({
@@ -47,8 +48,9 @@ class PostPhotoSection extends StatelessWidget {
                 Icon(Icons.photo_camera_outlined, size: 40, color: palette.gold),
                 const SizedBox(height: 8),
                 Text(
-                  'Add one or more steak photos',
+                  'Take a photo or choose from your library',
                   style: TextStyle(color: palette.creamMuted),
+                  textAlign: TextAlign.center,
                 ),
               ],
             )
@@ -63,12 +65,24 @@ class PostPhotoSection extends StatelessWidget {
                   if (index < existingImageUrls.length) {
                     return _ExistingImageThumb(
                       url: existingImageUrls[index],
+                      onOpen: () => ImageLightbox.showPostPhotos(
+                        context,
+                        existingImageUrls: existingImageUrls,
+                        newImages: newImages,
+                        initialIndex: index,
+                      ),
                       onRemove: () => onRemoveExisting(index),
                     );
                   }
                   final newIndex = index - existingImageUrls.length;
                   return _NewImageThumb(
                     file: newImages[newIndex],
+                    onOpen: () => ImageLightbox.showPostPhotos(
+                      context,
+                      existingImageUrls: existingImageUrls,
+                      newImages: newImages,
+                      initialIndex: index,
+                    ),
                     onRemove: () => onRemoveNew(newIndex),
                   );
                 },
@@ -87,7 +101,7 @@ class PostPhotoSection extends StatelessWidget {
             label: Text(
               picking
                   ? 'Opening…'
-                  : (_isEmpty ? 'Choose photos' : 'Add more'),
+                  : (_isEmpty ? 'Add photos' : 'Add more'),
             ),
           ),
         ],
@@ -99,29 +113,34 @@ class PostPhotoSection extends StatelessWidget {
 class _ExistingImageThumb extends StatelessWidget {
   const _ExistingImageThumb({
     required this.url,
+    required this.onOpen,
     required this.onRemove,
   });
 
   final String url;
+  final VoidCallback onOpen;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            resolveApiImageUrl(url),
-            width: 110,
-            height: 110,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+        GestureDetector(
+          onTap: onOpen,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              resolveApiImageUrl(url),
               width: 110,
               height: 110,
-              color: context.palette.charcoalLight,
-              alignment: Alignment.center,
-              child: const Icon(Icons.image_not_supported_outlined),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 110,
+                height: 110,
+                color: context.palette.charcoalLight,
+                alignment: Alignment.center,
+                child: const Icon(Icons.image_not_supported_outlined),
+              ),
             ),
           ),
         ),
@@ -138,19 +157,24 @@ class _ExistingImageThumb extends StatelessWidget {
 class _NewImageThumb extends StatelessWidget {
   const _NewImageThumb({
     required this.file,
+    required this.onOpen,
     required this.onRemove,
   });
 
   final XFile file;
+  final VoidCallback onOpen;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: _PickedImageThumb(file: file),
+        GestureDetector(
+          onTap: onOpen,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _PickedImageThumb(file: file),
+          ),
         ),
         Positioned(
           top: 4,

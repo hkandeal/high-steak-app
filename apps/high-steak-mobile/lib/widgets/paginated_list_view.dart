@@ -94,7 +94,7 @@ class _PaginatedListViewState<T> extends State<PaginatedListView<T>> {
       color: Theme.of(context).colorScheme.secondary,
       child: ListView.builder(
         controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: ScrollConfiguration.of(context).getScrollPhysics(context),
         padding: widget.padding ?? const EdgeInsets.fromLTRB(16, 4, 16, 24),
         itemCount: controller.items.length + (controller.hasMore ? 1 : 0),
         itemBuilder: (context, index) {

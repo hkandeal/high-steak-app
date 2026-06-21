@@ -116,7 +116,12 @@ class _FeedScreenState extends State<FeedScreen> {
                     child: const Text('Find steak lovers'),
                   )
                 : null,
-            itemBuilder: (context, item) => PostCard(post: item),
+            itemBuilder: (context, item) => PostCard(
+              post: item,
+              auth: widget.auth,
+              api: widget.api,
+              showBookmark: widget.auth.hasScope('bookmarks:write'),
+            ),
           ),
         ),
       ],

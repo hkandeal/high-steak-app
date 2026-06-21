@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../config/api_config.dart';
 import '../constants/pagination.dart';
+import '../models/notification_preferences.dart';
 import '../models/page_response.dart';
 import '../models/post_comment.dart';
 import '../models/review_tag_catalog.dart';
@@ -70,6 +71,20 @@ class ApiService {
     return _handle(res, (body) => body as Map<String, dynamic>);
   }
 
+  Future<AvailabilityResult> checkUsernameAvailability(String username) async {
+    final res = await _client.get(
+      _uri('/auth/check-username', {'username': username.trim()}),
+    );
+    return _handle(res, (body) => AvailabilityResult.fromJson(body as Map<String, dynamic>));
+  }
+
+  Future<AvailabilityResult> checkEmailAvailability(String email) async {
+    final res = await _client.get(
+      _uri('/auth/check-email', {'email': email.trim()}),
+    );
+    return _handle(res, (body) => AvailabilityResult.fromJson(body as Map<String, dynamic>));
+  }
+
   Future<Map<String, dynamic>> login({
     required String username,
     required String password,
@@ -108,6 +123,11 @@ class ApiService {
     if (res.statusCode >= 400 && res.statusCode != 401) {
       throw ApiException('Logout failed (${res.statusCode})');
     }
+  }
+
+  Future<Map<String, dynamic>> fetchAppConfig() async {
+    final res = await _client.get(_uri('/config'));
+    return _handle(res, (body) => body as Map<String, dynamic>);
   }
 
   Future<UserProfile> getMe(String token) async {
@@ -183,6 +203,159 @@ class ApiService {
       body: jsonEncode({'body': bodyText}),
     );
     return _handle(res, (body) => PostComment.fromJson(body as Map<String, dynamic>));
+  }
+
+  Future<PostComment> updatePostComment(
+    String token,
+    String postId,
+    String commentId,
+    String bodyText,
+  ) async {
+    final res = await _client.patch(
+      _uri('/posts/$postId/comments/$commentId'),
+      headers: _headers(token: token, json: true),
+      body: jsonEncode({'body': bodyText}),
+    );
+    return _handle(res, (body) => PostComment.fromJson(body as Map<String, dynamic>));
+  }
+
+  Future<void> deletePostComment(
+    String token,
+    String postId,
+    String commentId,
+  ) async {
+    final res = await _client.delete(
+      _uri('/posts/$postId/comments/$commentId'),
+      headers: _headers(token: token),
+    );
+    if (res.statusCode == 401) {
+      onUnauthorized?.call();
+    }
+    if (res.statusCode >= 400) {
+      dynamic body;
+      if (res.body.isNotEmpty) {
+        body = jsonDecode(res.body);
+      }
+      final message = body is Map ? body['message']?.toString() : null;
+      throw ApiException(message ?? 'Request failed (${res.statusCode})');
+    }
+  }
+
+  Future<void> deletePost(String token, String postId) async {
+    final res = await _client.delete(
+      _uri('/posts/$postId'),
+      headers: _headers(token: token),
+    );
+    if (res.statusCode == 401) {
+      onUnauthorized?.call();
+    }
+    if (res.statusCode >= 400) {
+      dynamic body;
+      if (res.body.isNotEmpty) {
+        body = jsonDecode(res.body);
+      }
+      final message = body is Map ? body['message']?.toString() : null;
+      throw ApiException(message ?? 'Request failed (${res.statusCode})');
+    }
+  }
+
+  Future<PageResponse<SteakPost>> fetchBookmarkedPosts(
+    String token, {
+    int page = 0,
+    int size = feedPageSize,
+  }) async {
+    final res = await _client.get(
+      _uri('/bookmarks', {'page': '$page', 'size': '$size'}),
+      headers: _headers(token: token),
+    );
+    return _handle(
+      res,
+      (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
+    );
+  }
+
+  Future<void> bookmarkPost(String token, String postId) async {
+    final res = await _client.post(
+      _uri('/posts/$postId/bookmark'),
+      headers: _headers(token: token),
+    );
+    await _handle(res, (_) => null);
+  }
+
+  Future<void> unbookmarkPost(String token, String postId) async {
+    final res = await _client.delete(
+      _uri('/posts/$postId/bookmark'),
+      headers: _headers(token: token),
+    );
+    if (res.statusCode == 401) {
+      onUnauthorized?.call();
+    }
+    if (res.statusCode >= 400) {
+      dynamic body;
+      if (res.body.isNotEmpty) {
+        body = jsonDecode(res.body);
+      }
+      final message = body is Map ? body['message']?.toString() : null;
+      throw ApiException(message ?? 'Request failed (${res.statusCode})');
+    }
+  }
+
+  Future<List<SteakPost>> fetchMyModerationNotices(String token) async {
+    final res = await _client.get(
+      _uri('/posts/mine/moderation-notices'),
+      headers: _headers(token: token),
+    );
+    return _handle(res, (body) {
+      final list = body as List<dynamic>? ?? [];
+      return list
+          .whereType<Map<String, dynamic>>()
+          .map(SteakPost.fromJson)
+          .toList(growable: false);
+    });
+  }
+
+  Future<NotificationPreferences> fetchNotificationPreferences(String token) async {
+    final res = await _client.get(
+      _uri('/users/me/notification-preferences'),
+      headers: _headers(token: token),
+    );
+    return _handle(
+      res,
+      (body) => NotificationPreferences.fromJson(body as Map<String, dynamic>),
+    );
+  }
+
+  Future<NotificationPreferences> updateNotificationPreferences(
+    String token,
+    Map<String, bool> patch,
+  ) async {
+    final res = await _client.patch(
+      _uri('/users/me/notification-preferences'),
+      headers: _headers(token: token, json: true),
+      body: jsonEncode(patch),
+    );
+    return _handle(
+      res,
+      (body) => NotificationPreferences.fromJson(body as Map<String, dynamic>),
+    );
+  }
+
+  Future<void> requestAccountDeletion(String token) async {
+    final res = await _client.post(
+      _uri('/auth/request-account-deletion'),
+      headers: _headers(token: token),
+    );
+    if (res.statusCode == 401) {
+      onUnauthorized?.call();
+    }
+    if (res.statusCode >= 400) {
+      dynamic body;
+      if (res.body.isNotEmpty) {
+        body = jsonDecode(res.body);
+      }
+      final message = body is Map ? body['message']?.toString() : null;
+      throw ApiException(message ?? 'Request failed (${res.statusCode})');
+    }
   }
 
   Future<UserPublicProfile> fetchUserProfile(String token, String userId) async {
@@ -399,6 +572,20 @@ class ApiService {
         user: UserProfile.fromJson(map['user'] as Map<String, dynamic>),
       );
     });
+  }
+}
+
+class AvailabilityResult {
+  const AvailabilityResult({required this.available, required this.message});
+
+  final bool available;
+  final String message;
+
+  factory AvailabilityResult.fromJson(Map<String, dynamic> json) {
+    return AvailabilityResult(
+      available: json['available'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+    );
   }
 }
 

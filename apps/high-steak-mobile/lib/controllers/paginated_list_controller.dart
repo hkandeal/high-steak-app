@@ -68,4 +68,22 @@ class PaginatedListController<T> extends ChangeNotifier {
     items.insert(0, item);
     notifyListeners();
   }
+
+  void replaceItem(bool Function(T item) test, T replacement) {
+    final index = items.indexWhere(test);
+    if (index >= 0) {
+      items[index] = replacement;
+      notifyListeners();
+    }
+  }
+
+  void removeItem(bool Function(T item) test) {
+    final before = items.length;
+    items.removeWhere(test);
+    final removed = before - items.length;
+    if (removed > 0) {
+      totalElements = (totalElements - removed).clamp(0, 999999);
+      notifyListeners();
+    }
+  }
 }

@@ -109,6 +109,8 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: palette.inputBg,
+        floatingLabelBehavior: FloatingLabelBehavior.never,
+        alignLabelWithHint: false,
         labelStyle: TextStyle(color: palette.creamMuted),
         hintStyle: TextStyle(color: palette.creamMuted.withValues(alpha: 0.7)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

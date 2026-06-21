@@ -27,8 +27,8 @@ spring:
             enable: ${SPRING_MAIL_SMTP_STARTTLS:false}
   servlet:
     multipart:
-      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:3MB}
-      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:33MB}
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:5MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:53MB}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -51,7 +51,7 @@ app:
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:1209600000}
   uploads:
     dir: ${UPLOADS_DIR:uploads}
-    max-image-size-mb: ${APP_MAX_IMAGE_SIZE_MB:3}
+    max-image-size-mb: ${APP_MAX_IMAGE_SIZE_MB:5}
     max-images-per-post: ${APP_MAX_IMAGES_PER_POST:10}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
