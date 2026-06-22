@@ -1,6 +1,11 @@
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+
+/// Opt-in HTTP logging (`[API]` lines in the `flutter run` terminal).
+/// Only works in debug builds: `flutter run --dart-define=API_DEBUG_LOG=true`
+bool get apiDebugLogEnabled =>
+    kDebugMode && const bool.fromEnvironment('API_DEBUG_LOG');
 
 /// Production API (same as web `VITE_API_URL` in Docker prod / Helm ingress).
 const productionApiBaseUrl = 'https://steaks.apps.hossam.io/api';
@@ -14,6 +19,9 @@ const productionApiBaseUrl = 'https://steaks.apps.hossam.io/api';
 ///
 /// # Or shorthand
 /// flutter run --dart-define=ENV=production
+///
+/// # Log all API requests/responses (debug builds only)
+/// flutter run --dart-define=API_DEBUG_LOG=true
 ///
 /// # Physical phone against local Docker on your Mac (same Wi‑Fi)
 /// flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/api

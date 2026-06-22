@@ -14,6 +14,7 @@ import '../models/subscription_summary.dart';
 import '../models/steak_post.dart';
 import '../models/user.dart';
 import '../utils/post_image_picker.dart';
+import 'logging_http_client.dart';
 
 class ApiSessionHandlers {
   const ApiSessionHandlers({
@@ -30,7 +31,8 @@ class ApiSessionHandlers {
 }
 
 class ApiService {
-  ApiService({http.Client? client}) : _client = client ?? http.Client();
+  ApiService({http.Client? client})
+      : _client = client ?? (apiDebugLogEnabled ? LoggingHttpClient() : http.Client());
 
   static const _authRefreshPaths = [
     '/auth/refresh',
