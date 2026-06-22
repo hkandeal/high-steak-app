@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../navigation/app_navigator.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
 
@@ -48,9 +49,11 @@ class ImageLightbox {
     if (items.isEmpty) return Future.value();
 
     final startIndex = initialIndex.clamp(0, items.length - 1);
+    final dialogContext = rootNavigatorContext ?? context;
 
     return showGeneralDialog(
-      context: context,
+      context: dialogContext,
+      useRootNavigator: true,
       barrierDismissible: true,
       barrierLabel: 'Close photo viewer',
       barrierColor: Colors.black.withValues(alpha: 0.92),
@@ -126,10 +129,11 @@ class _ImageLightboxPageState extends State<_ImageLightboxPage> {
     final palette = context.palette;
     final hasMultiple = widget.items.length > 1;
 
-    return Material(
-      color: Colors.transparent,
-      child: SafeArea(
-        child: Column(
+    return SizedBox.expand(
+      child: Material(
+        color: Colors.transparent,
+        child: SafeArea(
+          child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
@@ -164,7 +168,8 @@ class _ImageLightboxPageState extends State<_ImageLightboxPage> {
                   const Spacer(),
                   IconButton(
                     tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () =>
+                        Navigator.of(context, rootNavigator: true).pop(),
                     icon: Icon(Icons.close, color: palette.cream),
                   ),
                 ],
@@ -233,6 +238,7 @@ class _ImageLightboxPageState extends State<_ImageLightboxPage> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -19,6 +19,7 @@ import '../services/api_service.dart';
 import '../theme/app_scroll_behavior.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import '../navigation/app_navigator.dart';
 import '../widgets/app_shell.dart';
 
 GoRouter createAppRouter({
@@ -27,6 +28,7 @@ GoRouter createAppRouter({
   required ThemeController theme,
 }) {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: auth,
     redirect: (context, state) {
@@ -89,6 +91,7 @@ GoRouter createAppRouter({
         ),
       ),
       ShellRoute(
+        navigatorKey: shellNavigatorKey,
         builder: (context, state, child) => AppShell(
           auth: auth,
           api: api,

@@ -141,14 +141,14 @@ class _PostCardState extends State<PostCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (imageUrl.isNotEmpty)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => ImageLightbox.show(
-                  context,
-                  imageUrls: post.imageUrls,
-                  title: post.title,
-                ),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => ImageLightbox.show(
+                context,
+                imageUrls: post.imageUrls,
+                title: post.title,
+              ),
+              child: IgnorePointer(
                 child: _PostHeroImage(
                   imageUrl: imageUrl,
                   extraCount: post.imageUrls.length - 1,
@@ -328,18 +328,22 @@ class _PostHeroImage extends StatelessWidget {
             Positioned(
               left: 10,
               top: 10,
-              child: _Badge(
-                label: 'Followers only',
-                icon: Icons.lock_outline,
+              child: IgnorePointer(
+                child: _Badge(
+                  label: 'Followers only',
+                  icon: Icons.lock_outline,
+                ),
               ),
             ),
           if (extraCount > 0)
             Positioned(
               right: 10,
               bottom: 10,
-              child: _Badge(
-                label: '+$extraCount photos',
-                icon: Icons.photo_library_outlined,
+              child: IgnorePointer(
+                child: _Badge(
+                  label: '+$extraCount photos',
+                  icon: Icons.photo_library_outlined,
+                ),
               ),
             ),
         ],

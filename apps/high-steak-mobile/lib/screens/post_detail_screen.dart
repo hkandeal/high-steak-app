@@ -11,6 +11,7 @@ import '../utils/api_image_url.dart';
 import '../utils/date_format.dart';
 import '../widgets/comment_tile.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/image_lightbox.dart';
 import '../widgets/star_rating.dart';
 import '../widgets/user_avatar.dart';
 
@@ -186,6 +187,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
+  void _openPhotoLightbox(List<String> images, {required int index, String? title}) {
+    setState(() => _activeImage = index);
+    ImageLightbox.show(
+      context,
+      imageUrls: images,
+      initialIndex: index,
+      title: title,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loadingPost) {
@@ -218,17 +229,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
           if (images.isNotEmpty) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 16 / 10,
-                child: Image.network(
-                  resolveApiImageUrl(images[_activeImage]),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: palette.charcoalLight,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.image_not_supported_outlined),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openPhotoLightbox(
+                images,
+                index: _activeImage,
+                title: post.title,
+              ),
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 10,
+                    child: Image.network(
+                      resolveApiImageUrl(images[_activeImage]),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: palette.charcoalLight,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.image_not_supported_outlined),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -243,25 +264,30 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final selected = index == _activeImage;
-                    return InkWell(
-                      onTap: () => setState(() => _activeImage = index),
-                      borderRadius: BorderRadius.circular(10),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: selected ? palette.gold : palette.cardBorder,
-                            width: selected ? 2 : 1,
+                    return GestureDetector(
+                      onTap: () => _openPhotoLightbox(
+                        images,
+                        index: index,
+                        title: post.title,
+                      ),
+                      child: IgnorePointer(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: selected ? palette.gold : palette.cardBorder,
+                              width: selected ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            resolveApiImageUrl(images[index]),
-                            width: 68,
-                            height: 68,
-                            fit: BoxFit.cover,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              resolveApiImageUrl(images[index]),
+                              width: 68,
+                              height: 68,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
