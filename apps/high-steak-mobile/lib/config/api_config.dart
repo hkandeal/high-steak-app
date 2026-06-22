@@ -15,6 +15,9 @@ const productionApiBaseUrl = 'https://steaks.apps.hossam.io/api';
 /// # Or shorthand
 /// flutter run --dart-define=ENV=production
 ///
+/// API request/response logs print to the `flutter run` terminal in **debug**
+/// builds only (tokens/passwords redacted). Not enabled in profile/release.
+///
 /// # Physical phone against local Docker on your Mac (same Wi‑Fi)
 /// flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/api
 /// ```

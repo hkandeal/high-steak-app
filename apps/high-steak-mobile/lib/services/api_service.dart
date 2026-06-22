@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -14,6 +15,7 @@ import '../models/subscription_summary.dart';
 import '../models/steak_post.dart';
 import '../models/user.dart';
 import '../utils/post_image_picker.dart';
+import 'logging_http_client.dart';
 
 class ApiSessionHandlers {
   const ApiSessionHandlers({
@@ -30,7 +32,8 @@ class ApiSessionHandlers {
 }
 
 class ApiService {
-  ApiService({http.Client? client}) : _client = client ?? http.Client();
+  ApiService({http.Client? client})
+      : _client = client ?? (kDebugMode ? LoggingHttpClient() : http.Client());
 
   static const _authRefreshPaths = [
     '/auth/refresh',
