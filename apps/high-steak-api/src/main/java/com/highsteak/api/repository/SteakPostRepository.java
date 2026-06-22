@@ -21,6 +21,10 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
             PostVisibility visibility, Pageable pageable);
 
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
+    Page<SteakPost> findByHiddenFalseAndVisibilityAndUserIdNotOrderByCreatedAtDesc(
+            PostVisibility visibility, UUID userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
     List<SteakPost> findByHiddenFalseAndVisibilityOrderByCreatedAtDesc(PostVisibility visibility);
 
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})

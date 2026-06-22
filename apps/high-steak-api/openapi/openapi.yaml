@@ -315,7 +315,11 @@ paths:
   /posts:
     get:
       tags: [Posts]
-      summary: Authenticated feed (non-hidden posts)
+      summary: Everyone feed (public posts from other users)
+      description: |
+        Paginated public, non-hidden posts from the community, newest first.
+        Excludes the authenticated viewer's own posts (see your profile or `/posts/mine`).
+        `FOLLOWERS_ONLY` posts never appear here.
       operationId: getFeed
       x-required-scopes:
         - posts:read
@@ -1318,8 +1322,9 @@ components:
       enum: [PUBLIC, FOLLOWERS_ONLY]
       default: PUBLIC
       description: |
-        Who can see the post. `PUBLIC` appears in the everyone feed.
-        `FOLLOWERS_ONLY` is visible to the author, their followers, and moderators only.
+        Who can see the post. `PUBLIC` appears in the everyone feed for other users
+        (not the author). `FOLLOWERS_ONLY` is visible to the author, their followers,
+        and moderators only.
       example: PUBLIC
 
     ImageUpload:
