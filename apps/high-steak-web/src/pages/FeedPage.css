@@ -199,6 +199,26 @@
   color: var(--gold);
 }
 
+.post-meta .post-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.post-meta .post-author .author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-meta .post-author:hover {
+  text-decoration: underline;
+}
+
 .post-meta .author {
   color: var(--gold);
   font-weight: 600;
@@ -228,9 +248,19 @@
 .post-meta {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
   font-size: 0.8rem;
   color: var(--cream-muted);
   margin-bottom: 0.5rem;
+}
+
+.post-meta-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .post-body h2 {

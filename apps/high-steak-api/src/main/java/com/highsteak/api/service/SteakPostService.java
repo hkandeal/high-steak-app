@@ -69,7 +69,7 @@ public class SteakPostService {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByHiddenFalseAndVisibilityAndUserIdNotOrderByCreatedAtDesc(
                 PostVisibility.PUBLIC, viewer.getId(), pageable);
-        return toPageResponse(posts, viewer);
+        return toEveryoneFeedPageResponse(posts, viewer);
     }
 
     @Transactional(readOnly = true)
@@ -137,7 +137,7 @@ public class SteakPostService {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByUserIdInAndHiddenFalseOrderByCreatedAtDesc(
                 followedUserIds, pageable);
-        return toPageResponse(posts, principal);
+        return toFeedPageResponse(posts, principal);
     }
 
     @Transactional(readOnly = true)
@@ -165,6 +165,26 @@ public class SteakPostService {
         Set<UUID> bookmarkedIds = resolveBookmarkedIds(viewer, posts.getContent());
         return PaginationHelper.toPageResponse(
                 posts, post -> toResponse(post, viewer, bookmarkedIds.contains(post.getId())));
+    }
+
+    private PageDtos.PageResponse<PostDtos.PostResponse> toFeedPageResponse(
+            Page<SteakPost> posts, UserPrincipal viewer) {
+        Set<UUID> bookmarkedIds = resolveBookmarkedIds(viewer, posts.getContent());
+        return PaginationHelper.toPageResponse(
+                posts, post -> toFeedResponse(post, viewer, bookmarkedIds.contains(post.getId())));
+    }
+
+    private PageDtos.PageResponse<PostDtos.PostResponse> toEveryoneFeedPageResponse(
+            Page<SteakPost> posts, UserPrincipal viewer) {
+        Set<UUID> bookmarkedIds = resolveBookmarkedIds(viewer, posts.getContent());
+        Set<UUID> subscribedIds = subscriptionService.getSubscribedUserIds(viewer.getId());
+        return PaginationHelper.toPageResponse(
+                posts,
+                post -> toEveryoneFeedResponse(
+                        post,
+                        viewer,
+                        bookmarkedIds.contains(post.getId()),
+                        subscribedIds.contains(post.getUser().getId())));
     }
 
     private Set<UUID> resolveBookmarkedIds(UserPrincipal viewer, List<SteakPost> posts) {
@@ -425,12 +445,33 @@ public class SteakPostService {
     }
 
     public PostDtos.PostResponse toResponse(SteakPost post, UserPrincipal viewer, boolean bookmarked) {
+        return buildResponse(post, viewer, bookmarked, false, null);
+    }
+
+    public PostDtos.PostResponse toFeedResponse(SteakPost post, UserPrincipal viewer, boolean bookmarked) {
+        return buildResponse(post, viewer, bookmarked, true, null);
+    }
+
+    public PostDtos.PostResponse toEveryoneFeedResponse(
+            SteakPost post, UserPrincipal viewer, boolean bookmarked, boolean authorSubscribed) {
+        return buildResponse(post, viewer, bookmarked, true, authorSubscribed);
+    }
+
+    private PostDtos.PostResponse buildResponse(
+            SteakPost post,
+            UserPrincipal viewer,
+            boolean bookmarked,
+            boolean feedAuthorAvatar,
+            Boolean authorSubscribed) {
         List<String> imageUrls = uniqueImageUrls(post.getImages());
         List<PostDtos.ReviewTagSummary> tags = post.getReviewTags().stream()
                 .map(link -> reviewTagService.toSummary(link.getTag()))
                 .toList();
         boolean includeAuthorModerationFields = viewer != null
                 && viewer.getId().equals(post.getUser().getId());
+        PostDtos.AuthorSummary author = feedAuthorAvatar
+                ? authService.toFeedAuthorSummary(post.getUser(), authorSubscribed)
+                : authService.toAuthorSummary(post.getUser());
         return new PostDtos.PostResponse(
                 post.getId(),
                 post.getTitle(),
@@ -444,7 +485,7 @@ public class SteakPostService {
                 post.isHidden() ? post.getModerationReason() : null,
                 includeAuthorModerationFields ? post.getModerationRestoredAt() : null,
                 post.getVisibility(),
-                authService.toAuthorSummary(post.getUser()),
+                author,
                 tags,
                 bookmarked);
     }

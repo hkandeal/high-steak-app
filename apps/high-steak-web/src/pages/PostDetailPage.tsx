@@ -12,6 +12,7 @@ import {
   updatePostComment,
   type SteakPost,
 } from '../api/client'
+import { AuthorAvatar } from '../components/AuthorAvatar'
 import { CommentActionsMenu, type CommentActionItem } from '../components/CommentActionsMenu'
 import { CommentBody } from '../components/CommentBody'
 import { CommentComposer } from '../components/CommentComposer'
@@ -338,7 +339,14 @@ export function PostDetailPage() {
                   <li key={comment.id} className="comment-item">
                     <div className="comment-meta">
                       <div className="comment-meta-left">
-                        <Link to={`/users/${comment.author.id}`}>{comment.author.displayName}</Link>
+                        <Link to={`/users/${comment.author.id}`} className="comment-author">
+                          <AuthorAvatar
+                            displayName={comment.author.displayName}
+                            avatarThumbnailUrl={comment.author.avatarThumbnailUrl}
+                            avatarUrl={comment.author.avatarUrl}
+                          />
+                          <span>{comment.author.displayName}</span>
+                        </Link>
                         <time>{new Date(comment.createdAt).toLocaleString()}</time>
                       </div>
                       {menuItems.length > 0 && (

@@ -50,6 +50,7 @@ public class AuthService {
     private final PermissionService permissionService;
     private final RefreshTokenService refreshTokenService;
     private final UploadValidation uploadValidation;
+    private final AvatarThumbnailService avatarThumbnailService;
     private final NotificationService notificationService;
     private final ApplicationEventPublisher eventPublisher;
     private final EmailVerificationService emailVerificationService;
@@ -231,7 +232,17 @@ public class AuthService {
     }
 
     public PostDtos.AuthorSummary toAuthorSummary(User user) {
-        return new PostDtos.AuthorSummary(user.getId(), user.getDisplayName());
+        return new PostDtos.AuthorSummary(
+                user.getId(), user.getDisplayName(), user.getAvatarUrl(), null, null);
+    }
+
+    public PostDtos.AuthorSummary toFeedAuthorSummary(User user, Boolean subscribed) {
+        return new PostDtos.AuthorSummary(
+                user.getId(),
+                user.getDisplayName(),
+                null,
+                avatarThumbnailService.resolveFeedThumbnailUrl(user.getAvatarUrl()),
+                subscribed);
     }
 
     private String storeAvatar(MultipartFile avatar) {

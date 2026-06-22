@@ -300,7 +300,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ],
           Row(
             children: [
-              UserAvatar(displayName: post.author.displayName, radius: 22),
+              UserAvatar(
+                displayName: post.author.displayName,
+                avatarUrl: post.author.avatarUrl,
+                avatarThumbnailUrl: post.author.avatarThumbnailUrl,
+                radius: 22,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: InkWell(

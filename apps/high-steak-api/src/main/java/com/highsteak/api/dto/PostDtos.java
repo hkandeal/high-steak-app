@@ -15,7 +15,10 @@ public final class PostDtos {
 
     public record AuthorSummary(
             UUID id,
-            String displayName
+            String displayName,
+            String avatarUrl,
+            String avatarThumbnailUrl,
+            Boolean subscribed
     ) {}
 
     public record ReviewTagSummary(

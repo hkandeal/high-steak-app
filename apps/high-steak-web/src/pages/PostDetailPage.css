@@ -162,6 +162,19 @@
   min-width: 0;
 }
 
+.comment-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--gold);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.comment-author:hover {
+  text-decoration: underline;
+}
+
 .comment-meta-left a {
   color: var(--gold);
   font-weight: 600;

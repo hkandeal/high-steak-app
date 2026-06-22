@@ -25,8 +25,11 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   FeedTab _tab = FeedTab.everyone;
   PaginatedListController<SteakPost>? _controller;
+  String? _pendingFollowAuthorId;
 
   bool get _showFollowingTab => widget.auth.hasScope('subscriptions:read');
+  bool get _showAuthorFollow =>
+      _tab == FeedTab.everyone && widget.auth.hasScope('subscriptions:write');
 
   @override
   void initState() {
@@ -53,8 +56,38 @@ class _FeedScreenState extends State<FeedScreen> {
 
   void _switchTab(FeedTab tab) {
     if (_tab == tab) return;
-    setState(() => _tab = tab);
+    setState(() {
+      _tab = tab;
+      _pendingFollowAuthorId = null;
+    });
     _initController();
+  }
+
+  Future<void> _toggleAuthorFollow(SteakPost post) async {
+    final author = post.author;
+    if (author.subscribed == null || _pendingFollowAuthorId != null) return;
+
+    setState(() => _pendingFollowAuthorId = author.id);
+    try {
+      if (author.subscribed!) {
+        await widget.api.unsubscribeFromUser(author.id);
+      } else {
+        await widget.api.subscribeToUser(author.id);
+      }
+      if (!mounted) return;
+      final subscribed = !author.subscribed!;
+      _controller!.updateWhere(
+        (item) => item.author.id == author.id,
+        (item) => item.copyWith(author: item.author.copyWith(subscribed: subscribed)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _pendingFollowAuthorId = null);
+    }
   }
 
   @override
@@ -120,6 +153,11 @@ class _FeedScreenState extends State<FeedScreen> {
               auth: widget.auth,
               api: widget.api,
               showBookmark: widget.auth.hasScope('bookmarks:write'),
+              showAuthorFollow: _showAuthorFollow,
+              followBusy: _pendingFollowAuthorId == item.author.id,
+              onToggleAuthorFollow: _showAuthorFollow && item.author.subscribed != null
+                  ? () => _toggleAuthorFollow(item)
+                  : null,
             ),
           ),
         ),

@@ -8,6 +8,7 @@ import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
 import '../utils/date_format.dart';
 import 'image_lightbox.dart';
+import 'author_follow_button.dart';
 import 'star_rating.dart';
 import 'user_avatar.dart';
 
@@ -19,6 +20,9 @@ class PostCard extends StatefulWidget {
     this.api,
     this.showBookmark = false,
     this.showOwnerActions = false,
+    this.showAuthorFollow = false,
+    this.followBusy = false,
+    this.onToggleAuthorFollow,
     this.onBookmarkChanged,
     this.onDeleted,
   });
@@ -28,6 +32,9 @@ class PostCard extends StatefulWidget {
   final ApiService? api;
   final bool showBookmark;
   final bool showOwnerActions;
+  final bool showAuthorFollow;
+  final bool followBusy;
+  final VoidCallback? onToggleAuthorFollow;
   final VoidCallback? onBookmarkChanged;
   final VoidCallback? onDeleted;
 
@@ -133,6 +140,9 @@ class _PostCardState extends State<PostCard> {
     final imageUrl = resolveApiImageUrl(post.primaryImageUrl);
     final theme = Theme.of(context);
     final showActions = _canBookmark || _canDelete;
+    final showFollow = widget.showAuthorFollow &&
+        widget.post.author.subscribed != null &&
+        widget.onToggleAuthorFollow != null;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -164,9 +174,12 @@ class _PostCardState extends State<PostCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       UserAvatar(
                         displayName: post.author.displayName,
+                        avatarUrl: post.author.avatarUrl,
+                        avatarThumbnailUrl: post.author.avatarThumbnailUrl,
                         radius: 18,
                       ),
                       const SizedBox(width: 10),
@@ -194,6 +207,14 @@ class _PostCardState extends State<PostCard> {
                           ),
                         ),
                       ),
+                      if (showFollow) ...[
+                        AuthorFollowButton(
+                          subscribed: post.author.subscribed!,
+                          busy: widget.followBusy,
+                          onPressed: widget.onToggleAuthorFollow!,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       if (_canDelete)
                         IconButton(
                           tooltip: 'Delete post',

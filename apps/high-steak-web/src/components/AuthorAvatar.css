@@ -1,0 +1,29 @@
+.author-avatar {
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--avatar-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.author-avatar--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.6rem;
+}
+
+.author-avatar--md {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.75rem;
+}
+
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

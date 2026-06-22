@@ -129,7 +129,10 @@ class ControllerSecurityIntegrationTest {
     private PostDtos.PostResponse samplePost() {
         PostDtos.AuthorSummary author = new PostDtos.AuthorSummary(
                 UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                "Chef");
+                "Chef",
+                null,
+                null,
+                null);
         return new PostDtos.PostResponse(
                 POST_ID, "Ribeye", "Great sear", 5, List.of("/uploads/steak.jpg"),
                 null, null, Instant.now(), false, null, null, PostVisibility.PUBLIC, author, List.of(), false);

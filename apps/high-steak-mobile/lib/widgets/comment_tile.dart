@@ -152,6 +152,8 @@ class _CommentTileState extends State<CommentTile> {
               children: [
                 UserAvatar(
                   displayName: comment.author.displayName,
+                  avatarUrl: comment.author.avatarUrl,
+                  avatarThumbnailUrl: comment.author.avatarThumbnailUrl,
                   radius: 16,
                 ),
                 const SizedBox(width: 10),

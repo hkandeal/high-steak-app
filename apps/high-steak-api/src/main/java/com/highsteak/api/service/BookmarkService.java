@@ -63,7 +63,7 @@ public class BookmarkService {
             if (post == null || !steakPostService.canViewPost(principal, post)) {
                 continue;
             }
-            content.add(steakPostService.toResponse(post, principal, true));
+            content.add(steakPostService.toFeedResponse(post, principal, true));
         }
 
         return new PageDtos.PageResponse<>(

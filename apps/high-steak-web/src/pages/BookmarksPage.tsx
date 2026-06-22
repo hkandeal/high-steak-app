@@ -9,6 +9,7 @@ import {
   type SteakPost,
 } from '../api/client'
 import { BackLink } from '../components/BackLink'
+import { AuthorAvatar } from '../components/AuthorAvatar'
 import { ImageLightbox } from '../components/ImageLightbox'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { ReviewTagChips } from '../components/ReviewTagChips'
@@ -134,9 +135,14 @@ export function BookmarksPage() {
                     <Link
                       to={`/users/${post.author.id}`}
                       state={listItemBackState('/bookmarks', 'Back to bookmarks')}
-                      className="author"
+                      className="post-author"
                     >
-                      {post.author.displayName}
+                      <AuthorAvatar
+                        displayName={post.author.displayName}
+                        avatarThumbnailUrl={post.author.avatarThumbnailUrl}
+                        avatarUrl={post.author.avatarUrl}
+                      />
+                      <span className="author">{post.author.displayName}</span>
                     </Link>
                     <time>{new Date(post.createdAt).toLocaleDateString()}</time>
                   </div>

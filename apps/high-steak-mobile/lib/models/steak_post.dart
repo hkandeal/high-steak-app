@@ -1,13 +1,41 @@
 class PostAuthor {
-  const PostAuthor({required this.id, required this.displayName});
+  const PostAuthor({
+    required this.id,
+    required this.displayName,
+    this.avatarUrl,
+    this.avatarThumbnailUrl,
+    this.subscribed,
+  });
 
   final String id;
   final String displayName;
+  final String? avatarUrl;
+  final String? avatarThumbnailUrl;
+  final bool? subscribed;
+
+  PostAuthor copyWith({
+    String? id,
+    String? displayName,
+    String? avatarUrl,
+    String? avatarThumbnailUrl,
+    bool? subscribed,
+  }) {
+    return PostAuthor(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarThumbnailUrl: avatarThumbnailUrl ?? this.avatarThumbnailUrl,
+      subscribed: subscribed ?? this.subscribed,
+    );
+  }
 
   factory PostAuthor.fromJson(Map<String, dynamic> json) {
     return PostAuthor(
       id: json['id'] as String,
       displayName: json['displayName'] as String? ?? 'Unknown',
+      avatarUrl: json['avatarUrl'] as String?,
+      avatarThumbnailUrl: json['avatarThumbnailUrl'] as String?,
+      subscribed: json['subscribed'] as bool?,
     );
   }
 }
@@ -74,7 +102,7 @@ class SteakPost {
   final String? moderationReason;
   final String? moderationRestoredAt;
 
-  SteakPost copyWith({bool? bookmarked}) {
+  SteakPost copyWith({bool? bookmarked, PostAuthor? author}) {
     return SteakPost(
       id: id,
       title: title,
@@ -86,7 +114,7 @@ class SteakPost {
       createdAt: createdAt,
       hidden: hidden,
       visibility: visibility,
-      author: author,
+      author: author ?? this.author,
       tags: tags,
       bookmarked: bookmarked ?? this.bookmarked,
       moderationReason: moderationReason,
