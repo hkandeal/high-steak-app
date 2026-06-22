@@ -67,8 +67,8 @@ public class SteakPostService {
     @Transactional(readOnly = true)
     public PageDtos.PageResponse<PostDtos.PostResponse> getFeed(UserPrincipal viewer, int page, int size) {
         Pageable pageable = PaginationHelper.pageable(page, size);
-        Page<SteakPost> posts = steakPostRepository.findByHiddenFalseAndVisibilityOrderByCreatedAtDesc(
-                PostVisibility.PUBLIC, pageable);
+        Page<SteakPost> posts = steakPostRepository.findByHiddenFalseAndVisibilityAndUserIdNotOrderByCreatedAtDesc(
+                PostVisibility.PUBLIC, viewer.getId(), pageable);
         return toPageResponse(posts, viewer);
     }
 
