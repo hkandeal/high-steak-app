@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-/// Wraps [http.Client] and logs every request/response when [kDebugMode] is true.
+import '../config/api_config.dart';
+
+/// Wraps [http.Client] and logs every request/response when [apiDebugLogEnabled].
 ///
-/// Logs print via [debugPrint] so they appear in the `flutter run` terminal
-/// (and `flutter logs` / `adb logcat` on Android devices).
+/// Enable with `flutter run --dart-define=API_DEBUG_LOG=true` (debug builds only).
+/// Logs print via [debugPrint] in the `flutter run` terminal.
 class LoggingHttpClient extends http.BaseClient {
   LoggingHttpClient({http.Client? inner}) : _inner = inner ?? http.Client();
 
@@ -28,7 +30,7 @@ class LoggingHttpClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    if (!kDebugMode) {
+    if (!apiDebugLogEnabled) {
       return _inner.send(request);
     }
 
@@ -72,7 +74,9 @@ class LoggingHttpClient extends http.BaseClient {
   static void _announceOnce() {
     if (_announced) return;
     _announced = true;
-    _printLog('Debug HTTP logging enabled (request + response bodies, secrets redacted)');
+    _printLog(
+      'HTTP logging enabled (API_DEBUG_LOG=true; request + response bodies, secrets redacted)',
+    );
   }
 
   static void _logOutgoing(http.BaseRequest request) {

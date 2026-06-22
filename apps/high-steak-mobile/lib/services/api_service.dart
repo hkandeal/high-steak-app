@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -33,7 +32,7 @@ class ApiSessionHandlers {
 
 class ApiService {
   ApiService({http.Client? client})
-      : _client = client ?? (kDebugMode ? LoggingHttpClient() : http.Client());
+      : _client = client ?? (apiDebugLogEnabled ? LoggingHttpClient() : http.Client());
 
   static const _authRefreshPaths = [
     '/auth/refresh',
