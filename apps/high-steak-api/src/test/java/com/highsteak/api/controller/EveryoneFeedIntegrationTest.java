@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -132,6 +133,37 @@ class EveryoneFeedIntegrationTest {
             }
         }
         return false;
+    }
+
+    @Test
+    void everyoneFeedIncludesAuthorSubscriptionStatus() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String authorToken = register("evsub" + suffix, "evsub" + suffix + "@test.com", "Author");
+        String readerToken = register("evsubr" + suffix, "evsubr" + suffix + "@test.com", "Reader");
+
+        UUID authorId = userIdForUsername("evsub" + suffix);
+        createPost(authorToken, "Sub steak", "PUBLIC");
+
+        assertEquals(false, authorSubscribedForPost(readerToken, authorId));
+
+        mockMvc.perform(post("/subscriptions/" + authorId).header("Authorization", bearer(readerToken)))
+                .andExpect(status().isCreated());
+
+        assertEquals(true, authorSubscribedForPost(readerToken, authorId));
+    }
+
+    private Boolean authorSubscribedForPost(String token, UUID authorId) throws Exception {
+        MvcResult result = mockMvc.perform(get("/posts").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode posts = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
+        for (JsonNode post : posts) {
+            if (authorId.toString().equals(post.get("author").get("id").asText())) {
+                JsonNode subscribed = post.get("author").get("subscribed");
+                return subscribed == null || subscribed.isNull() ? null : subscribed.asBoolean();
+            }
+        }
+        return null;
     }
 
     private String register(String username, String email, String displayName) throws Exception {

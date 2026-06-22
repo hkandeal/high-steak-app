@@ -8,17 +8,19 @@ class UserAvatar extends StatelessWidget {
     super.key,
     required this.displayName,
     this.avatarUrl,
+    this.avatarThumbnailUrl,
     this.radius = 24,
   });
 
   final String displayName;
   final String? avatarUrl;
+  final String? avatarThumbnailUrl;
   final double radius;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final resolved = resolveApiImageUrl(avatarUrl);
+    final resolved = resolveApiImageUrl(avatarThumbnailUrl ?? avatarUrl);
     final initial = displayName.isNotEmpty ? displayName.characters.first.toUpperCase() : '?';
 
     return CircleAvatar(

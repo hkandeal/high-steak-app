@@ -1732,6 +1732,24 @@ components:
           example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
         displayName:
           $ref: '#/components/schemas/DisplayName'
+        avatarUrl:
+          type: string
+          nullable: true
+          description: Full-size profile photo path. Omitted in feed, bookmark, and comment list responses.
+          example: /uploads/avatar-abc.jpg
+        avatarThumbnailUrl:
+          type: string
+          nullable: true
+          description: |
+            Small cached JPEG (64×64) for list UIs. Present on feed, bookmarks, and comment author fields
+            instead of `avatarUrl`.
+          example: /uploads/avatars/thumbs/avatar-abc-feed.jpg
+        subscribed:
+          type: boolean
+          nullable: true
+          description: |
+            Whether the authenticated viewer follows this author. Set on `GET /posts` (Everyone feed) only.
+          example: false
 
     PostResponse:
       type: object

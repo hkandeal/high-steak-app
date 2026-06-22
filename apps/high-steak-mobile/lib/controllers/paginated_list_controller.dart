@@ -77,6 +77,17 @@ class PaginatedListController<T> extends ChangeNotifier {
     }
   }
 
+  void updateWhere(bool Function(T item) test, T Function(T item) update) {
+    var changed = false;
+    for (var i = 0; i < items.length; i++) {
+      if (test(items[i])) {
+        items[i] = update(items[i]);
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
+  }
+
   void removeItem(bool Function(T item) test) {
     final before = items.length;
     items.removeWhere(test);

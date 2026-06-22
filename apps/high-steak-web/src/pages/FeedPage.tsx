@@ -9,13 +9,17 @@ import {
   hidePost,
   postImageUrl,
   primaryPostImage,
+  subscribeToUser,
   unbookmarkPost,
+  unsubscribeFromUser,
   type SteakPost,
 } from '../api/client'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
 import { ImageLightbox } from '../components/ImageLightbox'
 import { PostBookmarkButton } from '../components/PostBookmarkButton'
+import { AuthorAvatar } from '../components/AuthorAvatar'
+import { AuthorFollowButton } from '../components/AuthorFollowButton'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
@@ -35,6 +39,7 @@ export function FeedPage() {
   const [deleting, setDeleting] = useState(false)
   const [hiding, setHiding] = useState(false)
   const [pendingBookmarkId, setPendingBookmarkId] = useState<string | null>(null)
+  const [pendingFollowAuthorId, setPendingFollowAuthorId] = useState<string | null>(null)
   const { lightbox, openLightbox, closeLightbox } = useImageLightbox()
 
   const showFollowingTab = isAuthenticated && hasScope('subscriptions:read')
@@ -128,6 +133,30 @@ export function FeedPage() {
       setActionError(err instanceof Error ? err.message : 'Failed to update bookmark')
     } finally {
       setPendingBookmarkId(null)
+    }
+  }
+
+  async function toggleFollowAuthor(authorId: string, subscribed: boolean) {
+    if (!token || pendingFollowAuthorId) return
+    setPendingFollowAuthorId(authorId)
+    setActionError(null)
+    try {
+      if (subscribed) {
+        await unsubscribeFromUser(token, authorId)
+      } else {
+        await subscribeToUser(token, authorId)
+      }
+      setPosts((current) =>
+        current.map((item) =>
+          item.author.id === authorId
+            ? { ...item, author: { ...item.author, subscribed: !subscribed } }
+            : item,
+        ),
+      )
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update follow')
+    } finally {
+      setPendingFollowAuthorId(null)
     }
   }
 
@@ -280,11 +309,30 @@ export function FeedPage() {
                     <Link
                       to={`/users/${post.author.id}`}
                       state={listItemBackState('/feed', 'Back to feed')}
-                      className="author"
+                      className="post-author"
                     >
-                      {post.author.displayName}
+                      <AuthorAvatar
+                        displayName={post.author.displayName}
+                        avatarThumbnailUrl={post.author.avatarThumbnailUrl}
+                        avatarUrl={post.author.avatarUrl}
+                      />
+                      <span className="author">{post.author.displayName}</span>
                     </Link>
-                    <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+                    <div className="post-meta-actions">
+                      {tab === 'everyone'
+                        && hasScope('subscriptions:write')
+                        && post.author.subscribed != null && (
+                        <AuthorFollowButton
+                          subscribed={post.author.subscribed}
+                          authorDisplayName={post.author.displayName}
+                          busy={pendingFollowAuthorId === post.author.id}
+                          onToggle={() => {
+                            void toggleFollowAuthor(post.author.id, post.author.subscribed ?? false)
+                          }}
+                        />
+                      )}
+                      <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+                    </div>
                   </div>
                   <Link
                     to={`/posts/${post.id}`}

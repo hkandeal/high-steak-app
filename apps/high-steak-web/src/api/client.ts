@@ -222,6 +222,9 @@ type ApiFetchOptions = RequestInit & {
 export type PostAuthor = {
   id: string
   displayName: string
+  avatarUrl?: string | null
+  avatarThumbnailUrl?: string | null
+  subscribed?: boolean | null
 }
 
 export type ReviewTag = {

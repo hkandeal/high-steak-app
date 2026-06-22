@@ -1,0 +1,40 @@
+.author-follow-button {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border-strong);
+  background: transparent;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.author-follow-button:hover:not(:disabled),
+.author-follow-button:focus-visible {
+  border-color: var(--gold);
+  background: var(--accent-selected-bg);
+  outline: none;
+}
+
+.author-follow-button.following {
+  color: var(--cream-muted);
+  border-color: var(--card-border);
+}
+
+.author-follow-button.following:hover:not(:disabled),
+.author-follow-button.following:focus-visible {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.author-follow-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}

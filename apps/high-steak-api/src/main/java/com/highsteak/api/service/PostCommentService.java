@@ -116,6 +116,6 @@ public class PostCommentService {
                 comment.getId(),
                 comment.getBody(),
                 comment.getCreatedAt(),
-                authService.toAuthorSummary(comment.getUser()));
+                authService.toFeedAuthorSummary(comment.getUser(), null));
     }
 }

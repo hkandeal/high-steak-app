@@ -126,7 +126,10 @@ class PostCommentControllerSecurityTest {
     private PostDtos.CommentResponse sampleComment() {
         PostDtos.AuthorSummary author = new PostDtos.AuthorSummary(
                 UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                "Chef");
+                "Chef",
+                null,
+                null,
+                null);
         return new PostDtos.CommentResponse(
                 UUID.fromString("00000000-0000-0000-0000-000000000011"),
                 "Nice sear!",
