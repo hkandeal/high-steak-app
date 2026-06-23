@@ -37,6 +37,19 @@
 	<string>Save steak photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose steak photos to share in your posts.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>io.hossam.highsteaks</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>highsteaks</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -130,6 +130,29 @@ export async function confirmAccountDeletion(deletionToken: string): Promise<voi
   })
 }
 
+export async function requestPasswordReset(payload: {
+  username: string
+  email: string
+}): Promise<{ message: string }> {
+  return apiFetch('/auth/request-password-reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function resetPassword(payload: {
+  token: string
+  password: string
+  passwordConfirm: string
+}): Promise<void> {
+  await apiFetch('/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 let onUnauthorized: (() => void) | null = null
 let sessionHandlers: SessionHandlers | null = null
 let refreshInFlight: Promise<AuthResponse | null> | null = null

@@ -39,6 +39,21 @@ public final class AuthDtos {
             @NotBlank String token
     ) {}
 
+    public record RequestPasswordResetRequest(
+            @NotBlank @Size(max = ApiConstraints.USERNAME_MAX) String username,
+            @NotBlank @Email @Size(max = ApiConstraints.EMAIL_MAX) String email
+    ) {}
+
+    public record ResetPasswordRequest(
+            @NotBlank String token,
+            @NotBlank @Size(min = ApiConstraints.PASSWORD_MIN, max = ApiConstraints.PASSWORD_MAX) String password,
+            @NotBlank @Size(min = ApiConstraints.PASSWORD_MIN, max = ApiConstraints.PASSWORD_MAX) String passwordConfirm
+    ) {}
+
+    public record MessageResponse(
+            String message
+    ) {}
+
     public record ResendVerificationRequest(
             @NotBlank @Email @Size(max = ApiConstraints.EMAIL_MAX) String email
     ) {}

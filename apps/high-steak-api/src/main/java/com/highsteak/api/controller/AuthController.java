@@ -4,6 +4,7 @@ import com.highsteak.api.dto.AuthDtos;
 import com.highsteak.api.security.UserPrincipal;
 import com.highsteak.api.service.AccountDeletionService;
 import com.highsteak.api.service.AuthService;
+import com.highsteak.api.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final AccountDeletionService accountDeletionService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -95,5 +97,17 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmAccountDeletion(@Valid @RequestBody AuthDtos.ConfirmAccountDeletionRequest request) {
         accountDeletionService.confirmDeletion(request.token());
+    }
+
+    @PostMapping("/request-password-reset")
+    public AuthDtos.MessageResponse requestPasswordReset(
+            @Valid @RequestBody AuthDtos.RequestPasswordResetRequest request) {
+        return passwordResetService.requestReset(request.username(), request.email());
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody AuthDtos.ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.password(), request.passwordConfirm());
     }
 }
