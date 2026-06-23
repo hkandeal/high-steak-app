@@ -152,6 +152,20 @@ export function validateRegisterForm(input: {
   )
 }
 
+export function validateResetPasswordForm(input: {
+  password: string
+  passwordConfirm: string
+}): string | null {
+  return (
+    validateTextLength(input.password, 'Password', {
+      required: true,
+      min: API_CONSTRAINTS.password.min,
+      max: API_CONSTRAINTS.password.max,
+    }) ??
+    (input.password !== input.passwordConfirm ? 'Passwords do not match.' : null)
+  )
+}
+
 export function validateProfileForm(input: {
   displayName: string
   avatar: File | null

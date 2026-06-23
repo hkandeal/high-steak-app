@@ -46,6 +46,19 @@ class EmailTemplateServiceTest {
     }
 
     @Test
+    void passwordResetTemplateIncludesWebAndAppLinks() {
+        String resetUrl = "http://localhost:5173/reset-password?token=abc";
+        String appUrl = "highsteaks://reset-password?token=abc";
+        EmailTemplateService.EmailMessage message = templates.passwordReset("Hossam", resetUrl, appUrl, 24);
+
+        assertThat(message.subject()).contains("Reset");
+        assertThat(message.html()).contains(resetUrl);
+        assertThat(message.html()).contains(appUrl);
+        assertThat(message.text()).contains(resetUrl);
+        assertThat(message.text()).contains(appUrl);
+    }
+
+    @Test
     void accountDeletedGoodbyeTemplateMentionsRemoval() {
         EmailTemplateService.EmailMessage message = templates.accountDeletedGoodbye("Hossam");
 

@@ -14,6 +14,8 @@ import { FollowingPage } from './pages/FollowingPage'
 import { FeedPage } from './pages/FeedPage'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage, RegisterPage } from './pages/AuthPages'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import { PostDetailPage } from './pages/PostDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -61,6 +63,8 @@ const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'verify-email', element: <VerifyEmailPage /> },
+      { path: 'forgot-password', element: <ForgotPasswordPage /> },
+      { path: 'reset-password', element: <ResetPasswordPage /> },
       { path: 'confirm-account-deletion', element: <ConfirmAccountDeletionPage /> },
       {
         path: 'post/new',

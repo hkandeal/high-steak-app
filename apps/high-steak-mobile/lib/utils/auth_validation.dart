@@ -89,3 +89,17 @@ String? validateRegisterForm({
       ) ??
       (password != passwordConfirm ? 'Passwords do not match.' : null);
 }
+
+String? validateResetPasswordForm({
+  required String password,
+  required String passwordConfirm,
+}) {
+  return validateTextLength(
+        password,
+        'Password',
+        required: true,
+        min: ApiConstraints.passwordMin,
+        max: ApiConstraints.passwordMax,
+      ) ??
+      (password != passwordConfirm ? 'Passwords do not match.' : null);
+}

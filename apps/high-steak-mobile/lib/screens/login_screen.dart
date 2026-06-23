@@ -108,6 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: const Text('Forgot password?'),
+                    ),
+                    TextButton(
                       onPressed: () => context.push('/register'),
                       child: const Text('Need an account? Register'),
                     ),

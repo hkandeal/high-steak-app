@@ -40,6 +40,8 @@ class ApiService {
     '/auth/register',
     '/auth/logout',
     '/auth/verify-email',
+    '/auth/request-password-reset',
+    '/auth/reset-password',
   ];
 
   final http.Client _client;
@@ -224,6 +226,38 @@ class ApiService {
     if (res.statusCode >= 400 && res.statusCode != 401) {
       throw ApiException('Logout failed (${res.statusCode})');
     }
+  }
+
+  Future<String> requestPasswordReset({
+    required String username,
+    required String email,
+  }) async {
+    final res = await _client.post(
+      _uri('/auth/request-password-reset'),
+      headers: _headers(json: true),
+      body: jsonEncode({'username': username, 'email': email}),
+    );
+    return _parseResponse(res, (body) {
+      final map = body as Map<String, dynamic>;
+      return map['message'] as String? ?? '';
+    });
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+    required String passwordConfirm,
+  }) async {
+    final res = await _client.post(
+      _uri('/auth/reset-password'),
+      headers: _headers(json: true),
+      body: jsonEncode({
+        'token': token,
+        'password': password,
+        'passwordConfirm': passwordConfirm,
+      }),
+    );
+    await _parseResponse(res, (_) {});
   }
 
   Future<Map<String, dynamic>> fetchAppConfig() async {

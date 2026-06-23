@@ -54,6 +54,8 @@ export function LoginPage() {
       footer={
         <p>
           New here? <Link to="/register">Create an account</Link>
+          {' · '}
+          <Link to="/forgot-password">Forgot password?</Link>
         </p>
       }
     >

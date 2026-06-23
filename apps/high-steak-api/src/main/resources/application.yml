@@ -72,6 +72,7 @@ app:
   auth:
     auto-verify-on-register: ${AUTH_AUTO_VERIFY_ON_REGISTER:false}
     verification-expiration-hours: ${AUTH_VERIFICATION_EXPIRATION_HOURS:24}
+    password-reset-expiration-hours: ${AUTH_PASSWORD_RESET_EXPIRATION_HOURS:24}
 
 logging:
   level:

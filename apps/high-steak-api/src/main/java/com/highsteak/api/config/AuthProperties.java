@@ -19,4 +19,7 @@ public class AuthProperties {
 
     /** Hours until an account-deletion confirmation link expires. */
     private int deletionExpirationHours = 24;
+
+    /** Hours until a password-reset link expires. */
+    private int passwordResetExpirationHours = 24;
 }

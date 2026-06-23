@@ -19,8 +19,11 @@ import '../services/api_service.dart';
 import '../theme/app_scroll_behavior.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
-import '../navigation/app_navigator.dart';
 import '../widgets/app_shell.dart';
+import '../screens/forgot_password_screen.dart';
+import '../screens/reset_password_screen.dart';
+import '../navigation/deep_link_service.dart';
+import '../navigation/app_navigator.dart';
 
 GoRouter createAppRouter({
   required AuthController auth,
@@ -34,16 +37,18 @@ GoRouter createAppRouter({
     redirect: (context, state) {
       if (auth.initializing || theme.initializing) return null;
 
-      final loggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+      final authRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register' ||
+          state.matchedLocation == '/forgot-password' ||
+          state.matchedLocation.startsWith('/reset-password');
       final onLanding = state.matchedLocation == '/';
 
       if (!auth.isAuthenticated) {
-        if (loggingIn || onLanding) return null;
+        if (authRoute || onLanding) return null;
         return '/login';
       }
 
-      if (loggingIn || onLanding) return '/feed';
+      if (authRoute || onLanding) return '/feed';
 
       if (state.matchedLocation == '/post/new' &&
           !auth.hasScope('posts:write')) {
@@ -86,6 +91,21 @@ GoRouter createAppRouter({
         path: '/register',
         builder: (context, state) => RegisterScreen(
           auth: auth,
+          api: api,
+          themeController: theme,
+        ),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => ForgotPasswordScreen(
+          api: api,
+          themeController: theme,
+        ),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => ResetPasswordScreen(
+          token: state.uri.queryParameters['token'] ?? '',
           api: api,
           themeController: theme,
         ),
@@ -171,15 +191,21 @@ class AuthBootstrap extends StatefulWidget {
 }
 
 class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserver {
+  GoRouter? _router;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _router = createAppRouter(auth: widget.auth, api: widget.api, theme: widget.theme);
+    DeepLinkService.instance.attach(_router!);
+    unawaited(DeepLinkService.instance.initialize());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    DeepLinkService.instance.dispose();
     super.dispose();
   }
 
@@ -208,7 +234,7 @@ class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserv
       debugShowCheckedModeBanner: false,
       scrollBehavior: const AppScrollBehavior(),
       theme: AppTheme.build(widget.theme.variant),
-      routerConfig: createAppRouter(auth: widget.auth, api: widget.api, theme: widget.theme),
+      routerConfig: _router!,
     );
   }
 }

@@ -312,6 +312,52 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /auth/request-password-reset:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      description: |
+        Sends a password reset email when the username and email match an active account.
+        Always returns the same message to avoid account enumeration. Blocked accounts receive no email.
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestPasswordResetRequest'
+      responses:
+        '200':
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password
+      description: |
+        Sets a new password using the token from the reset email link.
+        Revokes all refresh tokens for the account.
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Password updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /posts:
     get:
       tags: [Posts]
@@ -1410,6 +1456,37 @@ components:
         token:
           type: string
           description: Token from the account deletion confirmation email link.
+
+    RequestPasswordResetRequest:
+      type: object
+      required: [username, email]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Account username as entered at login (no format validation on this endpoint).
+        email:
+          $ref: '#/components/schemas/Email'
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, password, passwordConfirm]
+      properties:
+        token:
+          type: string
+          description: Token from the password reset email link.
+        password:
+          $ref: '#/components/schemas/Password'
+        passwordConfirm:
+          $ref: '#/components/schemas/Password'
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
 
     ResendVerificationRequest:
       type: object

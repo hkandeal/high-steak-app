@@ -76,6 +76,47 @@ public class EmailTemplateService {
         return new EmailMessage(subject, html, text);
     }
 
+    public EmailMessage passwordReset(
+            String displayName,
+            String resetUrl,
+            String appResetUrl,
+            int expirationHours) {
+        String subject = "Reset your High Steaks password";
+        String text = """
+                Hi %s,
+
+                We received a request to reset your High Steaks password.
+
+                Reset your password in the browser:
+
+                %s
+
+                Or open in the High Steaks app (if installed):
+
+                %s
+
+                This link expires in %d hours. If you did not request a password reset, ignore this email — your password will stay the same.
+
+                — High Steaks
+                """.formatted(displayName, resetUrl, appResetUrl, expirationHours);
+        String bodyHtml = """
+                <p style="margin:0 0 16px;">Hi <strong>%s</strong>,</p>
+                <p style="margin:0 0 16px;">We received a request to reset your <strong>High Steaks</strong> password. Choose a new password using the link below.</p>
+                <p style="margin:0;color:#a89878;">This link expires in %d hours. If this wasn't you, ignore this email.</p>
+                """
+                .formatted(escape(displayName), expirationHours);
+        String html = EmailHtmlLayout.render(
+                "Reset your password",
+                "High Steaks password reset",
+                bodyHtml,
+                "Reset password",
+                resetUrl,
+                "Open in app",
+                appResetUrl,
+                mailProperties.getBaseUrl() + "/login");
+        return new EmailMessage(subject, html, text);
+    }
+
     public EmailMessage confirmAccountDeletion(String displayName, String confirmUrl, int expirationHours) {
         String subject = "Confirm deletion of your High Steaks account";
         String text = """
