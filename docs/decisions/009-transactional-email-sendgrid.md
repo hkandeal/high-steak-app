@@ -37,7 +37,7 @@ The production cluster has limited memory. SendGrid removes an entire mail stack
 
 ### All outbound emails (v1)
 
-Six email types are implemented. See **ADR 010** for verification (auth-required, not preference-gated).
+Six email types are preference-gated or transactional; see **ADR 010** (verification) and **ADR 011** (password reset). Seven outbound templates in total.
 
 | # | Email | Subject (approx.) | Trigger | Service / path | Recipient | Preference gate |
 |---|-------|-------------------|---------|----------------|-----------|-----------------|
@@ -47,8 +47,9 @@ Six email types are implemented. See **ADR 010** for verification (auth-required
 | 4 | **New follower** | `{name} started following you` | User follows another user | `SubscriptionService.subscribe()` → `NotificationEvent.NewFollower` | Followed user | Master + `followerEmail` |
 | 5 | **Post hidden** | Your post "{title}" was hidden from the feed | Moderator hides a post | `SteakPostService.hidePost()` → `NotificationEvent.PostHidden` | Post author | Master + `moderationEmail` |
 | 6 | **Post restored** | Your post "{title}" is back on the feed | Moderator restores a post | `SteakPostService.unhidePost()` → `NotificationEvent.PostRestored` | Post author | Master + `moderationEmail` |
+| 7 | **Password reset** | Reset your High Steaks password | `POST /auth/request-password-reset` | `PasswordResetService` | Account holder (username + email match) | None (security); mobile deep links: **ADR 011** |
 
-**Not emailed:** bookmarks, likes, login alerts, password reset (not implemented), email change (email is immutable after signup per ADR 010).
+**Not emailed:** bookmarks, likes, login alerts, email change (email is immutable after signup per ADR 010).
 
 Welcome is sent at most once per account (`newlyVerified` guard on verify; duplicate verify / Strict Mode does not re-send).
 
@@ -183,3 +184,4 @@ SendGrid is the **current** provider. Revisit alternatives when the SendGrid tri
 - `docs/k8s.md` (operational setup)
 - `apps/high-steak-web/src/pages/NotificationSettingsPage.tsx`
 - **ADR 010** — email verification on registration (email type #1 above)
+- **ADR 011** — password reset email and mobile deep linking (email type #7 above)
