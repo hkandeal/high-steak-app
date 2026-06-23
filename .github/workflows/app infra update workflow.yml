@@ -4,6 +4,10 @@ on:
   repository_dispatch:
     types: app-update-service-build-number
 
+concurrency:
+  group: helm-values-update-${{ github.repository }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -12,30 +16,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update the Build number
+      - name: Update Helm image tags (single commit)
+        env:
+          WEB_TAG: ${{ github.event.client_payload.buildnumber }}
+          API_TAG: ${{ github.event.client_payload.api_buildnumber }}
         run: |
-          echo "Updating the Build Number: ${{ github.event.client_payload.buildnumber }}"
+          set -euo pipefail
 
-      - name: Update web image version in the yaml
-        if: github.event.client_payload.buildnumber != ''
-        uses: fjogeleit/yaml-update-action@main
-        with:
-          valueFile: 'helm/high-steak/values.yaml'
-          propertyPath: 'image.tag'
-          value: '${{ github.event.client_payload.buildnumber }}'
-          masterBranchName: 'main'
-          branch: 'main'
-          message: 'Update web image to hossamgbm/high-steak-web:${{ github.event.client_payload.buildnumber }}'
+          if [ -z "${WEB_TAG}" ] && [ -z "${API_TAG}" ]; then
+            echo "No image tags in dispatch payload; nothing to update."
+            exit 0
+          fi
 
-      - name: Update API image version in the yaml
-        if: github.event.client_payload.api_buildnumber != ''
-        uses: fjogeleit/yaml-update-action@main
-        with:
-          valueFile: 'helm/high-steak/values.yaml'
-          propertyPath: 'apiImage.tag'
-          value: '${{ github.event.client_payload.api_buildnumber }}'
-          masterBranchName: 'main'
-          branch: 'main'
-          message: 'Update API image to hossamgbm/high-steak-api:${{ github.event.client_payload.api_buildnumber }}'
+          VALUES_FILE=helm/high-steak/values.yaml
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+          git pull --rebase origin main
+
+          MSG_PARTS=()
+          if [ -n "${WEB_TAG}" ]; then
+            yq -i '.image.tag = strenv(WEB_TAG)' "${VALUES_FILE}"
+            MSG_PARTS+=("web:${WEB_TAG}")
+          fi
+          if [ -n "${API_TAG}" ]; then
+            yq -i '.apiImage.tag = strenv(API_TAG)' "${VALUES_FILE}"
+            MSG_PARTS+=("api:${API_TAG}")
+          fi
+
+          if git diff --quiet -- "${VALUES_FILE}"; then
+            echo "Helm values already at requested tags; skipping commit."
+            exit 0
+          fi
+
+          COMMIT_MSG="Update production images ($(IFS=,; echo "${MSG_PARTS[*]}"))"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${VALUES_FILE}"
+          git commit -m "${COMMIT_MSG}"
+          git push origin main
