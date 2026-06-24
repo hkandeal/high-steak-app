@@ -6,6 +6,8 @@ import '../theme/app_palette.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/auth_card.dart';
 import '../widgets/brand_background.dart';
+import '../widgets/auth_form_field.dart';
+import '../widgets/password_field.dart';
 import '../widgets/theme_toggle.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -88,14 +90,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       autocorrect: false,
                     ),
                     const SizedBox(height: 14),
-                    TextField(
-                      controller: _password,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline, color: palette.gold),
+                    AuthFormField(
+                      label: 'Password',
+                      child: PasswordField(
+                        controller: _password,
+                        onSubmitted: (_) => _submit(),
                       ),
-                      obscureText: true,
-                      onSubmitted: (_) => _submit(),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 14),
