@@ -12,6 +12,8 @@ import {
 } from '../api/client'
 import { PageBackLink } from '../components/BackLink'
 import { DEFAULT_CENTER, ExploreMap } from '../components/ExploreMap'
+import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
+import { PostFeedLayout } from '../components/PostFeedLayout'
 import { PlacePicker } from '../components/PlacePicker'
 import { StarRating } from '../components/StarRating'
 import { useAuth } from '../context/AuthContext'
@@ -22,6 +24,7 @@ import {
   type LatLng,
 } from '../hooks/useUserLocation'
 import './ExplorePage.css'
+import './FeedPage.css'
 
 type ExploreMode = 'browse' | 'search'
 
@@ -213,30 +216,39 @@ export function ExplorePage() {
           </>
         )}
 
-        <div className="explore-post-list">
-          {posts.length === 0 && !loading && (
-            <>
-              <p className="muted">No public posts at this place yet.</p>
-              <Link to={`/post/new?placeId=${placeId}`} className="btn primary">
-                Rate your steak
-              </Link>
-            </>
-          )}
-          {posts.map((post) => (
-            <Link key={post.id} to={`/posts/${post.id}`} className="explore-post-card">
-              {primaryPostImage(post) && (
-                <img src={postImageUrl(primaryPostImage(post)!)} alt="" />
-              )}
-              <div>
-                <h3>{post.title}</h3>
-                <StarRating value={post.rating} readOnly />
-                {post.author?.displayName && (
-                  <p className="muted">by {post.author.displayName}</p>
-                )}
-              </div>
+        {posts.length === 0 && !loading && (
+          <>
+            <p className="muted">No public posts at this place yet.</p>
+            <Link to={`/post/new?placeId=${placeId}`} className="btn primary">
+              Rate your steak
             </Link>
-          ))}
-        </div>
+          </>
+        )}
+
+        {posts.length > 0 && (
+          <>
+            <div className="feed-section-toolbar">
+              <h2>Reviews at this place</h2>
+              <FeedLayoutToggle />
+            </div>
+            <PostFeedLayout variant="explore">
+              {posts.map((post) => (
+                <Link key={post.id} to={`/posts/${post.id}`} className="explore-post-card">
+                  {primaryPostImage(post) && (
+                    <img src={postImageUrl(primaryPostImage(post)!)} alt="" />
+                  )}
+                  <div>
+                    <h3>{post.title}</h3>
+                    <StarRating value={post.rating} readOnly />
+                    {post.author?.displayName && (
+                      <p className="muted">by {post.author.displayName}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </PostFeedLayout>
+          </>
+        )}
       </section>
     )
   }

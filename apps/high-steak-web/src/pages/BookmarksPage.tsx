@@ -11,6 +11,8 @@ import {
 import { BackLink } from '../components/BackLink'
 import { AuthorAvatar } from '../components/AuthorAvatar'
 import { ImageLightbox } from '../components/ImageLightbox'
+import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
+import { PostFeedLayout } from '../components/PostFeedLayout'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { StarRating } from '../components/StarRating'
@@ -77,6 +79,7 @@ export function BookmarksPage() {
           <h1>Bookmarks</h1>
           <p>Steak posts you saved for later.</p>
         </div>
+        <FeedLayoutToggle />
       </header>
 
       {loading && <p className="muted">Loading bookmarks…</p>}
@@ -92,7 +95,7 @@ export function BookmarksPage() {
       )}
 
       {!loading && !error && posts.length > 0 && (
-        <div className="post-grid">
+        <PostFeedLayout>
           {posts.map((post) => {
             const menuItems = buildMenuItems(post)
             return (
@@ -163,7 +166,7 @@ export function BookmarksPage() {
               </article>
             )
           })}
-        </div>
+        </PostFeedLayout>
       )}
 
       {hasMore && !loading && (

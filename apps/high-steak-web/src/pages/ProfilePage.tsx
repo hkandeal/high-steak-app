@@ -27,6 +27,8 @@ import { HidePostDialog } from '../components/HidePostDialog'
 import { ImageLightbox } from '../components/ImageLightbox'
 import { PageBackLink } from '../components/BackLink'
 import { PostBookmarkButton } from '../components/PostBookmarkButton'
+import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
+import { PostFeedLayout } from '../components/PostFeedLayout'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
@@ -579,7 +581,13 @@ export function ProfilePage() {
 
       {!(isOwnProfile && editing) && (
         <>
-          <div className="post-grid">
+          {posts.length > 0 && (
+            <div className="feed-section-toolbar">
+              <h2>{isOwnProfile ? 'Your steaks' : 'Steaks'}</h2>
+              <FeedLayoutToggle />
+            </div>
+          )}
+          <PostFeedLayout>
         {posts.map((post) => {
           const menuItems = buildPostMenuItems(post)
           const showVisibilityBadge =
@@ -656,7 +664,7 @@ export function ProfilePage() {
             </article>
           )
         })}
-          </div>
+          </PostFeedLayout>
 
           {postsLoading && !loading && <p className="muted">Loading posts…</p>}
 

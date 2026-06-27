@@ -18,6 +18,8 @@ class PostCard extends StatefulWidget {
     required this.post,
     this.auth,
     this.api,
+    this.dense = false,
+    this.showAuthorHeader = true,
     this.showBookmark = false,
     this.showOwnerActions = false,
     this.showAuthorFollow = false,
@@ -30,6 +32,10 @@ class PostCard extends StatefulWidget {
   final SteakPost post;
   final AuthController? auth;
   final ApiService? api;
+  /// Compact tile for multi-column feed grids.
+  final bool dense;
+  /// Hide author row (e.g. on profile grids).
+  final bool showAuthorHeader;
   final bool showBookmark;
   final bool showOwnerActions;
   final bool showAuthorFollow;
@@ -135,6 +141,13 @@ class _PostCardState extends State<PostCard> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.dense) {
+      return _buildDenseCard(context);
+    }
+    return _buildListCard(context);
+  }
+
+  Widget _buildListCard(BuildContext context) {
     final post = widget.post;
     final palette = context.palette;
     final imageUrl = resolveApiImageUrl(post.primaryImageUrl);
@@ -173,66 +186,67 @@ class _PostCardState extends State<PostCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      UserAvatar(
-                        displayName: post.author.displayName,
-                        avatarUrl: post.author.avatarUrl,
-                        avatarThumbnailUrl: post.author.avatarThumbnailUrl,
-                        radius: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => context.push('/users/${post.author.id}'),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                post.author.displayName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontSize: 14,
-                                  color: palette.gold,
-                                ),
-                              ),
-                              Text(
-                                formatPostDate(post.createdAt),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: palette.creamMuted,
-                                ),
-                              ),
-                            ],
-                          ),
+                  if (widget.showAuthorHeader)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        UserAvatar(
+                          displayName: post.author.displayName,
+                          avatarUrl: post.author.avatarUrl,
+                          avatarThumbnailUrl: post.author.avatarThumbnailUrl,
+                          radius: 18,
                         ),
-                      ),
-                      if (showFollow) ...[
-                        AuthorFollowButton(
-                          subscribed: post.author.subscribed!,
-                          busy: widget.followBusy,
-                          onPressed: widget.onToggleAuthorFollow!,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      if (_canDelete)
-                        IconButton(
-                          tooltip: 'Delete post',
-                          onPressed: _deleteBusy ? null : _confirmDelete,
-                          icon: _deleteBusy
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => context.push('/users/${post.author.id}'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  post.author.displayName,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                    color: palette.gold,
+                                  ),
+                                ),
+                                Text(
+                                  formatPostDate(post.createdAt),
+                                  style: theme.textTheme.bodySmall?.copyWith(
                                     color: palette.creamMuted,
                                   ),
-                                )
-                              : Icon(Icons.delete_outline, color: palette.creamMuted),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                        if (showFollow) ...[
+                          AuthorFollowButton(
+                            subscribed: post.author.subscribed!,
+                            busy: widget.followBusy,
+                            onPressed: widget.onToggleAuthorFollow!,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        if (_canDelete)
+                          IconButton(
+                            tooltip: 'Delete post',
+                            onPressed: _deleteBusy ? null : _confirmDelete,
+                            icon: _deleteBusy
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: palette.creamMuted,
+                                    ),
+                                  )
+                                : Icon(Icons.delete_outline, color: palette.creamMuted),
+                          ),
+                      ],
+                    ),
+                  if (widget.showAuthorHeader) const SizedBox(height: 12),
                   Text(
                     post.title,
                     style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20),
@@ -295,6 +309,161 @@ class _PostCardState extends State<PostCard> {
       ),
     );
   }
+
+  Widget _buildDenseCard(BuildContext context) {
+    final post = widget.post;
+    final palette = context.palette;
+    final imageUrl = resolveApiImageUrl(post.primaryImageUrl);
+    final theme = Theme.of(context);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () => context.push('/posts/${post.id}'),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxHeight = constraints.maxHeight;
+            final imageHeight = imageUrl.isNotEmpty && maxHeight.isFinite
+                ? maxHeight * 0.54
+                : null;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (imageUrl.isNotEmpty)
+                  SizedBox(
+                    height: imageHeight,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => ImageLightbox.show(
+                            context,
+                            imageUrls: post.imageUrls,
+                            title: post.title,
+                          ),
+                          child: IgnorePointer(
+                            child: _PostHeroImage(
+                              imageUrl: imageUrl,
+                              extraCount: post.imageUrls.length - 1,
+                              followersOnly:
+                                  post.visibility == PostVisibility.followersOnly,
+                              aspectRatio: 1,
+                              compactBadges: true,
+                              fillHeight: true,
+                            ),
+                          ),
+                        ),
+                        if (_canBookmark)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Material(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(20),
+                              child: IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.all(6),
+                                tooltip:
+                                    _bookmarked ? 'Remove bookmark' : 'Bookmark',
+                                onPressed: _bookmarkBusy ? null : _toggleBookmark,
+                                icon: _bookmarkBusy
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        _bookmarked
+                                            ? Icons.bookmark
+                                            : Icons.bookmark_border,
+                                        size: 18,
+                                        color: _bookmarked
+                                            ? palette.gold
+                                            : palette.cream,
+                                      ),
+                              ),
+                            ),
+                          ),
+                        if (_canDelete)
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Material(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(20),
+                              child: IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.all(6),
+                                tooltip: 'Delete post',
+                                onPressed: _deleteBusy ? null : _confirmDelete,
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: palette.cream,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          post.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 14,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        StarRating(value: post.rating, size: 14),
+                        if (widget.showAuthorHeader) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            post.author.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: palette.gold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                        if (post.restaurantName != null) ...[
+                          const Spacer(),
+                          Text(
+                            post.restaurantName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: palette.creamMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _PostHeroImage extends StatelessWidget {
@@ -302,89 +471,111 @@ class _PostHeroImage extends StatelessWidget {
     required this.imageUrl,
     required this.extraCount,
     required this.followersOnly,
+    this.aspectRatio = 16 / 10,
+    this.compactBadges = false,
+    this.fillHeight = false,
   });
 
   final String imageUrl;
   final int extraCount;
   final bool followersOnly;
+  final double aspectRatio;
+  final bool compactBadges;
+  final bool fillHeight;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
+    final image = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(
+          imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: palette.charcoalLight,
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              color: palette.creamMuted.withValues(alpha: 0.5),
+              size: 40,
+            ),
+          ),
+        ),
+        IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  palette.charcoal.withValues(alpha: 0.55),
+                ],
+                stops: const [0.55, 1.0],
+              ),
+            ),
+          ),
+        ),
+        if (followersOnly)
+          Positioned(
+            left: compactBadges ? 6 : 10,
+            top: compactBadges ? 6 : 10,
+            child: IgnorePointer(
+              child: _Badge(
+                label: compactBadges ? 'Followers' : 'Followers only',
+                icon: Icons.lock_outline,
+                compact: compactBadges,
+              ),
+            ),
+          ),
+        if (extraCount > 0)
+          Positioned(
+            right: compactBadges ? 6 : 10,
+            bottom: compactBadges ? 6 : 10,
+            child: IgnorePointer(
+              child: _Badge(
+                label: compactBadges ? '+$extraCount' : '+$extraCount photos',
+                icon: Icons.photo_library_outlined,
+                compact: compactBadges,
+              ),
+            ),
+          ),
+      ],
+    );
+
+    if (fillHeight) {
+      return image;
+    }
+
     return AspectRatio(
-      aspectRatio: 16 / 10,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: palette.charcoalLight,
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.image_not_supported_outlined,
-                color: palette.creamMuted.withValues(alpha: 0.5),
-                size: 40,
-              ),
-            ),
-          ),
-          IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    palette.charcoal.withValues(alpha: 0.55),
-                  ],
-                  stops: const [0.55, 1.0],
-                ),
-              ),
-            ),
-          ),
-          if (followersOnly)
-            Positioned(
-              left: 10,
-              top: 10,
-              child: IgnorePointer(
-                child: _Badge(
-                  label: 'Followers only',
-                  icon: Icons.lock_outline,
-                ),
-              ),
-            ),
-          if (extraCount > 0)
-            Positioned(
-              right: 10,
-              bottom: 10,
-              child: IgnorePointer(
-                child: _Badge(
-                  label: '+$extraCount photos',
-                  icon: Icons.photo_library_outlined,
-                ),
-              ),
-            ),
-        ],
-      ),
+      aspectRatio: aspectRatio,
+      child: image,
     );
   }
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.label, required this.icon});
+  const _Badge({
+    required this.label,
+    required this.icon,
+    this.compact = false,
+  });
 
   final String label;
   final IconData icon;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 10,
+        vertical: compact ? 4 : 6,
+      ),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
@@ -393,16 +584,18 @@ class _Badge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: palette.gold),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: palette.cream,
+          Icon(icon, size: compact ? 11 : 14, color: palette.gold),
+          if (label.isNotEmpty) ...[
+            SizedBox(width: compact ? 2 : 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: compact ? 10 : 12,
+                fontWeight: FontWeight.w600,
+                color: palette.cream,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

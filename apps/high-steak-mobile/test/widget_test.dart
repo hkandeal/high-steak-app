@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:high_steak_mobile/auth/auth_controller.dart';
 import 'package:high_steak_mobile/main.dart';
 import 'package:high_steak_mobile/services/api_service.dart';
+import 'package:high_steak_mobile/utils/feed_layout_controller.dart';
 import 'package:high_steak_mobile/theme/theme_controller.dart';
 
 void main() {
@@ -17,10 +18,14 @@ void main() {
     final api = ApiService();
     final auth = AuthController(api: api);
     final theme = ThemeController();
+    final feedLayout = FeedLayoutController();
     await auth.initialize();
     await theme.initialize();
+    await feedLayout.initialize();
 
-    await tester.pumpWidget(AppRoot(auth: auth, api: api, theme: theme));
+    await tester.pumpWidget(
+      AppRoot(auth: auth, api: api, theme: theme, feedLayout: feedLayout),
+    );
     // Avoid pumpAndSettle — router/theme rebuilds never fully "settle" in tests.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));

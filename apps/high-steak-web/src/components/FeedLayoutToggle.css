@@ -1,0 +1,60 @@
+.feed-layout-toggle {
+  display: inline-flex;
+  padding: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-border-strong);
+  background: var(--surface-inset);
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.feed-layout-toggle-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.feed-layout-toggle-option:hover {
+  color: var(--cream);
+  background: var(--accent-hover-bg);
+}
+
+.feed-layout-toggle-option.active {
+  color: var(--cream);
+  background: var(--accent-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--card-border-strong);
+}
+
+[data-theme='steam'] .feed-layout-toggle-option.active {
+  background: linear-gradient(135deg, rgba(255, 180, 90, 0.35), rgba(255, 230, 200, 0.5));
+  color: var(--ember-dark);
+}
+
+.feed-layout-toggle-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.feed-layout-toggle-compact .feed-layout-toggle-option {
+  padding: 0.35rem 0.55rem;
+}
+
+@media (max-width: 720px) {
+  .feed-layout-toggle-header .feed-layout-toggle-label {
+    display: none;
+  }
+
+  .feed-layout-toggle-option {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.75rem;
+  }
+}

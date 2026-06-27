@@ -16,7 +16,10 @@ import '../utils/profile_validation.dart';
 import '../widgets/auth_card.dart';
 import '../widgets/email_notification_settings.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/paginated_list_view.dart';
+import '../utils/feed_grid.dart';
+import '../widgets/feed_layout_scope.dart';
+import '../widgets/feed_layout_toggle.dart';
+import '../widgets/paginated_post_feed.dart';
 import '../widgets/post_card.dart';
 import '../widgets/user_avatar.dart';
 
@@ -428,20 +431,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text(
-            _isOwnProfile ? 'Your steaks' : 'Steaks',
-            style: theme.textTheme.titleMedium?.copyWith(color: palette.creamMuted),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _isOwnProfile ? 'Your steaks' : 'Steaks',
+                  style: theme.textTheme.titleMedium?.copyWith(color: palette.creamMuted),
+                ),
+              ),
+              FeedLayoutToggle(controller: FeedLayoutScope.of(context)),
+            ],
           ),
         ),
         Expanded(
-          child: PaginatedListView(
+          child: PaginatedPostFeed(
             controller: _posts!,
+            layout: FeedLayoutScope.of(context),
+            gridChildAspectRatio: feedGridChildAspectRatio(
+              context,
+              showAuthorHeader: false,
+            ),
             emptyMessage: _isOwnProfile
                 ? "You haven't posted yet."
                 : 'No public posts yet.',
             emptyIcon: Icons.restaurant_outlined,
-            itemBuilder: (context, item) => PostCard(
+            itemBuilder: (context, item, {required bool dense}) => PostCard(
               post: item,
+              dense: dense,
+              showAuthorHeader: false,
               auth: widget.auth,
               api: widget.api,
               showBookmark: widget.auth.hasScope('bookmarks:write'),

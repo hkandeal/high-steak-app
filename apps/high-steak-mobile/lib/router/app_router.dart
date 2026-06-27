@@ -25,6 +25,8 @@ import '../screens/forgot_password_screen.dart';
 import '../screens/reset_password_screen.dart';
 import '../navigation/deep_link_service.dart';
 import '../navigation/app_navigator.dart';
+import '../utils/feed_layout_controller.dart';
+import '../widgets/feed_layout_scope.dart';
 
 GoRouter createAppRouter({
   required AuthController auth,
@@ -202,11 +204,13 @@ class AuthBootstrap extends StatefulWidget {
     required this.auth,
     required this.api,
     required this.theme,
+    required this.feedLayout,
   });
 
   final AuthController auth;
   final ApiService api;
   final ThemeController theme;
+  final FeedLayoutController feedLayout;
 
   @override
   State<AuthBootstrap> createState() => _AuthBootstrapState();
@@ -240,7 +244,9 @@ class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
-    if (widget.auth.initializing || widget.theme.initializing) {
+    if (widget.auth.initializing ||
+        widget.theme.initializing ||
+        widget.feedLayout.initializing) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         scrollBehavior: const AppScrollBehavior(),
@@ -251,12 +257,15 @@ class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserv
       );
     }
 
-    return MaterialApp.router(
-      title: 'High Steaks',
-      debugShowCheckedModeBanner: false,
-      scrollBehavior: const AppScrollBehavior(),
-      theme: AppTheme.build(widget.theme.variant),
-      routerConfig: _router!,
+    return FeedLayoutScope(
+      notifier: widget.feedLayout,
+      child: MaterialApp.router(
+        title: 'High Steaks',
+        debugShowCheckedModeBanner: false,
+        scrollBehavior: const AppScrollBehavior(),
+        theme: AppTheme.build(widget.theme.variant),
+        routerConfig: _router!,
+      ),
     );
   }
 }

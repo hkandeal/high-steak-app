@@ -111,10 +111,6 @@ export function UserMenu() {
               label="My profile"
               onSelect={closeMenu}
             />
-            <MenuLink to="/following" icon="📋" label="Following" onSelect={closeMenu} />
-            <RoleGate scope="bookmarks:read">
-              <MenuLink to="/bookmarks" icon="🔖" label="Bookmarks" onSelect={closeMenu} />
-            </RoleGate>
           </div>
 
           <div className="user-menu-section">

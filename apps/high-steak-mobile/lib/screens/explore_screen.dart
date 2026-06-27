@@ -9,13 +9,15 @@ import '../models/place.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
-import '../utils/api_image_url.dart';
 import '../utils/explore_location_service.dart';
 import '../utils/explore_location_store.dart';
+import '../utils/feed_grid.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/explore_map.dart';
 import '../widgets/place_picker.dart';
-import '../widgets/star_rating.dart';
+import '../widgets/feed_layout_scope.dart';
+import '../widgets/feed_layout_toggle.dart';
+import '../widgets/post_card.dart';
 
 enum _ExploreMode { browse, search }
 
@@ -292,6 +294,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   ? 'Showing your searched restaurant. Clear search to see all nearby reviews.'
                   : 'Pins are steakhouses with community reviews near you.',
               style: theme.textTheme.bodyMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 12),
             PlacePicker(
@@ -301,41 +305,39 @@ class _ExploreScreenState extends State<ExploreScreen> {
               hideLabel: true,
               placeholder: 'Search restaurants on the map…',
               hideFooterHint: true,
+              overlaySuggestions: true,
+              compactSelectedPreview: true,
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ExploreMap(
-                center: _mapFocus,
-                userCoords: _userCoords,
-                places: _mapPlaces,
-                selectedPlaceId: _searchedPin?.id,
-                onLocateMe: () => unawaited(_handleLocateMe()),
-                locating: _geoLoading,
-                flyToCenter: _flyMap,
-                flyKey: _flyKey,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ExploreMap(
+                      center: _mapFocus,
+                      userCoords: _userCoords,
+                      places: _mapPlaces,
+                      selectedPlaceId: _searchedPin?.id,
+                      onLocateMe: () => unawaited(_handleLocateMe()),
+                      locating: _geoLoading,
+                      flyToCenter: _flyMap,
+                      flyKey: _flyKey,
+                    ),
+                  ),
+                  _ExploreMapStatus(
+                    palette: palette,
+                    loading: _loading,
+                    geoLoading: _geoLoading,
+                    locationRequested: _locationRequested,
+                    browseCenter: _browseCenter,
+                    geoError: _geoError,
+                    error: _error,
+                    mode: _mode,
+                    nearbyPlacesEmpty: _nearbyPlaces.isEmpty,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            if (_loading || _geoLoading)
-              Text('Loading map…', style: TextStyle(color: palette.creamMuted, fontSize: 13)),
-            if (_browseCenter == null && !_locationRequested)
-              Text('Finding your location…', style: TextStyle(color: palette.creamMuted, fontSize: 13)),
-            if (_geoError != null && _browseCenter != null)
-              Text(_geoError!, style: TextStyle(color: palette.creamMuted, fontSize: 13), textAlign: TextAlign.center),
-            if (_geoError != null && _browseCenter == null)
-              Text(_geoError!, style: TextStyle(color: palette.errorText, fontSize: 13), textAlign: TextAlign.center),
-            if (_error != null) Text(_error!, style: TextStyle(color: palette.errorText, fontSize: 13)),
-            if (!_loading &&
-                _mode == _ExploreMode.browse &&
-                _browseCenter != null &&
-                _nearbyPlaces.isEmpty &&
-                _error == null &&
-                !_geoLoading)
-              Text(
-                'No tagged steakhouses in this area yet. Search for a restaurant or rate a steak to add the first pin.',
-                style: TextStyle(color: palette.creamMuted, fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
           ],
         ),
       ),
@@ -343,6 +345,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildPlaceDetail(BuildContext context, AppPalette palette, ThemeData theme) {
+    final feedLayout = FeedLayoutScope.of(context);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
@@ -373,6 +377,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ),
           const SizedBox(height: 16),
         ],
+        if (_posts.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Reviews at this place',
+                    style: theme.textTheme.titleMedium?.copyWith(color: palette.creamMuted),
+                  ),
+                ),
+                FeedLayoutToggle(controller: feedLayout),
+              ],
+            ),
+          ),
         if (_posts.isEmpty && !_loading) ...[
           const EmptyState(message: 'No public posts at this place yet.'),
           const SizedBox(height: 12),
@@ -384,37 +403,116 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
           ),
         ] else
-          ..._posts.map((post) {
-            final image = post.primaryImageUrl;
-            return Card(
-              child: ListTile(
-                leading: image == null
-                    ? null
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          resolveApiImageUrl(image),
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
+          ListenableBuilder(
+            listenable: feedLayout,
+            builder: (context, _) {
+              if (!feedLayout.useGrid) {
+                return Column(
+                  children: _posts
+                      .map(
+                        (post) => PostCard(
+                          post: post,
+                          auth: widget.auth,
+                          api: widget.api,
+                          showBookmark: widget.auth.hasScope('bookmarks:write'),
                         ),
-                      ),
-                title: Text(post.title),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    StarRating(value: post.rating, size: 18),
-                    Text(
-                      'by ${post.author.displayName}',
-                      style: TextStyle(color: palette.creamMuted, fontSize: 12),
-                    ),
-                  ],
+                      )
+                      .toList(),
+                );
+              }
+
+              final crossAxisCount = feedGridCrossAxisCount(context);
+              final spacing = feedGridSpacing(context);
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: spacing,
+                  mainAxisSpacing: spacing,
+                  childAspectRatio: feedGridChildAspectRatio(context),
                 ),
-                onTap: () => context.push('/posts/${post.id}'),
-              ),
-            );
-          }),
+                itemCount: _posts.length,
+                itemBuilder: (context, index) {
+                  final post = _posts[index];
+                  return PostCard(
+                    post: post,
+                    dense: true,
+                    auth: widget.auth,
+                    api: widget.api,
+                    showBookmark: widget.auth.hasScope('bookmarks:write'),
+                  );
+                },
+              );
+            },
+          ),
       ],
+    );
+  }
+}
+
+class _ExploreMapStatus extends StatelessWidget {
+  const _ExploreMapStatus({
+    required this.palette,
+    required this.loading,
+    required this.geoLoading,
+    required this.locationRequested,
+    required this.browseCenter,
+    required this.geoError,
+    required this.error,
+    required this.mode,
+    required this.nearbyPlacesEmpty,
+  });
+
+  final AppPalette palette;
+  final bool loading;
+  final bool geoLoading;
+  final bool locationRequested;
+  final MapLatLng? browseCenter;
+  final String? geoError;
+  final String? error;
+  final _ExploreMode mode;
+  final bool nearbyPlacesEmpty;
+
+  String? _message() {
+    if (loading || geoLoading) return 'Loading map…';
+    if (browseCenter == null && !locationRequested) {
+      return 'Finding your location…';
+    }
+    if (geoError != null && browseCenter == null) return geoError;
+    if (error != null) return error;
+    if (geoError != null) return geoError;
+    if (!loading &&
+        mode == _ExploreMode.browse &&
+        browseCenter != null &&
+        nearbyPlacesEmpty &&
+        error == null &&
+        !geoLoading) {
+      return 'No tagged steakhouses nearby yet. Search for a restaurant or rate a steak.';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message = _message();
+    if (message == null) return const SizedBox.shrink();
+
+    final isError = geoError != null && browseCenter == null || error != null;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        message,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: isError ? palette.errorText : palette.creamMuted,
+          fontSize: 13,
+          height: 1.3,
+        ),
+      ),
     );
   }
 }

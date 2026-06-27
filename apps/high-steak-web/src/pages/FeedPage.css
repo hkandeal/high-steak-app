@@ -1,3 +1,25 @@
+.feed-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.feed-section-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.5rem 0 1rem;
+}
+
+.feed-section-toolbar h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--cream-muted);
+}
+
 .feed-header {
   display: flex;
   align-items: flex-end;
@@ -20,6 +42,11 @@
 
   .feed-header-action {
     display: none;
+  }
+
+  .feed-header-actions {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .feed-tabs {
@@ -93,17 +120,73 @@
   min-height: 2rem;
 }
 
-.post-grid {
+.post-feed--grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.5rem;
 }
 
-@media (max-width: 480px) {
-  .post-grid {
-    grid-template-columns: 1fr;
+.post-feed--list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+.post-feed--list .post-card:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 900px) {
+  .post-feed--grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
   }
+}
+
+@media (max-width: 720px) {
+  .post-feed--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .post-feed--grid .post-body {
+    padding: 0.65rem 0.75rem 0.85rem;
+  }
+
+  .post-feed--grid .post-body h2 {
+    font-size: 0.95rem;
+    line-height: 1.25;
+  }
+
+  .post-feed--grid .post-meta {
+    font-size: 0.7rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .post-feed--grid .post-meta .post-author .author {
+    max-width: 5.5rem;
+  }
+
+  .post-feed--grid .post-comment {
+    display: none;
+  }
+
+  .post-feed--grid .post-restaurant {
+    font-size: 0.75rem;
+    margin-top: 0.2rem;
+  }
+
+  .post-feed--list {
+    max-width: none;
+  }
+}
+
+/* Legacy alias — keep for any stragglers */
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
 }
 
 .post-card {

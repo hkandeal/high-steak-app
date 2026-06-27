@@ -21,9 +21,11 @@ import { ImageLightbox } from '../components/ImageLightbox'
 import { PostBookmarkButton } from '../components/PostBookmarkButton'
 import { AuthorAvatar } from '../components/AuthorAvatar'
 import { AuthorFollowButton } from '../components/AuthorFollowButton'
-import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
+import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
+import { PostFeedLayout } from '../components/PostFeedLayout'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
+import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
 import { useAuth } from '../context/AuthContext'
 import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
 import { useImageLightbox } from '../hooks/useImageLightbox'
@@ -206,10 +208,14 @@ export function FeedPage() {
           </p>
         </div>
         {isAuthenticated && (
-          <Link to="/post/new" className="btn primary feed-header-action">
-            + Rate a steak
-          </Link>
+          <div className="feed-header-actions">
+            <FeedLayoutToggle />
+            <Link to="/post/new" className="btn primary feed-header-action">
+              + Rate a steak
+            </Link>
+          </div>
         )}
+        {!isAuthenticated && <FeedLayoutToggle />}
       </header>
 
       {showFollowingTab && (
@@ -270,7 +276,7 @@ export function FeedPage() {
       )}
 
       {!loading && !error && posts.length > 0 && (
-        <div className="post-grid">
+        <PostFeedLayout>
           {posts.map((post) => {
             const menuItems = buildMenuItems(post)
             return (
@@ -370,7 +376,7 @@ export function FeedPage() {
               </article>
             )
           })}
-        </div>
+        </PostFeedLayout>
       )}
 
       {hasMore && !loading && (

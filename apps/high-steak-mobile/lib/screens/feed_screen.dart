@@ -9,7 +9,10 @@ import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
 import '../utils/explore_location_store.dart';
-import '../widgets/paginated_list_view.dart';
+import '../utils/feed_grid.dart';
+import '../widgets/feed_layout_scope.dart';
+import '../widgets/feed_layout_toggle.dart';
+import '../widgets/paginated_post_feed.dart';
 import '../widgets/pill_tab_bar.dart';
 import '../widgets/post_card.dart';
 
@@ -119,6 +122,7 @@ class _FeedScreenState extends State<FeedScreen> {
     final controller = _controller;
     final theme = Theme.of(context);
     final palette = context.palette;
+    final feedLayout = FeedLayoutScope.of(context);
 
     if (controller == null) {
       return const Center(child: CircularProgressIndicator());
@@ -129,40 +133,51 @@ class _FeedScreenState extends State<FeedScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Steak feed',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: palette.creamMuted,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _tab == FeedTab.following
-                    ? 'Posts from people you follow'
-                    : 'Steaks from restaurants near ${_lat != null ? 'you' : 'your area'}',
-                style: theme.textTheme.bodyMedium,
-              ),
-              if (_showFollowingTab) ...[
-                const SizedBox(height: 14),
-                PillTabBar<FeedTab>(
-                  tabs: const [
-                    PillTab(value: FeedTab.nearby, label: 'Nearby'),
-                    PillTab(value: FeedTab.following, label: 'Following'),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Steak feed',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: palette.creamMuted,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _tab == FeedTab.following
+                          ? 'Posts from people you follow'
+                          : 'Steaks from restaurants near ${_lat != null ? 'you' : 'your area'}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    if (_showFollowingTab) ...[
+                      const SizedBox(height: 14),
+                      PillTabBar<FeedTab>(
+                        tabs: const [
+                          PillTab(value: FeedTab.nearby, label: 'Nearby'),
+                          PillTab(value: FeedTab.following, label: 'Following'),
+                        ],
+                        selected: _tab,
+                        onSelected: _switchTab,
+                      ),
+                    ],
                   ],
-                  selected: _tab,
-                  onSelected: _switchTab,
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              FeedLayoutToggle(controller: feedLayout),
             ],
           ),
         ),
         Expanded(
-          child: PaginatedListView(
+          child: PaginatedPostFeed(
             controller: controller,
+            layout: feedLayout,
+            gridChildAspectRatio: feedGridChildAspectRatio(context),
             emptyMessage: _tab == FeedTab.following
                 ? "You're not following anyone yet."
                 : 'No steaks nearby yet. Tag a restaurant when you post.',
@@ -181,14 +196,17 @@ class _FeedScreenState extends State<FeedScreen> {
                         child: const Text('Explore map'),
                       )
                     : null,
-            itemBuilder: (context, item) => PostCard(
+            itemBuilder: (context, item, {required bool dense}) => PostCard(
               post: item,
+              dense: dense,
               auth: widget.auth,
               api: widget.api,
               showBookmark: widget.auth.hasScope('bookmarks:write'),
-              showAuthorFollow: _showAuthorFollow,
+              showAuthorFollow: !dense && _showAuthorFollow,
               followBusy: _pendingFollowAuthorId == item.author.id,
-              onToggleAuthorFollow: _showAuthorFollow && item.author.subscribed != null
+              onToggleAuthorFollow: !dense &&
+                      _showAuthorFollow &&
+                      item.author.subscribed != null
                   ? () => _toggleAuthorFollow(item)
                   : null,
             ),

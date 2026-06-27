@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
+import { FeedLayoutProvider } from './context/FeedLayoutContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { ModerationNoticesProvider } from './context/ModerationNoticesContext'
 import { BookmarksPage } from './pages/BookmarksPage'
@@ -141,11 +142,13 @@ const router = createBrowserRouter([
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <ModerationNoticesProvider>
-          <RouterProvider router={router} />
-        </ModerationNoticesProvider>
-      </AuthProvider>
+      <FeedLayoutProvider>
+        <AuthProvider>
+          <ModerationNoticesProvider>
+            <RouterProvider router={router} />
+          </ModerationNoticesProvider>
+        </AuthProvider>
+      </FeedLayoutProvider>
     </ThemeProvider>
   )
 }

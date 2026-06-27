@@ -5,6 +5,7 @@ import 'constants/api_constraints.dart';
 import 'router/app_router.dart';
 import 'services/api_service.dart';
 import 'theme/theme_controller.dart';
+import 'utils/feed_layout_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,8 +13,13 @@ Future<void> main() async {
   await _loadImageConstraints(api);
   final auth = AuthController(api: api);
   final theme = ThemeController();
-  await Future.wait([auth.initialize(), theme.initialize()]);
-  runApp(AppRoot(auth: auth, api: api, theme: theme));
+  final feedLayout = FeedLayoutController();
+  await Future.wait([
+    auth.initialize(),
+    theme.initialize(),
+    feedLayout.initialize(),
+  ]);
+  runApp(AppRoot(auth: auth, api: api, theme: theme, feedLayout: feedLayout));
 }
 
 Future<void> _loadImageConstraints(ApiService api) async {
@@ -36,18 +42,25 @@ class AppRoot extends StatelessWidget {
     required this.auth,
     required this.api,
     required this.theme,
+    required this.feedLayout,
   });
 
   final AuthController auth;
   final ApiService api;
   final ThemeController theme;
+  final FeedLayoutController feedLayout;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([auth, theme]),
+      listenable: Listenable.merge([auth, theme, feedLayout]),
       builder: (context, _) {
-        return AuthBootstrap(auth: auth, api: api, theme: theme);
+        return AuthBootstrap(
+          auth: auth,
+          api: api,
+          theme: theme,
+          feedLayout: feedLayout,
+        );
       },
     );
   }
