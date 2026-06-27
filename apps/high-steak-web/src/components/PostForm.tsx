@@ -130,6 +130,13 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
     onDirtyChange?.(isDirty)
   }, [isDirty, onDirtyChange])
 
+  useEffect(() => {
+    if (!initialPlace) return
+    setSelectedPlace(initialPlace)
+    setRestaurantName(initialPlace.name)
+    setRestaurantLocation(initialPlace.formattedAddress ?? '')
+  }, [initialPlace])
+
   function buildSubmitData(): PostFormSubmitData | null {
     if (totalImages === 0) return null
     return {

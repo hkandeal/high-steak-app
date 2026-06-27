@@ -215,7 +215,12 @@ export function ExplorePage() {
 
         <div className="explore-post-list">
           {posts.length === 0 && !loading && (
-            <p className="muted">No public posts at this place yet.</p>
+            <>
+              <p className="muted">No public posts at this place yet.</p>
+              <Link to={`/post/new?placeId=${placeId}`} className="btn primary">
+                Rate your steak
+              </Link>
+            </>
           )}
           {posts.map((post) => (
             <Link key={post.id} to={`/posts/${post.id}`} className="explore-post-card">

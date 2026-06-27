@@ -6,6 +6,7 @@ import '../models/place.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/explore_location_service.dart';
 import '../utils/explore_location_store.dart';
 
 class PlacePicker extends StatefulWidget {
@@ -73,9 +74,27 @@ class _PlacePickerState extends State<PlacePicker> {
         _lng = cached.lng;
       });
     }
+    unawaited(_refreshLocationBias());
+  }
+
+  Future<void> _refreshLocationBias() async {
+    final coords = await loadPlaceSearchBias();
+    if (!mounted || coords == null) return;
+    setState(() {
+      _lat = coords.lat;
+      _lng = coords.lng;
+    });
   }
 
   void _onQueryChanged(String query) {
+    if (widget.value != null && query.trim() == widget.value!.name.trim()) {
+      setState(() {
+        _suggestions = [];
+        _error = null;
+      });
+      return;
+    }
+
     widget.onChanged(null);
     _debounce?.cancel();
     if (query.trim().isEmpty) {
@@ -265,7 +284,9 @@ class _PlacePickerState extends State<PlacePicker> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Pick a place from search, or leave blank and type the name below.',
+              widget.placeholder != null
+                  ? 'Pick a restaurant from map search, or leave blank and type the name below.'
+                  : 'Pick a place from search, or leave blank and type the name below.',
               style: TextStyle(color: palette.creamMuted, fontSize: 13),
             ),
           ),

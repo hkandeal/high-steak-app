@@ -6,5 +6,6 @@ class CreatePostScreen extends PostEditorScreen {
     super.key,
     required super.auth,
     required super.api,
+    super.initialPlaceId,
   });
 }

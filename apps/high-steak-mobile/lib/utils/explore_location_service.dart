@@ -151,6 +151,40 @@ Future<LocationRequestResult> requestUserLocation() async {
   );
 }
 
+/// Lightweight GPS read for biasing restaurant search (web PlacePicker parity).
+Future<MapLatLng?> loadPlaceSearchBias() async {
+  final cached = await ExploreLocationStore.readCoords();
+
+  try {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return cached;
+    }
+
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return cached;
+    }
+
+    Position? position;
+    try {
+      position = await Geolocator.getLastKnownPosition();
+    } catch (_) {
+      position = null;
+    }
+
+    position ??= await Geolocator.getCurrentPosition(
+      locationSettings: _locationSettings(accuracy: LocationAccuracy.medium),
+    ).timeout(const Duration(seconds: 8));
+
+    final coords = MapLatLng(lat: position.latitude, lng: position.longitude);
+    await ExploreLocationStore.persistCoords(coords);
+    return coords;
+  } catch (_) {
+    return cached;
+  }
+}
+
 Future<void> openLocationPermissionSettings({bool permissionBlocked = false}) async {
   if (permissionBlocked) {
     await Geolocator.openAppSettings();

@@ -273,7 +273,7 @@ class _ExploreMapState extends State<ExploreMap> {
                   child: FilledButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      context.push('/post/new');
+                      context.push('/post/new?placeId=${place.id}');
                     },
                     child: const Text('Be the first to rate'),
                   ),

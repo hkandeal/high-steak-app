@@ -373,9 +373,17 @@ class _ExploreScreenState extends State<ExploreScreen> {
           ),
           const SizedBox(height: 16),
         ],
-        if (_posts.isEmpty && !_loading)
-          const EmptyState(message: 'No public posts at this place yet.')
-        else
+        if (_posts.isEmpty && !_loading) ...[
+          const EmptyState(message: 'No public posts at this place yet.'),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => context.push('/post/new?placeId=${widget.placeId}'),
+              child: const Text('Rate your steak'),
+            ),
+          ),
+        ] else
           ..._posts.map((post) {
             final image = post.primaryImageUrl;
             return Card(

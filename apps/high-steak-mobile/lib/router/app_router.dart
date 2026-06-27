@@ -140,11 +140,12 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: '/explore',
-            builder: (context, state) => ExploreScreen(api: api),
+            builder: (context, state) => ExploreScreen(auth: auth, api: api),
           ),
           GoRoute(
             path: '/explore/:placeId',
             builder: (context, state) => ExploreScreen(
+              auth: auth,
               api: api,
               placeId: state.pathParameters['placeId'],
             ),
@@ -159,7 +160,11 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: '/post/new',
-            builder: (context, state) => CreatePostScreen(auth: auth, api: api),
+            builder: (context, state) => CreatePostScreen(
+              auth: auth,
+              api: api,
+              initialPlaceId: state.uri.queryParameters['placeId'],
+            ),
           ),
           GoRoute(
             path: '/posts/:postId',
