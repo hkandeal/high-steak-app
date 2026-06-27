@@ -79,7 +79,6 @@ export function useUserLocation() {
       setError('Location is not supported in this browser.')
       return
     }
-    if (inFlight.current) return
 
     clearWatch()
     inFlight.current = true
@@ -105,9 +104,16 @@ export function useUserLocation() {
 
       inFlight.current = false
       setLoading(false)
-      if (!readStoredCoords()) {
-        setError(geoErrorMessage(lastCode))
+      const cached = readStoredCoords()
+      if (cached) {
+        setCoords(cached)
+        setError(
+          geoErrorMessage(lastCode) +
+            ' Showing your last known area — tap ◎ to retry.',
+        )
+        return
       }
+      setError(geoErrorMessage(lastCode))
     })()
   }, [applyPosition, clearWatch])
 

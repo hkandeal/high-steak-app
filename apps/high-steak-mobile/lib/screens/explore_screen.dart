@@ -1,15 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
+import '../auth/auth_controller.dart';
 import '../models/page_response.dart';
 import '../models/place.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/explore_location_service.dart';
 import '../utils/explore_location_store.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/explore_map.dart';
@@ -36,10 +37,12 @@ PlaceNearbySummary _placeFromSummary(PlaceSummary place, {int postCount = 0}) {
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({
     super.key,
+    required this.auth,
     required this.api,
     this.placeId,
   });
 
+  final AuthController auth;
   final ApiService api;
   final String? placeId;
 
@@ -49,19 +52,22 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   _ExploreMode _mode = _ExploreMode.browse;
-  MapLatLng? _userCoords;
-  MapLatLng? _savedCenter;
-  MapLatLng _mapFocus = ExploreLocationStore.exploreDefaultCenter;
   bool _flyMap = false;
+  int _flyKey = 0;
   bool _geoLoading = false;
   bool _locationRequested = false;
   String? _geoError;
+
+  MapLatLng? _userCoords;
+  MapLatLng? _savedCenter;
+  MapLatLng _mapFocus = ExploreLocationStore.exploreDefaultCenter;
 
   PlaceSummary? _searchPlace;
   PlaceNearbySummary? _searchedPin;
   List<PlaceNearbySummary> _nearbyPlaces = [];
   PlaceNearbySummary? _selectedPlace;
   List<SteakPost> _posts = [];
+
   bool _loading = false;
   String? _error;
 
@@ -74,8 +80,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return _nearbyPlaces;
   }
 
-  bool get _usingFallbackArea => _userCoords == null && _savedCenter != null;
-
   @override
   void initState() {
     super.initState();
@@ -83,99 +87,68 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Future<void> _bootstrap() async {
-    final saved = await ExploreLocationStore.readBrowseCenter();
-    final cached = await ExploreLocationStore.readCoords();
-    if (!mounted) return;
-    setState(() {
-      _savedCenter = saved;
-      _userCoords = cached;
-      _mapFocus = saved ?? cached ?? ExploreLocationStore.exploreDefaultCenter;
-    });
     if (widget.placeId != null) {
+      final saved = await ExploreLocationStore.readBrowseCenter();
+      if (!mounted) return;
+      if (saved != null) {
+        setState(() => _mapFocus = saved);
+      }
       await _loadPlaceDetail(widget.placeId!);
       return;
     }
-    unawaited(_requestLocation());
-    if (_browseCenter != null) {
-      await _loadNearbyPins();
-    }
+
+    await _requestLocationAndLoad();
   }
 
-  Future<void> _requestLocation() async {
-    if (_geoLoading) return;
+  Future<void> _requestLocationAndLoad() async {
     setState(() {
       _locationRequested = true;
       _geoLoading = true;
       _geoError = null;
+      _mode = _ExploreMode.browse;
     });
 
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        if (!mounted) return;
-        setState(() {
-          _geoError =
-              'Location is blocked. Search for a restaurant above, or enable location in settings.';
-        });
-        return;
-      }
+    final result = await requestUserLocation();
+    if (!mounted) return;
 
-      Position? position;
-      for (final settings in [
-        const LocationSettings(accuracy: LocationAccuracy.low, timeLimit: Duration(seconds: 12)),
-        const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 25)),
-      ]) {
-        try {
-          position = await Geolocator.getCurrentPosition(locationSettings: settings);
-          break;
-        } catch (_) {
-          continue;
-        }
-      }
+    MapLatLng? center;
+    if (result.coords != null) {
+      center = result.coords!.asMapLatLng;
+      await ExploreLocationStore.persistBrowseCenter(center);
+    } else {
+      final saved = await ExploreLocationStore.readBrowseCenter();
+      center = saved;
+    }
 
-      if (position == null) {
-        if (!mounted) return;
-        if (_userCoords == null && _savedCenter == null) {
-          setState(() {
-            _geoError =
-                'Could not detect your location. Search for a restaurant above, or tap ◎ on the map.';
-          });
-        }
-        return;
+    setState(() {
+      _geoLoading = false;
+      _geoError = result.error;
+      if (result.coords != null) {
+        _userCoords = center;
+        _savedCenter = center;
+      } else if (center != null) {
+        _savedCenter = center;
       }
+      if (center != null) {
+        _mapFocus = center;
+        _flyKey++;
+        _flyMap = true;
+      }
+    });
 
-      final coords = MapLatLng(lat: position.latitude, lng: position.longitude);
-      await ExploreLocationStore.persistCoords(coords);
-      await ExploreLocationStore.persistBrowseCenter(coords);
-      if (!mounted) return;
-      setState(() {
-        _userCoords = coords;
-        _savedCenter = coords;
-        if (_mode == _ExploreMode.browse) {
-          _mapFocus = coords;
-          _flyMap = true;
-        }
-        _geoError = null;
-      });
-      if (_mode == _ExploreMode.browse) {
-        await _loadNearbyPins();
-      }
-    } finally {
-      if (mounted) setState(() => _geoLoading = false);
+    if (center != null && _mode == _ExploreMode.browse) {
+      await _loadNearbyPins(center);
     }
   }
 
-  Future<void> _loadNearbyPins() async {
-    final center = _browseCenter;
-    if (center == null || _mode != _ExploreMode.browse) return;
+  Future<void> _loadNearbyPins(MapLatLng center) async {
+    if (_mode != _ExploreMode.browse) return;
+
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
       final page = await widget.api.fetchNearbyPlaces(
         lat: center.lat,
@@ -212,6 +185,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
       setState(() {
         _selectedPlace = _placeFromSummary(place, postCount: postsPage.totalElements);
         _posts = postsPage.content;
+        _mapFocus = MapLatLng(
+          lat: double.parse(place.latitude),
+          lng: double.parse(place.longitude),
+        );
+        _flyKey++;
+        _flyMap = true;
       });
     } catch (e) {
       if (!mounted) return;
@@ -221,14 +200,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
+  Future<void> _handleLocateMe() async {
+    setState(() {
+      _searchPlace = null;
+      _searchedPin = null;
+    });
+    await _requestLocationAndLoad();
+  }
+
   Future<void> _handleSearchPlace(PlaceSummary? place) async {
     setState(() => _searchPlace = place);
+
     if (place == null) {
       setState(() {
         _searchedPin = null;
         _mode = _ExploreMode.browse;
       });
-      await _loadNearbyPins();
+      final center = _browseCenter;
+      if (center != null) {
+        await _loadNearbyPins(center);
+      }
       return;
     }
 
@@ -237,10 +228,12 @@ class _ExploreScreenState extends State<ExploreScreen> {
       lng: double.parse(place.longitude),
     );
     await ExploreLocationStore.persistBrowseCenter(center);
+
     setState(() {
       _mode = _ExploreMode.search;
       _savedCenter = center;
       _mapFocus = center;
+      _flyKey++;
       _flyMap = true;
       _loading = true;
       _error = null;
@@ -253,6 +246,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ]);
       final nearbyPage = results[0] as PageResponse<PlaceNearbySummary>;
       final postsPage = results[1] as PageResponse<SteakPost>;
+
       PlaceNearbySummary? communityMatch;
       for (final item in nearbyPage.content) {
         if (item.id == place.id) {
@@ -260,6 +254,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           break;
         }
       }
+
       if (!mounted) return;
       setState(() {
         _searchedPin = communityMatch ?? _placeFromSummary(place, postCount: postsPage.totalElements);
@@ -275,19 +270,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-  Future<void> _handleLocateMe() async {
-    setState(() {
-      _searchPlace = null;
-      _searchedPin = null;
-      _mode = _ExploreMode.browse;
-      _flyMap = true;
-      if (_userCoords != null) {
-        _mapFocus = _userCoords!;
-      }
-    });
-    await _requestLocation();
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -297,65 +279,66 @@ class _ExploreScreenState extends State<ExploreScreen> {
       return _buildPlaceDetail(context, palette, theme);
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      children: [
-        Text('Explore', style: theme.textTheme.headlineMedium),
-        const SizedBox(height: 6),
-        Text(
-          _mode == _ExploreMode.search
-              ? 'Showing your searched restaurant. Clear search to see all nearby reviews.'
-              : 'Pins are steakhouses with community reviews near you.',
-          style: theme.textTheme.bodyMedium,
+    return SizedBox.expand(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Explore', style: theme.textTheme.headlineMedium),
+            const SizedBox(height: 6),
+            Text(
+              _mode == _ExploreMode.search
+                  ? 'Showing your searched restaurant. Clear search to see all nearby reviews.'
+                  : 'Pins are steakhouses with community reviews near you.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            PlacePicker(
+              api: widget.api,
+              value: _searchPlace,
+              onChanged: (place) => unawaited(_handleSearchPlace(place)),
+              hideLabel: true,
+              placeholder: 'Search restaurants on the map…',
+              hideFooterHint: true,
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ExploreMap(
+                center: _mapFocus,
+                userCoords: _userCoords,
+                places: _mapPlaces,
+                selectedPlaceId: _searchedPin?.id,
+                onLocateMe: () => unawaited(_handleLocateMe()),
+                locating: _geoLoading,
+                flyToCenter: _flyMap,
+                flyKey: _flyKey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_loading || _geoLoading)
+              Text('Loading map…', style: TextStyle(color: palette.creamMuted, fontSize: 13)),
+            if (_browseCenter == null && !_locationRequested)
+              Text('Finding your location…', style: TextStyle(color: palette.creamMuted, fontSize: 13)),
+            if (_geoError != null && _browseCenter != null)
+              Text(_geoError!, style: TextStyle(color: palette.creamMuted, fontSize: 13), textAlign: TextAlign.center),
+            if (_geoError != null && _browseCenter == null)
+              Text(_geoError!, style: TextStyle(color: palette.errorText, fontSize: 13), textAlign: TextAlign.center),
+            if (_error != null) Text(_error!, style: TextStyle(color: palette.errorText, fontSize: 13)),
+            if (!_loading &&
+                _mode == _ExploreMode.browse &&
+                _browseCenter != null &&
+                _nearbyPlaces.isEmpty &&
+                _error == null &&
+                !_geoLoading)
+              Text(
+                'No tagged steakhouses in this area yet. Search for a restaurant or rate a steak to add the first pin.',
+                style: TextStyle(color: palette.creamMuted, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+          ],
         ),
-        const SizedBox(height: 16),
-        PlacePicker(
-          api: widget.api,
-          value: _searchPlace,
-          onChanged: (place) => unawaited(_handleSearchPlace(place)),
-          hideLabel: true,
-          placeholder: 'Search restaurants on the map…',
-          hideFooterHint: true,
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.52,
-          child: ExploreMap(
-            center: _mapFocus,
-            userCoords: _userCoords,
-            places: _mapPlaces,
-            selectedPlaceId: _searchedPin?.id,
-            onLocateMe: () => unawaited(_handleLocateMe()),
-            locating: _geoLoading,
-            flyToCenter: _flyMap,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (_loading)
-          Text('Loading map…', style: TextStyle(color: palette.creamMuted)),
-        if (_browseCenter == null && !_locationRequested)
-          Text(
-            'Finding your location to show nearby steakhouses…',
-            style: TextStyle(color: palette.creamMuted),
-          ),
-        if (_usingFallbackArea && _geoError != null)
-          Text(
-            'Live GPS unavailable — showing reviews near your last searched area. Tap ◎ to retry location.',
-            style: TextStyle(color: palette.creamMuted, fontSize: 13),
-          ),
-        if (_locationRequested && _geoError != null && _browseCenter == null)
-          Text(_geoError!, style: TextStyle(color: palette.errorText)),
-        if (_error != null) Text(_error!, style: TextStyle(color: palette.errorText)),
-        if (!_loading &&
-            _mode == _ExploreMode.browse &&
-            _browseCenter != null &&
-            _nearbyPlaces.isEmpty &&
-            _error == null)
-          Text(
-            'No tagged steakhouses in this area yet. Search for a restaurant or rate a steak to add the first pin.',
-            style: TextStyle(color: palette.creamMuted),
-          ),
-      ],
+      ),
     );
   }
 
@@ -374,20 +357,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
           Text(_selectedPlace!.name, style: theme.textTheme.headlineSmall),
           if (_selectedPlace!.formattedAddress != null)
             Text(_selectedPlace!.formattedAddress!, style: TextStyle(color: palette.creamMuted)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           SizedBox(
             height: 220,
             child: ExploreMap(
-              center: MapLatLng(
-                lat: double.parse(_selectedPlace!.latitude),
-                lng: double.parse(_selectedPlace!.longitude),
-              ),
+              center: _mapFocus,
               userCoords: _userCoords,
               places: [_selectedPlace!],
               selectedPlaceId: widget.placeId,
               onLocateMe: () => unawaited(_handleLocateMe()),
               locating: _geoLoading,
               flyToCenter: true,
+              flyKey: _flyKey,
             ),
           ),
           const SizedBox(height: 16),

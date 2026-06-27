@@ -42,6 +42,7 @@ class AuthController extends ChangeNotifier {
     final savedRefresh = await _storage.readRefreshToken();
     if (savedAccess != null && savedRefresh != null) {
       await _applyTokens(savedAccess, savedRefresh, refreshProfile: true);
+      await _refreshScopesIfStale();
     } else if (savedAccess != null || savedRefresh != null) {
       await _storage.clearToken();
     }
@@ -145,6 +146,22 @@ class AuthController extends ChangeNotifier {
     if (DateTime.now().isBefore(refreshBy)) return;
 
     await _tryRefreshSession();
+  }
+
+  Future<void> _refreshScopesIfStale() async {
+    final refreshToken = _refreshToken;
+    if (refreshToken == null || refreshToken.isEmpty) return;
+    if (_user?.hasScope('places:read') ?? false) return;
+
+    try {
+      final result = await _api.refresh(refreshToken: refreshToken);
+      await _persistTokens(
+        result['token'] as String,
+        result['refreshToken'] as String,
+      );
+    } catch (_) {
+      // Keep the existing session; user can log out and back in manually.
+    }
   }
 
   Future<void> _tryRefreshSession() async {

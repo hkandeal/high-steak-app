@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../models/place.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/explore_location_store.dart';
 
 class PlacePicker extends StatefulWidget {
   const PlacePicker({
@@ -65,27 +65,14 @@ class _PlacePickerState extends State<PlacePicker> {
   }
 
   Future<void> _loadLocationBias() async {
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
-      if (!mounted) return;
+    final cached = await ExploreLocationStore.readCoords();
+    if (!mounted) return;
+    if (cached != null) {
       setState(() {
-        _lat = position.latitude;
-        _lng = position.longitude;
+        _lat = cached.lat;
+        _lng = cached.lng;
       });
-    } catch (_) {}
+    }
   }
 
   void _onQueryChanged(String query) {
