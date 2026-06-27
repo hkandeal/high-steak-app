@@ -57,7 +57,7 @@ class ControllerSecurityIntegrationTest {
     @Test
     @WithMockUser(authorities = {"posts:write"})
     void createPostAllowedWithWriteScope() throws Exception {
-        when(steakPostService.createPost(any(), anyString(), any(), anyInt(), any(), any(), any(), any(), any()))
+        when(steakPostService.createPost(any(), anyString(), any(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(samplePost());
 
         mockMvc.perform(multipart("/posts")
@@ -135,6 +135,6 @@ class ControllerSecurityIntegrationTest {
                 null);
         return new PostDtos.PostResponse(
                 POST_ID, "Ribeye", "Great sear", 5, List.of("/uploads/steak.jpg"),
-                null, null, Instant.now(), false, null, null, PostVisibility.PUBLIC, author, List.of(), false);
+                null, null, null, Instant.now(), false, null, null, PostVisibility.PUBLIC, author, List.of(), false);
     }
 }

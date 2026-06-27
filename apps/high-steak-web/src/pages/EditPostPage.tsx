@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
-import { fetchPost, updatePost, type PostVisibility } from '../api/client'
+import { fetchPost, updatePost, type PlaceSummary, type PostVisibility } from '../api/client'
 import { PageBackLink } from '../components/BackLink'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { PostForm, type PostFormHandle, type PostFormSubmitData } from '../components/PostForm'
@@ -24,6 +24,7 @@ export function EditPostPage() {
     rating: number
     restaurantName: string
     restaurantLocation: string
+    place: PlaceSummary | null
     tagIds: string[]
     imageUrls: string[]
     visibility: PostVisibility
@@ -67,6 +68,7 @@ export function EditPostPage() {
           rating: post.rating,
           restaurantName: post.restaurantName ?? '',
           restaurantLocation: post.restaurantLocation ?? '',
+          place: post.place,
           tagIds: (post.tags ?? []).map((tag) => tag.id),
           imageUrls: [...new Set(post.imageUrls)],
           visibility: post.visibility ?? 'PUBLIC',
@@ -84,6 +86,7 @@ export function EditPostPage() {
       rating: data.rating,
       restaurantName: data.restaurantName,
       restaurantLocation: data.restaurantLocation,
+      placeId: data.placeId,
       visibility: data.visibility,
       keepImageUrls: data.keepImageUrls,
       newImages: data.newImages,
@@ -147,6 +150,7 @@ export function EditPostPage() {
           initialRating={initial.rating}
           initialRestaurantName={initial.restaurantName}
           initialRestaurantLocation={initial.restaurantLocation}
+          initialPlace={initial.place}
           initialTagIds={initial.tagIds}
           initialImageUrls={initial.imageUrls}
           initialVisibility={initial.visibility}

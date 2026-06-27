@@ -29,3 +29,6 @@ data:
   SPRING_MAIL_USERNAME: {{ .Values.mail.smtp.username | quote }}
   {{- end }}
   {{- end }}
+  {{- if .Values.geo.enabled }}
+  APP_GEO_GOOGLE_ENABLED: "true"
+  {{- end }}

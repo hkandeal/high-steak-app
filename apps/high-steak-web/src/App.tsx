@@ -21,6 +21,7 @@ import { PostDetailPage } from './pages/PostDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { EditPostPage } from './pages/EditPostPage'
 import { NewPostPage } from './pages/NewPostPage'
+import { ExplorePage } from './pages/ExplorePage'
 
 const router = createBrowserRouter([
   {
@@ -66,6 +67,14 @@ const router = createBrowserRouter([
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
       { path: 'reset-password', element: <ResetPasswordPage /> },
       { path: 'confirm-account-deletion', element: <ConfirmAccountDeletionPage /> },
+      {
+        path: 'explore/:placeId?',
+        element: (
+          <ProtectedRoute requiredScope="places:read">
+            <ExplorePage />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: 'post/new',
         element: (

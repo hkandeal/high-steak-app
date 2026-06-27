@@ -28,6 +28,8 @@ tags:
     description: User administration (admin)
   - name: Subscriptions
     description: Follow users and subscription feeds
+  - name: Places
+    description: Restaurant place search, resolve, and nearby discovery
 
 paths:
   /health:
@@ -357,6 +359,213 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /places/autocomplete:
+    get:
+      tags: [Places]
+      summary: Autocomplete restaurant places
+      operationId: autocompletePlaces
+      x-required-scopes:
+        - places:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: lat
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: lng
+          in: query
+          schema:
+            type: number
+            format: double
+      responses:
+        '200':
+          description: Place suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutocompleteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /places/resolve:
+    post:
+      tags: [Places]
+      summary: Resolve and upsert a place
+      operationId: resolvePlace
+      x-required-scopes:
+        - places:read
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolvePlaceRequest'
+      responses:
+        '200':
+          description: Resolved place
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /places/nearby:
+    get:
+      tags: [Places]
+      summary: Nearby places with public posts
+      operationId: findNearbyPlaces
+      x-required-scopes:
+        - places:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: radiusM
+          in: query
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated nearby places
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceNearbyPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /places/{placeId}:
+    get:
+      tags: [Places]
+      summary: Get place by ID
+      operationId: getPlace
+      x-required-scopes:
+        - places:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Place details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /places/{placeId}/posts:
+    get:
+      tags: [Places]
+      summary: Public posts at a place
+      operationId: getPostsAtPlace
+      x-required-scopes:
+        - places:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: placeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPage'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/nearby:
+    get:
+      tags: [Posts]
+      summary: Nearby feed (public posts at tagged restaurants)
+      description: |
+        Paginated public posts from restaurants within `radiusM` of the given coordinates.
+        Only posts linked to a place (`placeId`) appear. Excludes the viewer's own posts.
+      operationId: getNearbyFeed
+      x-required-scopes:
+        - posts:read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: radiusM
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50000
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated list of nearby posts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /posts:
     get:
@@ -1539,6 +1748,10 @@ components:
           $ref: '#/components/schemas/RestaurantName'
         restaurantLocation:
           $ref: '#/components/schemas/RestaurantLocation'
+        placeId:
+          type: string
+          format: uuid
+          description: Resolved place to tag on the post (snapshots restaurant fields).
         images:
           type: array
           minItems: 1
@@ -1860,6 +2073,10 @@ components:
           allOf:
             - $ref: '#/components/schemas/RestaurantLocation'
           nullable: true
+        place:
+          allOf:
+            - $ref: '#/components/schemas/PlaceSummary'
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -1975,6 +2192,143 @@ components:
           maxLength: 2000
           description: Updated plain-text comment body (same rules as create).
           example: Pulled at 125°F — rested 10 minutes.
+
+    PlaceSummary:
+      type: object
+      required: [id, provider, name, latitude, longitude, locationPrecision]
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum: [google, mapbox, osm, manual]
+        name:
+          type: string
+        formattedAddress:
+          type: string
+          nullable: true
+        latitude:
+          type: string
+        longitude:
+          type: string
+        locationPrecision:
+          type: string
+          enum: [EXACT, APPROXIMATE]
+        previewPhotoUrl:
+          type: string
+          nullable: true
+        previewPhotoSource:
+          type: string
+          nullable: true
+          enum: [COMMUNITY, GOOGLE]
+
+    PlaceSuggestion:
+      type: object
+      required: [provider, providerPlaceId, name]
+      properties:
+        provider:
+          type: string
+          enum: [google, mapbox, osm, manual]
+        providerPlaceId:
+          type: string
+        name:
+          type: string
+        formattedAddress:
+          type: string
+          nullable: true
+        latitude:
+          type: string
+          nullable: true
+        longitude:
+          type: string
+          nullable: true
+        previewPhotoUrl:
+          type: string
+          nullable: true
+
+    AutocompleteResponse:
+      type: object
+      required: [suggestions]
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceSuggestion'
+
+    ResolvePlaceRequest:
+      type: object
+      required: [provider, providerPlaceId]
+      properties:
+        provider:
+          type: string
+          enum: [google, mapbox, osm, manual]
+        providerPlaceId:
+          type: string
+        name:
+          type: string
+        formattedAddress:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        locality:
+          type: string
+        adminArea:
+          type: string
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+
+    PlaceNearbySummary:
+      type: object
+      required: [id, name, latitude, longitude, distanceM, postCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        formattedAddress:
+          type: string
+          nullable: true
+        latitude:
+          type: string
+        longitude:
+          type: string
+        distanceM:
+          type: integer
+        postCount:
+          type: integer
+        avgRating:
+          type: number
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        coverImageSource:
+          type: string
+          nullable: true
+          enum: [COMMUNITY, GOOGLE]
+
+    PlaceNearbyPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceNearbySummary'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
 
     ApiError:
       type: object

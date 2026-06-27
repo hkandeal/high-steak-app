@@ -263,6 +263,43 @@ export type ReviewTagCatalog = {
 
 export type PostVisibility = 'PUBLIC' | 'FOLLOWERS_ONLY'
 
+export type CoverImageSource = 'COMMUNITY' | 'GOOGLE'
+
+export type PlaceSummary = {
+  id: string
+  provider: 'google' | 'mapbox' | 'osm' | 'manual'
+  name: string
+  formattedAddress: string | null
+  latitude: string
+  longitude: string
+  locationPrecision: 'EXACT' | 'APPROXIMATE'
+  previewPhotoUrl: string | null
+  previewPhotoSource: CoverImageSource | null
+}
+
+export type PlaceSuggestion = {
+  provider: PlaceSummary['provider']
+  providerPlaceId: string
+  name: string
+  formattedAddress: string | null
+  latitude: string | null
+  longitude: string | null
+  previewPhotoUrl: string | null
+}
+
+export type PlaceNearbySummary = {
+  id: string
+  name: string
+  formattedAddress: string | null
+  latitude: string
+  longitude: string
+  distanceM: number
+  postCount: number
+  avgRating: number | null
+  coverImageUrl: string | null
+  coverImageSource: CoverImageSource | null
+}
+
 export type SteakPost = {
   id: string
   title: string
@@ -271,6 +308,7 @@ export type SteakPost = {
   imageUrls: string[]
   restaurantName: string | null
   restaurantLocation: string | null
+  place: PlaceSummary | null
   createdAt: string
   hidden: boolean
   moderationReason?: string | null
@@ -447,6 +485,23 @@ export async function fetchPosts(
   return apiFetch(`/posts${paginationQuery(options)}`, { token })
 }
 
+export async function fetchNearbyPosts(
+  token: string,
+  coords: { lat: number; lng: number },
+  options: { radiusM?: number; page?: number; size?: number } = {},
+): Promise<PageResponse<SteakPost>> {
+  const params = new URLSearchParams({
+    lat: String(coords.lat),
+    lng: String(coords.lng),
+    page: String(options.page ?? 0),
+    size: String(options.size ?? FEED_PAGE_SIZE),
+  })
+  if (options.radiusM != null) {
+    params.set('radiusM', String(options.radiusM))
+  }
+  return apiFetch(`/posts/nearby?${params}`, { token })
+}
+
 export async function fetchReviewTags(token: string): Promise<ReviewTagCatalog> {
   return apiFetch('/posts/review-tags', { token })
 }
@@ -613,6 +668,75 @@ export async function fetchMyModerationNotices(token: string): Promise<SteakPost
   return apiFetch('/posts/mine/moderation-notices', { token })
 }
 
+export async function autocompletePlaces(
+  token: string,
+  query: string,
+  coords?: { lat: number; lng: number },
+): Promise<PlaceSuggestion[]> {
+  const params = new URLSearchParams({ q: query })
+  if (coords) {
+    params.set('lat', String(coords.lat))
+    params.set('lng', String(coords.lng))
+  }
+  const res = await apiFetch<{ suggestions: PlaceSuggestion[] }>(
+    `/places/autocomplete?${params}`,
+    { token },
+  )
+  return res.suggestions
+}
+
+export async function resolvePlace(
+  token: string,
+  request: {
+    provider: PlaceSummary['provider']
+    providerPlaceId: string
+    name?: string
+    latitude?: number
+    longitude?: number
+    formattedAddress?: string
+  },
+): Promise<PlaceSummary> {
+  return apiFetch('/places/resolve', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+}
+
+export async function fetchNearbyPlaces(
+  token: string,
+  coords: { lat: number; lng: number },
+  options?: { radiusM?: number; page?: number; size?: number },
+): Promise<PageResponse<PlaceNearbySummary>> {
+  const params = new URLSearchParams({
+    lat: String(coords.lat),
+    lng: String(coords.lng),
+    page: String(options?.page ?? 0),
+    size: String(options?.size ?? 20),
+  })
+  if (options?.radiusM != null) {
+    params.set('radiusM', String(options.radiusM))
+  }
+  return apiFetch(`/places/nearby?${params}`, { token })
+}
+
+export async function fetchPlace(token: string, placeId: string): Promise<PlaceSummary> {
+  return apiFetch(`/places/${placeId}`, { token })
+}
+
+export async function fetchPlacePosts(
+  token: string,
+  placeId: string,
+  options?: { page?: number; size?: number },
+): Promise<PageResponse<SteakPost>> {
+  const params = new URLSearchParams({
+    page: String(options?.page ?? 0),
+    size: String(options?.size ?? 20),
+  })
+  return apiFetch(`/places/${placeId}/posts?${params}`, { token })
+}
+
 export async function createPost(
   token: string,
   data: {
@@ -621,6 +745,7 @@ export async function createPost(
     rating: number
     restaurantName?: string
     restaurantLocation?: string
+    placeId?: string
     visibility?: PostVisibility
     images: File[]
     tagIds?: string[]
@@ -632,6 +757,7 @@ export async function createPost(
   form.append('rating', String(data.rating))
   if (data.restaurantName) form.append('restaurantName', data.restaurantName)
   if (data.restaurantLocation) form.append('restaurantLocation', data.restaurantLocation)
+  if (data.placeId) form.append('placeId', data.placeId)
   if (data.visibility) form.append('visibility', data.visibility)
   data.images.forEach((image) => form.append('images', image))
   data.tagIds?.forEach((tagId) => form.append('tagIds', tagId))
@@ -652,6 +778,7 @@ export async function updatePost(
     rating: number
     restaurantName?: string
     restaurantLocation?: string
+    placeId?: string
     visibility?: PostVisibility
     keepImageUrls: string[]
     newImages: File[]
@@ -664,6 +791,7 @@ export async function updatePost(
   form.append('rating', String(data.rating))
   if (data.restaurantName) form.append('restaurantName', data.restaurantName)
   if (data.restaurantLocation) form.append('restaurantLocation', data.restaurantLocation)
+  if (data.placeId) form.append('placeId', data.placeId)
   if (data.visibility) form.append('visibility', data.visibility)
   data.keepImageUrls.forEach((url) => form.append('keepImageUrls', url))
   data.newImages.forEach((image) => form.append('images', image))

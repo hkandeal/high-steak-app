@@ -40,6 +40,7 @@ public final class PostDtos {
             List<String> imageUrls,
             String restaurantName,
             String restaurantLocation,
+            PlaceDtos.PlaceSummary place,
             Instant createdAt,
             boolean hidden,
             String moderationReason,

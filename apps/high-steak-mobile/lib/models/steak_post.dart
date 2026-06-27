@@ -1,3 +1,5 @@
+import 'place.dart';
+
 class PostAuthor {
   const PostAuthor({
     required this.id,
@@ -76,6 +78,7 @@ class SteakPost {
     required this.imageUrls,
     required this.restaurantName,
     required this.restaurantLocation,
+    this.place,
     required this.createdAt,
     required this.hidden,
     required this.visibility,
@@ -93,6 +96,7 @@ class SteakPost {
   final List<String> imageUrls;
   final String? restaurantName;
   final String? restaurantLocation;
+  final PlaceSummary? place;
   final DateTime createdAt;
   final bool hidden;
   final PostVisibility visibility;
@@ -111,6 +115,7 @@ class SteakPost {
       imageUrls: imageUrls,
       restaurantName: restaurantName,
       restaurantLocation: restaurantLocation,
+      place: place,
       createdAt: createdAt,
       hidden: hidden,
       visibility: visibility,
@@ -136,6 +141,9 @@ class SteakPost {
       imageUrls: images.map((e) => e.toString()).toList(growable: false),
       restaurantName: json['restaurantName'] as String?,
       restaurantLocation: json['restaurantLocation'] as String?,
+      place: json['place'] is Map<String, dynamic>
+          ? PlaceSummary.fromJson(json['place'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.parse(json['createdAt'] as String),
       hidden: json['hidden'] as bool? ?? false,
       visibility: parsePostVisibility(json['visibility'] as String?),

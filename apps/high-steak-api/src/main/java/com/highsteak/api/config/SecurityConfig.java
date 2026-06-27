@@ -72,6 +72,9 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/places/google-preview/photo").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/places/{placeId:[0-9a-fA-F\\-]{36}}/provider-photo")
+                                .permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/{userId:[0-9a-fA-F\\-]{36}}").permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())

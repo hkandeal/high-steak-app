@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   bookmarkPost,
   deletePost,
   fetchFollowingPosts,
-  fetchPosts,
+  fetchNearbyPosts,
   FEED_PAGE_SIZE,
   hidePost,
   postImageUrl,
@@ -14,6 +14,7 @@ import {
   unsubscribeFromUser,
   type SteakPost,
 } from '../api/client'
+import { DEFAULT_CENTER } from '../components/ExploreMap'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { HidePostDialog } from '../components/HidePostDialog'
 import { ImageLightbox } from '../components/ImageLightbox'
@@ -26,14 +27,16 @@ import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
 import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
 import { useImageLightbox } from '../hooks/useImageLightbox'
+import { useUserLocation } from '../hooks/useUserLocation'
 import { listItemBackState } from '../navigation'
 import './FeedPage.css'
 
-type FeedTab = 'everyone' | 'following'
+type FeedTab = 'nearby' | 'following'
 
 export function FeedPage() {
   const { isAuthenticated, user, token, hasScope } = useAuth()
-  const [tab, setTab] = useState<FeedTab>('everyone')
+  const [tab, setTab] = useState<FeedTab>('nearby')
+  const { coords: userCoords } = useUserLocation()
   const [deleteTarget, setDeleteTarget] = useState<SteakPost | null>(null)
   const [hideTarget, setHideTarget] = useState<SteakPost | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -46,9 +49,14 @@ export function FeedPage() {
 
   useEffect(() => {
     if (tab === 'following' && !showFollowingTab) {
-      setTab('everyone')
+      setTab('nearby')
     }
   }, [tab, showFollowingTab])
+
+  const searchCenter = useMemo(
+    () => userCoords ?? DEFAULT_CENTER,
+    [userCoords],
+  )
 
   const loadPage = useCallback(
     async (page: number) => {
@@ -58,14 +66,14 @@ export function FeedPage() {
       if (tab === 'following') {
         return fetchFollowingPosts(token, { page, size: FEED_PAGE_SIZE })
       }
-      return fetchPosts(token, { page, size: FEED_PAGE_SIZE })
+      return fetchNearbyPosts(token, searchCenter, { page, size: FEED_PAGE_SIZE, radiusM: 50_000 })
     },
-    [tab, token],
+    [searchCenter, tab, token],
   )
 
   const { posts, setPosts, loading, loadingMore, error, hasMore, sentinelRef } = useInfinitePostFeed(
     loadPage,
-    `${tab}:${token ?? 'anon'}`,
+    `${tab}:${searchCenter.lat},${searchCenter.lng}:${token ?? 'anon'}`,
   )
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -191,7 +199,11 @@ export function FeedPage() {
       <header className="feed-header">
         <div>
           <h1>Steak feed</h1>
-          <p>Fresh from the grill — rated by the community.</p>
+          <p>
+            {tab === 'nearby'
+              ? `Steaks from restaurants near ${userCoords ? 'you' : 'your area'}.`
+              : 'Fresh from the grill — rated by people you follow.'}
+          </p>
         </div>
         {isAuthenticated && (
           <Link to="/post/new" className="btn primary feed-header-action">
@@ -205,11 +217,11 @@ export function FeedPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={tab === 'everyone'}
-            className={`feed-tab ${tab === 'everyone' ? 'active' : ''}`}
-            onClick={() => setTab('everyone')}
+            aria-selected={tab === 'nearby'}
+            className={`feed-tab ${tab === 'nearby' ? 'active' : ''}`}
+            onClick={() => setTab('nearby')}
           >
-            Everyone
+            Nearby
           </button>
           <button
             type="button"
@@ -235,13 +247,20 @@ export function FeedPage() {
         </div>
       )}
 
-      {!loading && !error && tab === 'everyone' && posts.length === 0 && (
+      {!loading && !error && tab === 'nearby' && posts.length === 0 && (
         <div className="empty-feed">
-          <p>No steaks yet. Be the first to fire up the grill!</p>
+          <p>No steaks nearby yet. Tag a restaurant when you post, or explore the map.</p>
           {isAuthenticated ? (
-            <Link to="/post/new" className="btn primary">
-              Post your first steak
-            </Link>
+            <div className="empty-feed-actions">
+              <Link to="/post/new" className="btn primary">
+                Rate a steak
+              </Link>
+              {hasScope('places:read') && (
+                <Link to="/explore" className="btn ghost">
+                  Explore map
+                </Link>
+              )}
+            </div>
           ) : (
             <Link to="/register" className="btn primary">
               Join and post
@@ -319,7 +338,7 @@ export function FeedPage() {
                       <span className="author">{post.author.displayName}</span>
                     </Link>
                     <div className="post-meta-actions">
-                      {tab === 'everyone'
+                      {tab === 'nearby'
                         && hasScope('subscriptions:write')
                         && post.author.subscribed != null && (
                         <AuthorFollowButton

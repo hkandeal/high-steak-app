@@ -34,6 +34,18 @@ List<_ShellDestination> _shellDestinations(AuthController auth) {
     ),
   ];
 
+  if (auth.hasScope('places:read')) {
+    destinations.insert(
+      1,
+      const _ShellDestination(
+        path: '/explore',
+        label: 'Explore',
+        icon: Icons.place_outlined,
+        selectedIcon: Icons.place,
+      ),
+    );
+  }
+
   if (auth.hasScope('bookmarks:read')) {
     destinations.add(
       const _ShellDestination(
@@ -85,6 +97,7 @@ int _selectedIndex(String path, List<_ShellDestination> destinations) {
   for (var i = 0; i < destinations.length; i++) {
     final destPath = destinations[i].path;
     if (path == destPath) return i;
+    if (path.startsWith('/explore/') && destPath == '/explore') return i;
     if (destPath == '/feed' &&
         (path.startsWith('/posts/') || path == '/post/new')) {
       return i;
@@ -99,6 +112,7 @@ int _selectedIndex(String path, List<_ShellDestination> destinations) {
 bool _isRootShellRoute(String path, List<_ShellDestination> destinations) {
   for (final dest in destinations) {
     if (dest.path == path) return true;
+    if (dest.path == '/explore' && path.startsWith('/explore/')) return true;
   }
   return path == '/notifications';
 }
@@ -119,6 +133,7 @@ class AppShell extends StatelessWidget {
 
   String _title(String path) {
     if (path == '/feed') return 'High Steaks';
+    if (path == '/explore' || path.startsWith('/explore/')) return 'Explore';
     if (path == '/bookmarks') return 'Bookmarks';
     if (path == '/discover') return 'Discover';
     if (path == '/following') return 'Following';

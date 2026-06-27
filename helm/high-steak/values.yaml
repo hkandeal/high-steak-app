@@ -90,3 +90,8 @@ mail:
   secret:
     name: high-steak-mail-secret
     passwordKey: sendgrid-api-key
+geo:
+  enabled: false
+  secret:
+    name: high-steak-geo-secret
+    apiKeyKey: google-places-api-key

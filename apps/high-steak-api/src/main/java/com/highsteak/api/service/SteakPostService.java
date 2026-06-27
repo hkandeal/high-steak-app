@@ -1,5 +1,8 @@
 package com.highsteak.api.service;
 
+import com.highsteak.api.config.GeoProperties;
+import com.highsteak.api.domain.CoverImageSource;
+import com.highsteak.api.domain.Place;
 import com.highsteak.api.domain.PostBookmarkId;
 import com.highsteak.api.domain.PostImage;
 import com.highsteak.api.domain.PostReviewTag;
@@ -8,8 +11,10 @@ import com.highsteak.api.domain.ReviewTag;
 import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.domain.User;
 import com.highsteak.api.dto.PostDtos;
+import com.highsteak.api.dto.PlaceDtos;
 import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.notification.NotificationEvent;
+import com.highsteak.api.repository.PlaceRepository;
 import com.highsteak.api.repository.PostBookmarkRepository;
 import com.highsteak.api.repository.ReviewTagRepository;
 import com.highsteak.api.repository.SteakPostRepository;
@@ -24,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +43,7 @@ import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -51,6 +58,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class SteakPostService {
 
     private final SteakPostRepository steakPostRepository;
+    private final PlaceRepository placeRepository;
     private final PostBookmarkRepository postBookmarkRepository;
     private final UserRepository userRepository;
     private final UserSubscriptionRepository subscriptionRepository;
@@ -60,6 +68,7 @@ public class SteakPostService {
     private final SubscriptionService subscriptionService;
     private final UploadValidation uploadValidation;
     private final ApplicationEventPublisher eventPublisher;
+    private final GeoProperties geoProperties;
 
     @Value("${app.uploads.dir}")
     private String uploadsDir;
@@ -69,6 +78,45 @@ public class SteakPostService {
         Pageable pageable = PaginationHelper.pageable(page, size);
         Page<SteakPost> posts = steakPostRepository.findByHiddenFalseAndVisibilityAndUserIdNotOrderByCreatedAtDesc(
                 PostVisibility.PUBLIC, viewer.getId(), pageable);
+        return toEveryoneFeedPageResponse(posts, viewer);
+    }
+
+    @Transactional(readOnly = true)
+    public PageDtos.PageResponse<PostDtos.PostResponse> getNearbyFeed(
+            UserPrincipal viewer,
+            double latitude,
+            double longitude,
+            Integer radiusM,
+            int page,
+            int size) {
+        int effectiveRadius = normalizeRadius(radiusM);
+        BoundingBox box = BoundingBox.around(latitude, longitude, effectiveRadius);
+        Pageable pageable = PaginationHelper.pageable(page, size);
+
+        List<String> postIdStrings = steakPostRepository.findNearbyPostIds(
+                viewer.getId().toString(),
+                latitude,
+                longitude,
+                box.minLat(),
+                box.maxLat(),
+                box.minLng(),
+                box.maxLng(),
+                effectiveRadius,
+                pageable.getPageSize(),
+                (int) pageable.getOffset());
+
+        long total = steakPostRepository.countNearbyPosts(
+                viewer.getId().toString(),
+                latitude,
+                longitude,
+                box.minLat(),
+                box.maxLat(),
+                box.minLng(),
+                box.maxLng(),
+                effectiveRadius);
+
+        List<SteakPost> ordered = loadPostsInOrder(postIdStrings);
+        Page<SteakPost> posts = new PageImpl<>(ordered, pageable, total);
         return toEveryoneFeedPageResponse(posts, viewer);
     }
 
@@ -200,6 +248,35 @@ public class SteakPostService {
         return new PageDtos.PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0);
     }
 
+    private int normalizeRadius(Integer radiusM) {
+        int value = radiusM != null ? radiusM : geoProperties.getDefaultRadiusM();
+        if (value <= 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "radiusM must be positive");
+        }
+        if (value > geoProperties.getMaxRadiusM()) {
+            throw new ResponseStatusException(BAD_REQUEST, "radiusM exceeds maximum allowed");
+        }
+        return value;
+    }
+
+    private List<SteakPost> loadPostsInOrder(List<String> postIdStrings) {
+        if (postIdStrings.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = postIdStrings.stream().map(UUID::fromString).toList();
+        Map<UUID, SteakPost> byId = steakPostRepository.findWithDetailsByIdIn(ids).stream()
+                .collect(Collectors.toMap(SteakPost::getId, Function.identity()));
+        return ids.stream().map(byId::get).filter(Objects::nonNull).toList();
+    }
+
+    private record BoundingBox(double minLat, double maxLat, double minLng, double maxLng) {
+        static BoundingBox around(double lat, double lng, int radiusM) {
+            double deltaLat = radiusM / 111_320.0;
+            double deltaLng = radiusM / (111_320.0 * Math.cos(Math.toRadians(lat)));
+            return new BoundingBox(lat - deltaLat, lat + deltaLat, lng - deltaLng, lng + deltaLng);
+        }
+    }
+
     @Transactional(readOnly = true)
     public long countVisiblePostsForProfile(UUID profileUserId, UserPrincipal viewer) {
         if (!userRepository.existsById(profileUserId)) {
@@ -224,6 +301,7 @@ public class SteakPostService {
             int rating,
             String restaurantName,
             String restaurantLocation,
+            UUID placeId,
             String visibility,
             MultipartFile[] images,
             List<UUID> tagIds) {
@@ -263,6 +341,8 @@ public class SteakPostService {
                 .images(postImages)
                 .build();
 
+        applyPlaceIfPresent(post, placeId);
+
         for (PostImage image : postImages) {
             image.setPost(post);
         }
@@ -280,6 +360,7 @@ public class SteakPostService {
             int rating,
             String restaurantName,
             String restaurantLocation,
+            UUID placeId,
             String visibility,
             List<String> keepImageUrls,
             MultipartFile[] newImages,
@@ -301,6 +382,7 @@ public class SteakPostService {
         if (visibility != null && !visibility.isBlank()) {
             post.setVisibility(parseVisibility(visibility));
         }
+        applyPlaceIfPresent(post, placeId);
 
         syncImages(post, keepImageUrls, newImages);
         replaceReviewTags(post, tagIds);
@@ -480,6 +562,7 @@ public class SteakPostService {
                 imageUrls,
                 post.getRestaurantName(),
                 post.getRestaurantLocation(),
+                toPlaceSummary(post.getPlace()),
                 post.getCreatedAt(),
                 post.isHidden(),
                 post.isHidden() ? post.getModerationReason() : null,
@@ -523,6 +606,41 @@ public class SteakPostService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void applyPlaceIfPresent(SteakPost post, UUID placeId) {
+        if (placeId == null) {
+            return;
+        }
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "Place not found"));
+        post.setPlace(place);
+        post.setRestaurantName(place.getName());
+        post.setRestaurantLocation(place.getFormattedAddress() != null
+                ? place.getFormattedAddress()
+                : place.getLatitude() + ", " + place.getLongitude());
+    }
+
+    private PlaceDtos.PlaceSummary toPlaceSummary(Place place) {
+        if (place == null) {
+            return null;
+        }
+        String previewPhotoUrl = null;
+        CoverImageSource previewPhotoSource = null;
+        if (place.getProviderPhotoName() != null && !place.getProviderPhotoName().isBlank()) {
+            previewPhotoUrl = "/places/" + place.getId() + "/provider-photo";
+            previewPhotoSource = CoverImageSource.GOOGLE;
+        }
+        return new PlaceDtos.PlaceSummary(
+                place.getId(),
+                place.getProvider(),
+                place.getName(),
+                place.getFormattedAddress(),
+                place.getLatitude(),
+                place.getLongitude(),
+                place.getLocationPrecision(),
+                previewPhotoUrl,
+                previewPhotoSource);
     }
 
     private ValidatedPostFields validatePostFields(

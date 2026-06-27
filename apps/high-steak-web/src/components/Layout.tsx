@@ -26,6 +26,14 @@ export function Layout() {
           {isAuthenticated ? (
             <>
               <div className="nav-primary-rail">
+                <RoleGate scope="places:read">
+                  <NavLink to="/explore" className="nav-link">
+                    <span className="nav-link-icon" aria-hidden="true">
+                      📍
+                    </span>
+                    <span className="nav-link-label">Explore</span>
+                  </NavLink>
+                </RoleGate>
                 <RoleGate scope="users:discover">
                   <NavLink to="/discover" className="nav-link">
                     <span className="nav-link-icon" aria-hidden="true">

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
@@ -10,7 +13,10 @@ import '../widgets/paginated_list_view.dart';
 import '../widgets/pill_tab_bar.dart';
 import '../widgets/post_card.dart';
 
-enum FeedTab { everyone, following }
+enum FeedTab { nearby, following }
+
+const _defaultFeedLat = 25.2048;
+const _defaultFeedLng = 55.2708;
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key, required this.auth, required this.api});
@@ -23,18 +29,20 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen> {
-  FeedTab _tab = FeedTab.everyone;
+  FeedTab _tab = FeedTab.nearby;
   PaginatedListController<SteakPost>? _controller;
   String? _pendingFollowAuthorId;
+  double? _lat;
+  double? _lng;
 
   bool get _showFollowingTab => widget.auth.hasScope('subscriptions:read');
   bool get _showAuthorFollow =>
-      _tab == FeedTab.everyone && widget.auth.hasScope('subscriptions:write');
+      _tab == FeedTab.nearby && widget.auth.hasScope('subscriptions:write');
 
   @override
   void initState() {
     super.initState();
-    _initController();
+    unawaited(_loadLocationBias());
   }
 
   @override
@@ -43,15 +51,47 @@ class _FeedScreenState extends State<FeedScreen> {
     super.dispose();
   }
 
+  Future<void> _loadLocationBias() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _initController();
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _lat = position.latitude;
+        _lng = position.longitude;
+      });
+      _initController();
+    } catch (_) {
+      if (!mounted) return;
+      _initController();
+    }
+  }
+
   void _initController() {
     _controller?.dispose();
+    final lat = _lat ?? _defaultFeedLat;
+    final lng = _lng ?? _defaultFeedLng;
     _controller = PaginatedListController<SteakPost>((page) {
       if (_tab == FeedTab.following) {
         return widget.api.fetchFollowingPosts(page: page);
       }
-      return widget.api.fetchPosts(page: page);
+      return widget.api.fetchNearbyPosts(lat: lat, lng: lng, page: page);
     });
     _controller!.reload();
+    if (mounted) setState(() {});
   }
 
   void _switchTab(FeedTab tab) {
@@ -92,9 +132,13 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = _controller!;
+    final controller = _controller;
     final theme = Theme.of(context);
     final palette = context.palette;
+
+    if (controller == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,14 +159,14 @@ class _FeedScreenState extends State<FeedScreen> {
               Text(
                 _tab == FeedTab.following
                     ? 'Posts from people you follow'
-                    : 'Fresh cuts from the community',
+                    : 'Steaks from restaurants near ${_lat != null ? 'you' : 'your area'}',
                 style: theme.textTheme.bodyMedium,
               ),
               if (_showFollowingTab) ...[
                 const SizedBox(height: 14),
                 PillTabBar<FeedTab>(
                   tabs: const [
-                    PillTab(value: FeedTab.everyone, label: 'Everyone'),
+                    PillTab(value: FeedTab.nearby, label: 'Nearby'),
                     PillTab(value: FeedTab.following, label: 'Following'),
                   ],
                   selected: _tab,
@@ -137,7 +181,7 @@ class _FeedScreenState extends State<FeedScreen> {
             controller: controller,
             emptyMessage: _tab == FeedTab.following
                 ? "You're not following anyone yet."
-                : 'No steaks yet. Be the first to fire up the grill!',
+                : 'No steaks nearby yet. Tag a restaurant when you post.',
             emptyIcon: _tab == FeedTab.following
                 ? Icons.group_outlined
                 : Icons.local_fire_department_outlined,
@@ -147,7 +191,12 @@ class _FeedScreenState extends State<FeedScreen> {
                     onPressed: () => context.go('/discover'),
                     child: const Text('Find steak lovers'),
                   )
-                : null,
+                : widget.auth.hasScope('places:read')
+                    ? FilledButton(
+                        onPressed: () => context.go('/explore'),
+                        child: const Text('Explore map'),
+                      )
+                    : null,
             itemBuilder: (context, item) => PostCard(
               post: item,
               auth: widget.auth,

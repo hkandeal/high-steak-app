@@ -31,6 +31,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Find steakhouses near you and tag restaurants in your posts.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take steak photos at the restaurant for your posts.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
