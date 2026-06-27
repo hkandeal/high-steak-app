@@ -91,7 +91,7 @@ mail:
     name: high-steak-mail-secret
     passwordKey: sendgrid-api-key
 geo:
-  enabled: false
+  enabled: true
   secret:
     name: high-steak-geo-secret
     apiKeyKey: google-places-api-key
