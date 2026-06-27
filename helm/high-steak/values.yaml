@@ -6,11 +6,11 @@ replicaCount: 1
 apiReplicaCount: 1
 image:
   repository: hossamgbm/high-steak-web
-  tag: '25'
+  tag: '26'
   pullPolicy: Always
 apiImage:
   repository: hossamgbm/high-steak-api
-  tag: '25'
+  tag: '26'
   pullPolicy: Always
 service:
   type: ClusterIP
@@ -91,7 +91,7 @@ mail:
     name: high-steak-mail-secret
     passwordKey: sendgrid-api-key
 geo:
-  enabled: false
+  enabled: true
   secret:
     name: high-steak-geo-secret
     apiKeyKey: google-places-api-key
