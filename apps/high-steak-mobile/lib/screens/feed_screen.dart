@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
@@ -9,6 +8,7 @@ import '../controllers/paginated_list_controller.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
+import '../utils/explore_location_store.dart';
 import '../widgets/paginated_list_view.dart';
 import '../widgets/pill_tab_bar.dart';
 import '../widgets/post_card.dart';
@@ -52,32 +52,16 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _loadLocationBias() async {
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        _initController();
-        return;
-      }
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
-      if (!mounted) return;
+    final cached = await ExploreLocationStore.readCoords() ??
+        await ExploreLocationStore.readBrowseCenter();
+    if (!mounted) return;
+    if (cached != null) {
       setState(() {
-        _lat = position.latitude;
-        _lng = position.longitude;
+        _lat = cached.lat;
+        _lng = cached.lng;
       });
-      _initController();
-    } catch (_) {
-      if (!mounted) return;
-      _initController();
     }
+    _initController();
   }
 
   void _initController() {

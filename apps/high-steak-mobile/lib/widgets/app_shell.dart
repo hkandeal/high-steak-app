@@ -68,17 +68,6 @@ List<_ShellDestination> _shellDestinations(AuthController auth) {
     );
   }
 
-  if (auth.hasScope('subscriptions:read')) {
-    destinations.add(
-      const _ShellDestination(
-        path: '/following',
-        label: 'Following',
-        icon: Icons.group_outlined,
-        selectedIcon: Icons.group,
-      ),
-    );
-  }
-
   if (userId != null) {
     destinations.add(
       _ShellDestination(
@@ -194,6 +183,8 @@ class AppShell extends StatelessWidget {
                   context.go('/discover');
                 } else if (value == 'following') {
                   context.go('/following');
+                } else if (value == 'explore') {
+                  context.go('/explore');
                 } else if (value == 'notifications') {
                   context.push('/notifications');
                 }
@@ -203,6 +194,12 @@ class AppShell extends StatelessWidget {
                   const PopupMenuItem(
                     value: 'new-post',
                     child: Text('Rate a steak'),
+                  ),
+                if (auth.hasScope('places:read') &&
+                    !destinations.any((d) => d.path == '/explore'))
+                  const PopupMenuItem(
+                    value: 'explore',
+                    child: Text('Explore map'),
                   ),
                 if (auth.hasScope('bookmarks:read') &&
                     !destinations.any((d) => d.path == '/bookmarks'))
@@ -216,8 +213,7 @@ class AppShell extends StatelessWidget {
                     value: 'discover',
                     child: Text('Find steak lovers'),
                   ),
-                if (auth.hasScope('subscriptions:read') &&
-                    !destinations.any((d) => d.path == '/following'))
+                if (auth.hasScope('subscriptions:read'))
                   const PopupMenuItem(
                     value: 'following',
                     child: Text('Following'),

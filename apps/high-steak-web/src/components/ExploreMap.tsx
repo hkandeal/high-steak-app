@@ -36,20 +36,22 @@ function MapFlyTo({
   center,
   zoom,
   active,
+  forceKey,
 }: {
   center: LatLng
   zoom?: number
   active: boolean
+  forceKey?: number
 }) {
   const map = useMap()
   const lastKey = useRef('')
   useEffect(() => {
     if (!active) return
-    const key = `${center.lat},${center.lng}`
+    const key = `${forceKey ?? 0}:${center.lat},${center.lng}`
     if (lastKey.current === key) return
     lastKey.current = key
     map.flyTo([center.lat, center.lng], zoom ?? Math.max(map.getZoom(), 13), { duration: 0.8 })
-  }, [active, center.lat, center.lng, zoom, map])
+  }, [active, center.lat, center.lng, zoom, map, forceKey])
   return null
 }
 
@@ -61,6 +63,7 @@ type ExploreMapProps = {
   onLocateMe: () => void
   locating: boolean
   flyToCenter?: boolean
+  flyKey?: number
 }
 
 export function ExploreMap({
@@ -71,6 +74,7 @@ export function ExploreMap({
   onLocateMe,
   locating,
   flyToCenter = true,
+  flyKey,
 }: ExploreMapProps) {
   const mapCenter = center ?? DEFAULT_CENTER
 
@@ -96,7 +100,7 @@ export function ExploreMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapFlyTo center={mapCenter} active={flyToCenter} />
+        <MapFlyTo center={mapCenter} active={flyToCenter} forceKey={flyKey} />
         {userCoords && (
           <Marker position={[userCoords.lat, userCoords.lng]} icon={userIcon}>
             <Popup>You are here</Popup>

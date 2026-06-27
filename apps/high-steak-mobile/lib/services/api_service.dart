@@ -603,6 +603,17 @@ class ApiService {
     );
   }
 
+  Future<PlaceSummary> fetchPlace(String placeId) async {
+    return _authorized(
+      '/places/$placeId',
+      (token) => _client.get(
+        _uri('/places/$placeId'),
+        headers: _headers(token: token),
+      ),
+      (body) => PlaceSummary.fromJson(body as Map<String, dynamic>),
+    );
+  }
+
   Future<PageResponse<PlaceNearbySummary>> fetchNearbyPlaces({
     required double lat,
     required double lng,

@@ -32,5 +32,7 @@
 	<string>NSApplication</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose steak photos to share in your posts.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Find steakhouses near you and tag restaurants in your posts.</string>
 </dict>
 </plist>

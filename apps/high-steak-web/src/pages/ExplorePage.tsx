@@ -51,9 +51,9 @@ export function ExplorePage() {
     useUserLocation()
 
   const [mode, setMode] = useState<ExploreMode>('browse')
-  const [mapFocus, setMapFocus] = useState<LatLng>(() => readBrowseCenter() ?? userCoords ?? DEFAULT_CENTER)
+  const [mapFocus, setMapFocus] = useState<LatLng>(() => readBrowseCenter() ?? DEFAULT_CENTER)
   const [flyMap, setFlyMap] = useState(false)
-  const mapInitialized = useRef(false)
+  const [flyKey, setFlyKey] = useState(0)
   const autoLocateOnce = useRef(false)
   const [savedCenter, setSavedCenter] = useState<LatLng | null>(readBrowseCenter)
   const [searchPlace, setSearchPlace] = useState<PlaceSummary | null>(null)
@@ -83,9 +83,9 @@ export function ExplorePage() {
   }, [placeId, requestLocation])
 
   useEffect(() => {
-    if (placeId || mode === 'search' || !browseCenter || mapInitialized.current) return
-    mapInitialized.current = true
+    if (placeId || mode === 'search' || !browseCenter) return
     setMapFocus(browseCenter)
+    setFlyKey((k) => k + 1)
     setFlyMap(true)
   }, [browseCenter, mode, placeId])
 
@@ -178,11 +178,8 @@ export function ExplorePage() {
     setSearchPlace(null)
     setSearchedPin(null)
     setMode('browse')
-    mapInitialized.current = false
+    setFlyKey((k) => k + 1)
     setFlyMap(true)
-    if (userCoords) {
-      setMapFocus(userCoords)
-    }
     requestLocation()
   }
 
@@ -269,11 +266,12 @@ export function ExplorePage() {
         onLocateMe={handleLocateMe}
         locating={geoLoading}
         flyToCenter={flyMap}
+        flyKey={flyKey}
       />
 
       {loading && <p className="muted explore-map-status">Loading map…</p>}
       {!browseCenter && !locationRequested && (
-        <p className="muted explore-map-status">Finding your location to show nearby steakhouses…</p>
+        <p className="muted explore-map-status">Finding your location…</p>
       )}
       {usingFallbackArea && geoError && (
         <p className="explore-geo-hint muted">

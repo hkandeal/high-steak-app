@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../models/place.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/explore_location_store.dart';
 
 class PlacePicker extends StatefulWidget {
   const PlacePicker({
@@ -14,11 +14,19 @@ class PlacePicker extends StatefulWidget {
     required this.api,
     required this.value,
     required this.onChanged,
+    this.hideLabel = false,
+    this.label = 'Restaurant',
+    this.placeholder,
+    this.hideFooterHint = false,
   });
 
   final ApiService api;
   final PlaceSummary? value;
   final ValueChanged<PlaceSummary?> onChanged;
+  final bool hideLabel;
+  final String label;
+  final String? placeholder;
+  final bool hideFooterHint;
 
   @override
   State<PlacePicker> createState() => _PlacePickerState();
@@ -57,27 +65,14 @@ class _PlacePickerState extends State<PlacePicker> {
   }
 
   Future<void> _loadLocationBias() async {
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
-      if (!mounted) return;
+    final cached = await ExploreLocationStore.readCoords();
+    if (!mounted) return;
+    if (cached != null) {
       setState(() {
-        _lat = position.latitude;
-        _lng = position.longitude;
+        _lat = cached.lat;
+        _lng = cached.lng;
       });
-    } catch (_) {}
+    }
   }
 
   void _onQueryChanged(String query) {
@@ -188,9 +183,9 @@ class _PlacePickerState extends State<PlacePicker> {
             Expanded(
               child: TextField(
                 controller: _controller,
-                decoration: const InputDecoration(
-                  labelText: 'Restaurant',
-                  hintText: 'Search restaurants near you',
+                decoration: InputDecoration(
+                  labelText: widget.hideLabel ? null : widget.label,
+                  hintText: widget.placeholder ?? 'Search restaurants near you',
                 ),
                 onChanged: _onQueryChanged,
                 enabled: !_resolving,
@@ -266,7 +261,7 @@ class _PlacePickerState extends State<PlacePicker> {
                   .toList(growable: false),
             ),
           ),
-        if (widget.value == null)
+        if (!widget.hideFooterHint && widget.value == null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
