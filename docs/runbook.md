@@ -76,9 +76,9 @@ Confirm `VITE_API_URL=http://localhost:8080/api` in compose or `.env`.
 
 Symptom: API pod crash-loops with `FlywayValidateException: Detected failed migration to version N`.
 
-### Common cause (V17)
+### Common cause (V17, V21)
 
-Migrations that set explicit `utf8mb4_0900_ai_ci` on `CHAR(36)` FK columns fail against prod MySQL where `users.id` uses the table default charset (`latin1` or `utf8mb4_unicode_ci`). Use plain `CHAR(36)` without charset/collation on FK columns.
+Migrations that set explicit `utf8mb4_0900_ai_ci` on new tables (e.g. `places`) fail against prod MySQL where legacy tables such as `steak_posts` use the table default charset (`latin1` or `utf8mb4_unicode_ci`). The FK from `steak_posts.place_id` to `places.id` then fails mid-migration. Use plain `CHAR(36)` without table-level charset/collation overrides — same pattern as V14/V15/V17.
 
 ### Recovery steps
 
@@ -94,10 +94,37 @@ kubectl exec -it -n apps db-apps-mysql-deployment-67845dcfc6-m4l5z -- \
 SELECT installed_rank, version, description, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;
 
 -- If migration failed mid-way, drop partial objects first
--- DROP TABLE IF EXISTS user_notification_preferences;
+-- V17: DROP TABLE IF EXISTS user_notification_preferences;
+-- V21: see block below
 
--- Remove failed record
-DELETE FROM flyway_schema_history WHERE version = '17' AND success = 0;
+-- Remove failed record (replace version as needed)
+DELETE FROM flyway_schema_history WHERE version = '21' AND success = 0;
+```
+
+**V21 (`geo places`) partial cleanup** — run only if `places` or `steak_posts.place_id` exist without a successful history row:
+
+```sql
+-- Drop FK/index/column on steak_posts if partially applied
+SET @fk := (SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'steak_posts'
+              AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND CONSTRAINT_NAME = 'fk_steak_posts_place');
+SET @sql := IF(@fk IS NOT NULL, 'ALTER TABLE steak_posts DROP FOREIGN KEY fk_steak_posts_place', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx := (SELECT INDEX_NAME FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'steak_posts'
+               AND INDEX_NAME = 'idx_steak_posts_place_created' LIMIT 1);
+SET @sql := IF(@idx IS NOT NULL, 'DROP INDEX idx_steak_posts_place_created ON steak_posts', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col := (SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'steak_posts' AND COLUMN_NAME = 'place_id');
+SET @sql := IF(@col IS NOT NULL, 'ALTER TABLE steak_posts DROP COLUMN place_id', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+DROP TABLE IF EXISTS places;
+
+DELETE FROM flyway_schema_history WHERE version = '21' AND success = 0;
 ```
 
 Then either:

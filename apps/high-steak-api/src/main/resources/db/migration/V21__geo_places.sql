@@ -16,7 +16,7 @@ CREATE TABLE places (
     CONSTRAINT uk_places_provider_place UNIQUE (provider, provider_place_id),
     CONSTRAINT chk_places_provider CHECK (provider IN ('google', 'mapbox', 'osm', 'manual')),
     CONSTRAINT chk_places_precision CHECK (location_precision IN ('EXACT', 'APPROXIMATE'))
-) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE INDEX idx_places_lat_lng ON places (latitude, longitude);
 CREATE INDEX idx_places_name ON places (name);
