@@ -56,7 +56,32 @@ class PlaceIntegrationTest {
         assertEquals(postId.toString(), placePosts.get("content").get(0).get("id").asText());
     }
 
+    @Test
+    void resolveManualPlaceWithArabicAddress() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String token = register("aruser" + suffix, "aruser" + suffix + "@test.com", "Arabic User");
+
+        UUID placeId = resolveManualPlace(
+                token,
+                "مطعم ستيك " + suffix,
+                "40.758896",
+                "-73.985130",
+                "شارع زعبيل، دبي، الإمارات العربية المتحدة");
+
+        MvcResult result = mockMvc.perform(get("/places/" + placeId)
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode place = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertTrue(place.get("formattedAddress").asText().contains("دبي"));
+    }
+
     private UUID resolveManualPlace(String token, String name, String lat, String lng) throws Exception {
+        return resolveManualPlace(token, name, lat, lng, "123 Test Ave");
+    }
+
+    private UUID resolveManualPlace(
+            String token, String name, String lat, String lng, String formattedAddress) throws Exception {
         MvcResult result = mockMvc.perform(post("/places/resolve")
                         .header("Authorization", bearer(token))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -67,9 +92,9 @@ class PlaceIntegrationTest {
                                   "name": "%s",
                                   "latitude": %s,
                                   "longitude": %s,
-                                  "formattedAddress": "123 Test Ave"
+                                  "formattedAddress": "%s"
                                 }
-                                """.formatted(UUID.randomUUID(), name, lat, lng)))
+                                """.formatted(UUID.randomUUID(), name, lat, lng, formattedAddress)))
                 .andExpect(status().isOk())
                 .andReturn();
         return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText());
