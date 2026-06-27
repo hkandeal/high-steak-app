@@ -76,9 +76,11 @@ Confirm `VITE_API_URL=http://localhost:8080/api` in compose or `.env`.
 
 Symptom: API pod crash-loops with `FlywayValidateException: Detected failed migration to version N`.
 
+**Important:** Deploying a fixed API image does **not** clear a failed migration. Prod MySQL still has `flyway_schema_history.success = 0` for that version until you run the cleanup SQL below. Flyway validates history **before** running migrations, so the pod keeps crash-looping until the failed row and any partial schema are removed.
+
 ### Common cause (V17, V21)
 
-Migrations that set explicit `utf8mb4_0900_ai_ci` on new tables (e.g. `places`) fail against prod MySQL where legacy tables such as `steak_posts` use the table default charset (`latin1` or `utf8mb4_unicode_ci`). The FK from `steak_posts.place_id` to `places.id` then fails mid-migration. Use plain `CHAR(36)` without table-level charset/collation overrides — same pattern as V14/V15/V17.
+Migrations that set explicit `utf8mb4_0900_ai_ci` on new tables (e.g. `places`) fail against prod MySQL where legacy tables such as `steak_posts` use the table default charset (`latin1` or `utf8mb4_unicode_ci`). The FK from `steak_posts.place_id` to `places.id` then fails mid-migration. V21 is a **Java migration** (like V19/V20) that reads `steak_posts.id` charset/collation at runtime.
 
 ### Recovery steps
 
