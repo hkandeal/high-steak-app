@@ -152,7 +152,7 @@ export function ExploreMap({
                       View posts
                     </Link>
                   ) : (
-                    <Link to="/post/new" className="explore-map-popup-link">
+                    <Link to={`/post/new?placeId=${place.id}`} className="explore-map-popup-link">
                       Be the first to rate
                     </Link>
                   )}

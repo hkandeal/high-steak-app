@@ -28,11 +28,13 @@ class PostEditorScreen extends StatefulWidget {
     required this.auth,
     required this.api,
     this.postId,
+    this.initialPlaceId,
   });
 
   final AuthController auth;
   final ApiService api;
   final String? postId;
+  final String? initialPlaceId;
 
   bool get isEditing => postId != null;
 
@@ -81,9 +83,23 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     await Future.wait([
       _loadTags(),
       if (widget.isEditing) _loadPost() else Future.value(),
+      if (!widget.isEditing && widget.initialPlaceId != null)
+        _loadInitialPlace(widget.initialPlaceId!)
+      else
+        Future.value(),
     ]);
     if (!mounted) return;
     setState(() => _loading = false);
+  }
+
+  Future<void> _loadInitialPlace(String placeId) async {
+    try {
+      final place = await widget.api.fetchPlace(placeId);
+      if (!mounted) return;
+      _restaurantName.text = place.name;
+      _restaurantLocation.text = place.formattedAddress ?? '';
+      setState(() => _selectedPlace = place);
+    } catch (_) {}
   }
 
   Future<void> _restoreLostAndroidPhotos() async {
