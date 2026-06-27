@@ -4,6 +4,7 @@ import com.highsteak.api.db.migration.FlywayV21HistoryRepair;
 import com.highsteak.api.db.migration.V19__AccountDeletion;
 import com.highsteak.api.db.migration.V20__PasswordReset;
 import com.highsteak.api.db.migration.V21__GeoPlaces;
+import com.highsteak.api.db.migration.V23__PlacesUtf8mb4Text;
 import com.highsteak.api.db.migration.V4__UserUuid;
 import com.highsteak.api.db.migration.V7__PostUuid;
 import com.highsteak.api.db.migration.V16__Utf8mb4TextColumns;
@@ -25,7 +26,8 @@ public class FlywayConfig {
                 new V16__Utf8mb4TextColumns(),
                 new V19__AccountDeletion(),
                 new V20__PasswordReset(),
-                new V21__GeoPlaces());
+                new V21__GeoPlaces(),
+                new V23__PlacesUtf8mb4Text());
     }
 
     @Bean
