@@ -6,11 +6,11 @@ replicaCount: 1
 apiReplicaCount: 1
 image:
   repository: hossamgbm/high-steak-web
-  tag: '23'
+  tag: '24'
   pullPolicy: Always
 apiImage:
   repository: hossamgbm/high-steak-api
-  tag: '23'
+  tag: '24'
   pullPolicy: Always
 service:
   type: ClusterIP
