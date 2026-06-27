@@ -140,12 +140,11 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: '/explore',
-            builder: (context, state) => ExploreScreen(auth: auth, api: api),
+            builder: (context, state) => ExploreScreen(api: api),
           ),
           GoRoute(
             path: '/explore/:placeId',
             builder: (context, state) => ExploreScreen(
-              auth: auth,
               api: api,
               placeId: state.pathParameters['placeId'],
             ),

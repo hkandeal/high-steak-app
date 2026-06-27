@@ -14,11 +14,19 @@ class PlacePicker extends StatefulWidget {
     required this.api,
     required this.value,
     required this.onChanged,
+    this.hideLabel = false,
+    this.label = 'Restaurant',
+    this.placeholder,
+    this.hideFooterHint = false,
   });
 
   final ApiService api;
   final PlaceSummary? value;
   final ValueChanged<PlaceSummary?> onChanged;
+  final bool hideLabel;
+  final String label;
+  final String? placeholder;
+  final bool hideFooterHint;
 
   @override
   State<PlacePicker> createState() => _PlacePickerState();
@@ -188,9 +196,9 @@ class _PlacePickerState extends State<PlacePicker> {
             Expanded(
               child: TextField(
                 controller: _controller,
-                decoration: const InputDecoration(
-                  labelText: 'Restaurant',
-                  hintText: 'Search restaurants near you',
+                decoration: InputDecoration(
+                  labelText: widget.hideLabel ? null : widget.label,
+                  hintText: widget.placeholder ?? 'Search restaurants near you',
                 ),
                 onChanged: _onQueryChanged,
                 enabled: !_resolving,
@@ -266,7 +274,7 @@ class _PlacePickerState extends State<PlacePicker> {
                   .toList(growable: false),
             ),
           ),
-        if (widget.value == null)
+        if (!widget.hideFooterHint && widget.value == null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(

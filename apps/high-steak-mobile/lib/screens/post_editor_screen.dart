@@ -349,6 +349,52 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 16),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.map_outlined, color: palette.gold, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Restaurant on the map', style: theme.textTheme.titleMedium),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Search Google Maps to tag where you ate.',
+                            style: TextStyle(color: palette.creamMuted, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                PlacePicker(
+                  api: widget.api,
+                  value: _selectedPlace,
+                  onChanged: (place) => setState(() {
+                    _selectedPlace = place;
+                    if (place != null) {
+                      _restaurantName.text = place.name;
+                      _restaurantLocation.text = place.formattedAddress ?? '';
+                    }
+                  }),
+                  hideLabel: true,
+                  placeholder: 'Search restaurants on the map…',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         Text('Your rating', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         StarRating(value: _rating, size: 32, onChanged: (v) => setState(() => _rating = v)),
@@ -365,17 +411,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
             onChanged: (ids) => setState(() => _selectedTagIds = ids),
           ),
         const SizedBox(height: 16),
-        PlacePicker(
-          api: widget.api,
-          value: _selectedPlace,
-          onChanged: (place) => setState(() {
-            _selectedPlace = place;
-            if (place != null) {
-              _restaurantName.text = place.name;
-              _restaurantLocation.text = place.formattedAddress ?? '';
-            }
-          }),
-        ),
         if (_selectedPlace == null) ...[
           const SizedBox(height: 14),
           TextField(
