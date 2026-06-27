@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../auth/auth_controller.dart';
 import '../constants/api_constraints.dart';
+import '../models/place.dart';
 import '../models/review_tag_catalog.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
@@ -15,6 +16,7 @@ import '../utils/post_image_picker.dart';
 import '../utils/post_validation.dart';
 import '../widgets/auth_card.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/place_picker.dart';
 import '../widgets/post_photo_section.dart';
 import '../widgets/review_tag_picker.dart';
 import '../widgets/star_rating.dart';
@@ -50,6 +52,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   List<String> _keepImageUrls = [];
   List<XFile> _newImages = [];
   List<String> _selectedTagIds = [];
+  PlaceSummary? _selectedPlace;
   ReviewTagCatalog? _tagCatalog;
   bool _loading = true;
   bool _loadingTags = true;
@@ -133,6 +136,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
         _visibility = post.visibility;
         _keepImageUrls = List.of(post.imageUrls);
         _selectedTagIds = post.tags.map((tag) => tag.id).toList();
+        _selectedPlace = post.place;
       });
     } catch (e) {
       if (!mounted) return;
@@ -235,12 +239,15 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           rating: _rating,
           keepImageUrls: _keepImageUrls,
           newImages: _newImages,
-          restaurantName: _restaurantName.text.trim().isEmpty
-              ? null
-              : _restaurantName.text.trim(),
-          restaurantLocation: _restaurantLocation.text.trim().isEmpty
-              ? null
-              : _restaurantLocation.text.trim(),
+          restaurantName: _selectedPlace?.name ??
+              (_restaurantName.text.trim().isEmpty
+                  ? null
+                  : _restaurantName.text.trim()),
+          restaurantLocation: _selectedPlace?.formattedAddress ??
+              (_restaurantLocation.text.trim().isEmpty
+                  ? null
+                  : _restaurantLocation.text.trim()),
+          placeId: _selectedPlace?.id,
           visibility: postVisibilityToApi(_visibility),
           tagIds: _selectedTagIds,
         );
@@ -250,12 +257,15 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           comment: _comment.text.trim(),
           rating: _rating,
           images: _newImages,
-          restaurantName: _restaurantName.text.trim().isEmpty
-              ? null
-              : _restaurantName.text.trim(),
-          restaurantLocation: _restaurantLocation.text.trim().isEmpty
-              ? null
-              : _restaurantLocation.text.trim(),
+          restaurantName: _selectedPlace?.name ??
+              (_restaurantName.text.trim().isEmpty
+                  ? null
+                  : _restaurantName.text.trim()),
+          restaurantLocation: _selectedPlace?.formattedAddress ??
+              (_restaurantLocation.text.trim().isEmpty
+                  ? null
+                  : _restaurantLocation.text.trim()),
+          placeId: _selectedPlace?.id,
           visibility: postVisibilityToApi(_visibility),
           tagIds: _selectedTagIds,
         );
@@ -355,23 +365,37 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
             onChanged: (ids) => setState(() => _selectedTagIds = ids),
           ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _restaurantName,
-          decoration: const InputDecoration(
-            labelText: 'Restaurant',
-            hintText: 'e.g. The Prime Cut',
-          ),
-          textInputAction: TextInputAction.next,
+        PlacePicker(
+          api: widget.api,
+          value: _selectedPlace,
+          onChanged: (place) => setState(() {
+            _selectedPlace = place;
+            if (place != null) {
+              _restaurantName.text = place.name;
+              _restaurantLocation.text = place.formattedAddress ?? '';
+            }
+          }),
         ),
-        const SizedBox(height: 14),
-        TextField(
-          controller: _restaurantLocation,
-          decoration: const InputDecoration(
-            labelText: 'Location',
-            hintText: 'e.g. Austin, TX',
+        if (_selectedPlace == null) ...[
+          const SizedBox(height: 14),
+          TextField(
+            controller: _restaurantName,
+            decoration: const InputDecoration(
+              labelText: 'Restaurant name',
+              hintText: 'e.g. The Prime Cut',
+            ),
+            textInputAction: TextInputAction.next,
           ),
-          textInputAction: TextInputAction.next,
-        ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _restaurantLocation,
+            decoration: const InputDecoration(
+              labelText: 'Location',
+              hintText: 'e.g. Austin, TX',
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+        ],
         const SizedBox(height: 14),
         TextField(
           controller: _comment,

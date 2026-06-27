@@ -57,6 +57,13 @@ spec:
                   name: {{ .Values.mail.secret.name }}
                   key: {{ .Values.mail.secret.usernameKey }}
             {{- end }}
+            {{- if and .Values.geo.enabled .Values.geo.secret.name .Values.geo.secret.apiKeyKey }}
+            - name: APP_GEO_GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.geo.secret.name }}
+                  key: {{ .Values.geo.secret.apiKeyKey }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.apiService.targetPort }}
           {{- if .Values.persistence.uploads.enabled }}

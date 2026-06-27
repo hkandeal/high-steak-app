@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../config/api_config.dart';
 import '../constants/pagination.dart';
 import '../models/notification_preferences.dart';
+import '../models/place.dart';
 import '../models/page_response.dart';
 import '../models/post_comment.dart';
 import '../models/review_tag_catalog.dart';
@@ -287,6 +288,29 @@ class ApiService {
     );
   }
 
+  Future<PageResponse<SteakPost>> fetchNearbyPosts({
+    required double lat,
+    required double lng,
+    int page = 0,
+    int size = feedPageSize,
+    int radiusM = 50000,
+  }) async {
+    return _authorized(
+      '/posts/nearby',
+      (token) => _client.get(
+        _uri('/posts/nearby', {
+          'lat': '$lat',
+          'lng': '$lng',
+          'radiusM': '$radiusM',
+          'page': '$page',
+          'size': '$size',
+        }),
+        headers: _headers(token: token),
+      ),
+      (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
+    );
+  }
+
   Future<PageResponse<SteakPost>> fetchFollowingPosts({
     int page = 0,
     int size = feedPageSize,
@@ -544,6 +568,82 @@ class ApiService {
     );
   }
 
+  Future<List<PlaceSuggestion>> autocompletePlaces(
+    String query, {
+    double? lat,
+    double? lng,
+  }) async {
+    final queryParams = <String, String>{'q': query};
+    if (lat != null) queryParams['lat'] = '$lat';
+    if (lng != null) queryParams['lng'] = '$lng';
+    final result = await _authorized(
+      '/places/autocomplete',
+      (token) => _client.get(
+        _uri('/places/autocomplete', queryParams),
+        headers: _headers(token: token),
+      ),
+      (body) => body as Map<String, dynamic>,
+    );
+    final suggestions = result['suggestions'] as List<dynamic>? ?? [];
+    return suggestions
+        .whereType<Map<String, dynamic>>()
+        .map(PlaceSuggestion.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<PlaceSummary> resolvePlace(Map<String, dynamic> request) async {
+    return _authorized(
+      '/places/resolve',
+      (token) => _client.post(
+        _uri('/places/resolve'),
+        headers: _headers(token: token, json: true),
+        body: jsonEncode(request),
+      ),
+      (body) => PlaceSummary.fromJson(body as Map<String, dynamic>),
+    );
+  }
+
+  Future<PageResponse<PlaceNearbySummary>> fetchNearbyPlaces({
+    required double lat,
+    required double lng,
+    int radiusM = 50000,
+    int page = 0,
+    int size = 20,
+  }) async {
+    return _authorized(
+      '/places/nearby',
+      (token) => _client.get(
+        _uri('/places/nearby', {
+          'lat': '$lat',
+          'lng': '$lng',
+          'radiusM': '$radiusM',
+          'page': '$page',
+          'size': '$size',
+        }),
+        headers: _headers(token: token),
+      ),
+      (body) => PageResponse.fromJson(
+        body as Map<String, dynamic>,
+        PlaceNearbySummary.fromJson,
+      ),
+    );
+  }
+
+  Future<PageResponse<SteakPost>> fetchPlacePosts(
+    String placeId, {
+    int page = 0,
+    int size = 20,
+  }) async {
+    return _authorized(
+      '/places/$placeId/posts',
+      (token) => _client.get(
+        _uri('/places/$placeId/posts', {'page': '$page', 'size': '$size'}),
+        headers: _headers(token: token),
+      ),
+      (body) => PageResponse.fromJson(body as Map<String, dynamic>, SteakPost.fromJson),
+    );
+  }
+
   Future<SteakPost> createPost({
     required String title,
     required String comment,
@@ -551,6 +651,7 @@ class ApiService {
     required List<XFile> images,
     String? restaurantName,
     String? restaurantLocation,
+    String? placeId,
     String visibility = 'PUBLIC',
     List<String> tagIds = const [],
   }) async {
@@ -573,6 +674,9 @@ class ApiService {
         if (restaurantLocation != null && restaurantLocation.isNotEmpty) {
           request.fields['restaurantLocation'] = restaurantLocation;
         }
+        if (placeId != null && placeId.isNotEmpty) {
+          request.fields['placeId'] = placeId;
+        }
         for (final tagId in tagIds) {
           request.files.add(http.MultipartFile.fromString('tagIds', tagId));
         }
@@ -594,6 +698,7 @@ class ApiService {
     required List<XFile> newImages,
     String? restaurantName,
     String? restaurantLocation,
+    String? placeId,
     String visibility = 'PUBLIC',
     List<String> tagIds = const [],
   }) async {
@@ -615,6 +720,9 @@ class ApiService {
         }
         if (restaurantLocation != null && restaurantLocation.isNotEmpty) {
           request.fields['restaurantLocation'] = restaurantLocation;
+        }
+        if (placeId != null && placeId.isNotEmpty) {
+          request.fields['placeId'] = placeId;
         }
         for (final url in keepImageUrls) {
           request.files.add(http.MultipartFile.fromString('keepImageUrls', url));

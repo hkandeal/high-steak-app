@@ -73,6 +73,13 @@ app:
     auto-verify-on-register: ${AUTH_AUTO_VERIFY_ON_REGISTER:false}
     verification-expiration-hours: ${AUTH_VERIFICATION_EXPIRATION_HOURS:24}
     password-reset-expiration-hours: ${AUTH_PASSWORD_RESET_EXPIRATION_HOURS:24}
+  geo:
+    default-radius-m: ${APP_GEO_DEFAULT_RADIUS_M:50000}
+    max-radius-m: ${APP_GEO_MAX_RADIUS_M:50000}
+    place-provider: ${APP_GEO_PLACE_PROVIDER:google}
+    google:
+      enabled: ${APP_GEO_GOOGLE_ENABLED:false}
+      api-key: ${APP_GEO_GOOGLE_API_KEY:}
 
 logging:
   level:

@@ -16,7 +16,7 @@ const OPTIONS: {
     value: 'PUBLIC',
     icon: '🌐',
     title: 'Public',
-    description: 'Shows on the everyone feed',
+    description: 'Shows on the nearby feed',
   },
   {
     value: 'FOLLOWERS_ONLY',

@@ -4,7 +4,9 @@ import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
 import { validateImageFiles, validatePostForm, isUploadRelatedError } from '../utils/validation'
 import { ImageLightbox } from './ImageLightbox'
 import { ReviewTagPicker } from './ReviewTagPicker'
+import { PlacePicker } from './PlacePicker'
 import { StarRating } from './StarRating'
+import type { PlaceSummary } from '../api/client'
 import { VisibilityPicker } from './VisibilityPicker'
 import './PostForm.css'
 
@@ -14,6 +16,7 @@ export type PostFormSubmitData = {
   rating: number
   restaurantName?: string
   restaurantLocation?: string
+  placeId?: string
   visibility: PostVisibility
   tagIds: string[]
   newImages: File[]
@@ -31,6 +34,7 @@ type PostFormProps = {
   initialRating?: number
   initialRestaurantName?: string
   initialRestaurantLocation?: string
+  initialPlace?: PlaceSummary | null
   initialVisibility?: PostVisibility
   initialTagIds?: string[]
   initialImageUrls?: string[]
@@ -60,6 +64,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
     initialRating = 5,
     initialRestaurantName = '',
     initialRestaurantLocation = '',
+    initialPlace = null,
     initialVisibility = 'PUBLIC',
     initialTagIds = [],
     initialImageUrls = [],
@@ -76,6 +81,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   const [rating, setRating] = useState(initialRating)
   const [restaurantName, setRestaurantName] = useState(initialRestaurantName)
   const [restaurantLocation, setRestaurantLocation] = useState(initialRestaurantLocation)
+  const [selectedPlace, setSelectedPlace] = useState<PlaceSummary | null>(initialPlace)
   const [visibility, setVisibility] = useState<PostVisibility>(initialVisibility)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(initialTagIds)
   const [keepImageUrls, setKeepImageUrls] = useState<string[]>(initialImageUrls)
@@ -114,6 +120,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       rating !== initialRating ||
       restaurantName !== initialRestaurantName ||
       restaurantLocation !== initialRestaurantLocation ||
+      selectedPlace?.id !== initialPlace?.id ||
       visibility !== initialVisibility ||
       !tagIdsEqual(selectedTagIds, initialTagIds) ||
       !urlsEqual(keepImageUrls, initialImageUrls) ||
@@ -129,8 +136,11 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       title,
       comment,
       rating,
-      restaurantName: restaurantName || undefined,
-      restaurantLocation: restaurantLocation || undefined,
+      restaurantName: selectedPlace ? selectedPlace.name : restaurantName || undefined,
+      restaurantLocation: selectedPlace
+        ? selectedPlace.formattedAddress ?? undefined
+        : restaurantLocation || undefined,
+      placeId: selectedPlace?.id,
       visibility,
       tagIds: selectedTagIds,
       newImages,
@@ -276,6 +286,32 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
           />
         </label>
 
+        <section className="post-form-map-search" aria-labelledby="post-map-search-heading">
+          <div className="post-form-map-search-header">
+            <span className="post-form-map-search-icon" aria-hidden="true">
+              🗺
+            </span>
+            <div>
+              <h2 id="post-map-search-heading">Restaurant on the map</h2>
+              <p>Search Google Maps to tag where you ate.</p>
+            </div>
+          </div>
+          <PlacePicker
+            value={selectedPlace}
+            onChange={(place) => {
+              setSelectedPlace(place)
+              if (place) {
+                setRestaurantName(place.name)
+                setRestaurantLocation(place.formattedAddress ?? '')
+              }
+            }}
+            disabled={loading}
+            hideLabel
+            label="Restaurant on the map"
+            placeholder="Search restaurants on the map…"
+          />
+        </section>
+
         <div>
           <span className="field-label">Your rating</span>
           <StarRating value={rating} onChange={setRating} />
@@ -283,25 +319,29 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
 
         <ReviewTagPicker selectedIds={selectedTagIds} onChange={setSelectedTagIds} />
 
-        <label>
-          Restaurant
-          <input
-            value={restaurantName}
-            onChange={(e) => setRestaurantName(e.target.value)}
-            placeholder="e.g. The Prime Cut"
-            maxLength={API_CONSTRAINTS.restaurantName.max}
-          />
-        </label>
+        {!selectedPlace && (
+          <>
+            <label>
+              Restaurant name
+              <input
+                value={restaurantName}
+                onChange={(e) => setRestaurantName(e.target.value)}
+                placeholder="e.g. The Prime Cut"
+                maxLength={API_CONSTRAINTS.restaurantName.max}
+              />
+            </label>
 
-        <label>
-          Location
-          <input
-            value={restaurantLocation}
-            onChange={(e) => setRestaurantLocation(e.target.value)}
-            placeholder="e.g. Austin, TX"
-            maxLength={API_CONSTRAINTS.restaurantLocation.max}
-          />
-        </label>
+            <label>
+              Location
+              <input
+                value={restaurantLocation}
+                onChange={(e) => setRestaurantLocation(e.target.value)}
+                placeholder="e.g. Austin, TX"
+                maxLength={API_CONSTRAINTS.restaurantLocation.max}
+              />
+            </label>
+          </>
+        )}
 
         <label>
           Comment

@@ -63,8 +63,16 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
     List<SteakPost> findByUserIdInAndHiddenFalseOrderByCreatedAtDesc(Collection<UUID> userIds);
 
-    @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
+    @EntityGraph(attributePaths = {"user", "place", "images", "reviewTags", "reviewTags.tag"})
     Optional<SteakPost> findWithDetailsById(UUID id);
+
+    @EntityGraph(attributePaths = {"user", "place", "images", "reviewTags", "reviewTags.tag"})
+    Page<SteakPost> findByPlaceIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
+            UUID placeId, PostVisibility visibility, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"images"})
+    Optional<SteakPost> findFirstByPlaceIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
+            UUID placeId, PostVisibility visibility);
 
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
     List<SteakPost> findWithDetailsByIdIn(Collection<UUID> ids);
@@ -74,6 +82,60 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
     long countByUserId(UUID userId);
 
     long countByUserIdAndHiddenFalseAndVisibility(UUID userId, PostVisibility visibility);
+
+    @Query(value = """
+            SELECT sp.id
+            FROM steak_posts sp
+            INNER JOIN places p ON p.id = sp.place_id
+            WHERE sp.hidden = false
+              AND sp.visibility = 'PUBLIC'
+              AND sp.user_id != :viewerId
+              AND p.latitude BETWEEN :minLat AND :maxLat
+              AND p.longitude BETWEEN :minLng AND :maxLng
+              AND 6371000 * ACOS(LEAST(1.0, GREATEST(-1.0,
+                  COS(RADIANS(:lat)) * COS(RADIANS(p.latitude))
+                      * COS(RADIANS(p.longitude) - RADIANS(:lng))
+                  + SIN(RADIANS(:lat)) * SIN(RADIANS(p.latitude))
+              ))) <= :radiusM
+            ORDER BY sp.created_at DESC
+            LIMIT :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<String> findNearbyPostIds(
+            @Param("viewerId") String viewerId,
+            @Param("lat") double lat,
+            @Param("lng") double lng,
+            @Param("minLat") double minLat,
+            @Param("maxLat") double maxLat,
+            @Param("minLng") double minLng,
+            @Param("maxLng") double maxLng,
+            @Param("radiusM") int radiusM,
+            @Param("limit") int limit,
+            @Param("offset") int offset);
+
+    @Query(value = """
+            SELECT COUNT(*)
+            FROM steak_posts sp
+            INNER JOIN places p ON p.id = sp.place_id
+            WHERE sp.hidden = false
+              AND sp.visibility = 'PUBLIC'
+              AND sp.user_id != :viewerId
+              AND p.latitude BETWEEN :minLat AND :maxLat
+              AND p.longitude BETWEEN :minLng AND :maxLng
+              AND 6371000 * ACOS(LEAST(1.0, GREATEST(-1.0,
+                  COS(RADIANS(:lat)) * COS(RADIANS(p.latitude))
+                      * COS(RADIANS(p.longitude) - RADIANS(:lng))
+                  + SIN(RADIANS(:lat)) * SIN(RADIANS(p.latitude))
+              ))) <= :radiusM
+            """, nativeQuery = true)
+    long countNearbyPosts(
+            @Param("viewerId") String viewerId,
+            @Param("lat") double lat,
+            @Param("lng") double lng,
+            @Param("minLat") double minLat,
+            @Param("maxLat") double maxLat,
+            @Param("minLng") double minLng,
+            @Param("maxLng") double maxLng,
+            @Param("radiusM") int radiusM);
 
     @EntityGraph(attributePaths = {"user", "images", "reviewTags", "reviewTags.tag"})
     @Query("""

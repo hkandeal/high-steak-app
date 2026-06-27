@@ -28,7 +28,7 @@ class VisibilityPicker extends StatelessWidget {
         _OptionCard(
           icon: Icons.public,
           title: 'Public',
-          description: 'Shows on the everyone feed',
+          description: 'Shows on the nearby feed',
           selected: value == PostVisibility.public,
           palette: palette,
           onTap: () => onChanged(PostVisibility.public),

@@ -7,6 +7,7 @@ import '../auth/auth_controller.dart';
 import '../screens/bookmarks_screen.dart';
 import '../screens/create_post_screen.dart';
 import '../screens/discover_screen.dart';
+import '../screens/explore_screen.dart';
 import '../screens/following_screen.dart';
 import '../screens/landing_screen.dart';
 import '../screens/login_screen.dart';
@@ -76,6 +77,11 @@ GoRouter createAppRouter({
         return '/feed';
       }
 
+      if (state.matchedLocation.startsWith('/explore') &&
+          !auth.hasScope('places:read')) {
+        return '/feed';
+      }
+
       return null;
     },
     routes: [
@@ -131,6 +137,18 @@ GoRouter createAppRouter({
             path: '/notifications',
             builder: (context, state) =>
                 NotificationsScreen(auth: auth, api: api),
+          ),
+          GoRoute(
+            path: '/explore',
+            builder: (context, state) => ExploreScreen(auth: auth, api: api),
+          ),
+          GoRoute(
+            path: '/explore/:placeId',
+            builder: (context, state) => ExploreScreen(
+              auth: auth,
+              api: api,
+              placeId: state.pathParameters['placeId'],
+            ),
           ),
           GoRoute(
             path: '/discover',

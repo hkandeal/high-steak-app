@@ -6,6 +6,8 @@ import com.highsteak.api.security.UserPrincipal;
 import com.highsteak.api.service.ReviewTagService;
 import com.highsteak.api.service.SteakPostService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -72,6 +74,18 @@ public class SteakPostController {
         return steakPostService.getFollowingFeed(principal, page, size);
     }
 
+    @GetMapping("/nearby")
+    @PreAuthorize("hasAuthority('posts:read')")
+    public PageDtos.PageResponse<PostDtos.PostResponse> getNearbyFeed(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam @DecimalMin("-90") @DecimalMax("90") double lat,
+            @RequestParam @DecimalMin("-180") @DecimalMax("180") double lng,
+            @RequestParam(required = false) Integer radiusM,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return steakPostService.getNearbyFeed(principal, lat, lng, radiusM, page, size);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('posts:read')")
     public PostDtos.PostResponse getPost(
@@ -90,12 +104,13 @@ public class SteakPostController {
             @RequestParam int rating,
             @RequestParam(required = false) String restaurantName,
             @RequestParam(required = false) String restaurantLocation,
+            @RequestParam(required = false) UUID placeId,
             @RequestParam(required = false) String visibility,
             @RequestParam("images") MultipartFile[] images,
             @RequestParam(required = false) List<UUID> tagIds) {
         return steakPostService.createPost(
                 principal, title, comment, rating, restaurantName, restaurantLocation,
-                visibility, images, tagIds);
+                placeId, visibility, images, tagIds);
     }
 
     @PatchMapping(path = "/{id}", consumes = "multipart/form-data")
@@ -108,13 +123,14 @@ public class SteakPostController {
             @RequestParam int rating,
             @RequestParam(required = false) String restaurantName,
             @RequestParam(required = false) String restaurantLocation,
+            @RequestParam(required = false) UUID placeId,
             @RequestParam(required = false) String visibility,
             @RequestParam(required = false) List<String> keepImageUrls,
             @RequestParam(required = false) MultipartFile[] images,
             @RequestParam(required = false) List<UUID> tagIds) {
         return steakPostService.updatePost(
                 principal, id, title, comment, rating, restaurantName, restaurantLocation,
-                visibility, keepImageUrls, images, tagIds);
+                placeId, visibility, keepImageUrls, images, tagIds);
     }
 
     @DeleteMapping("/{id}")

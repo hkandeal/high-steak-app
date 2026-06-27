@@ -1,0 +1,133 @@
+.place-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.place-picker-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.place-picker-input-row input {
+  flex: 1;
+}
+
+.place-picker-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.place-picker-suggestions button {
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.place-picker-suggestion-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.place-picker-suggestion-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.place-picker-photo {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--surface-muted);
+}
+
+.place-picker-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.place-picker-photo-attribution {
+  position: absolute;
+  right: 0.15rem;
+  bottom: 0.15rem;
+  padding: 0.05rem 0.2rem;
+  border-radius: 0.15rem;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.5rem;
+  line-height: 1.2;
+}
+
+.place-picker-suggestion-photo {
+  width: 3rem;
+  height: 3rem;
+}
+
+.place-picker-selected-card {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  margin-top: 0.35rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-muted);
+}
+
+.place-picker-selected-photo {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.place-picker-selected-body {
+  min-width: 0;
+}
+
+.place-picker-selected-body strong {
+  display: block;
+}
+
+.place-picker-selected-body p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+
+.place-picker-suggestions button:hover,
+.place-picker-suggestions button:focus-visible {
+  background: var(--surface-muted);
+}
+
+.place-picker-name {
+  display: block;
+  font-weight: 600;
+}
+
+.place-picker-address {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.place-picker-hint,
+.place-picker-selected {
+  font-size: 0.85rem;
+}
+
+.place-picker-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}

@@ -71,14 +71,16 @@
 
 .nav-notifications {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+}
+
+.nav-notifications .nav-link-icon {
+  position: relative;
 }
 
 .nav-notifications-badge {
   position: absolute;
-  top: 0.1rem;
-  right: 0.1rem;
+  top: -0.2rem;
+  right: -0.35rem;
   min-width: 1.1rem;
   height: 1.1rem;
   padding: 0 0.25rem;
@@ -94,7 +96,7 @@
 
 @media (min-width: 721px) {
   .nav-notifications-badge {
-    top: -0.35rem;
-    right: -0.55rem;
+    top: -0.25rem;
+    right: -0.4rem;
   }
 }

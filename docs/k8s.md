@@ -176,6 +176,8 @@ Docker Compose remains the local workflow (`npm run docker:up`). Kubernetes mani
 
 Local email uses **SendGrid** via `.env.local` (copy from `.env.local.example`). Real emails are sent when `MAIL_ENABLED=true` and a valid API key is set.
 
+Local geo uses **Google Places** via the same `.env.local` (`APP_GEO_GOOGLE_ENABLED`, `APP_GEO_GOOGLE_API_KEY`). See [Google Places (geo)](#google-places-geo--restaurant-search) below.
+
 ## Email (Twilio SendGrid)
 
 Transactional email uses **[Twilio SendGrid](https://www.twilio.com/sendgrid/email-api)** (SaaS). No in-cluster mail server — the API sends via SMTP to `smtp.sendgrid.net`.
@@ -249,3 +251,43 @@ Sync Argo CD (or `helm upgrade`). The API pod gets:
 | Post hidden / restored | Moderator action |
 
 Users manage preferences at `/settings/notifications` (`GET/PATCH /users/me/notification-preferences`).
+
+## Google Places (geo / restaurant search)
+
+Restaurant autocomplete and `/explore` nearby search use the **Google Places API**. The API key is **server-side only** (never in the web or mobile clients).
+
+### Local (Docker Compose)
+
+Add to **`.env.local`** at the repo root (same file as SendGrid; see `.env.local.example`):
+
+```bash
+APP_GEO_GOOGLE_ENABLED=true
+APP_GEO_GOOGLE_API_KEY=your-google-places-api-key
+```
+
+Compose loads this via `env_file: .env.local` on the `api` service. Restart the API after changing it (`npm run docker:restart`).
+
+### Production (Kubernetes)
+
+1. Create a secret (never commit the key):
+
+```bash
+kubectl create secret generic high-steak-geo-secret -n apps \
+  --from-literal=google-places-api-key='AIza...'
+```
+
+2. Enable geo in `helm/high-steak/values.yaml`:
+
+```yaml
+geo:
+  enabled: true
+```
+
+3. Sync Argo CD (or `helm upgrade`). The API pod gets:
+
+| Env | Source |
+|-----|--------|
+| `APP_GEO_GOOGLE_ENABLED` | ConfigMap (`true` when `geo.enabled`) |
+| `APP_GEO_GOOGLE_API_KEY` | secret `high-steak-geo-secret` → `google-places-api-key` |
+
+In Google Cloud Console, enable **Places API** and **Places API (New)**, and restrict the key by API + IP (server) or referrer as appropriate.
