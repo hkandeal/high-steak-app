@@ -186,7 +186,7 @@ class AppShell extends StatelessWidget {
                 if (value == 'logout') {
                   if (!await confirmPostEditorLeave(context)) return;
                   await auth.logout();
-                  if (context.mounted) context.go('/');
+                  if (context.mounted) context.go('/login');
                 } else if (value == 'profile') {
                   final userId = auth.user?.id;
                   if (userId != null) {
@@ -257,23 +257,25 @@ class AppShell extends StatelessWidget {
                 label: const Text('Rate steak'),
               )
             : null,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: navIndex.clamp(0, destinations.length - 1),
-          onDestinationSelected: (index) {
-            final destination = destinations[index].path;
-            if (destination == path) return;
-            _navigateIfAllowed(context, () => context.go(destination));
-          },
-          destinations: destinations
-              .map(
-                (dest) => NavigationDestination(
-                  icon: Icon(dest.icon),
-                  selectedIcon: Icon(dest.selectedIcon),
-                  label: dest.label,
-                ),
+        bottomNavigationBar: destinations.length >= 2
+            ? NavigationBar(
+                selectedIndex: navIndex.clamp(0, destinations.length - 1),
+                onDestinationSelected: (index) {
+                  final destination = destinations[index].path;
+                  if (destination == path) return;
+                  _navigateIfAllowed(context, () => context.go(destination));
+                },
+                destinations: destinations
+                    .map(
+                      (dest) => NavigationDestination(
+                        icon: Icon(dest.icon),
+                        selectedIcon: Icon(dest.selectedIcon),
+                        label: dest.label,
+                      ),
+                    )
+                    .toList(),
               )
-              .toList(),
-        ),
+            : null,
       ),
     );
   }
