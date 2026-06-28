@@ -109,7 +109,6 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
             FROM steak_posts sp
             INNER JOIN places p ON p.id = sp.place_id
             WHERE sp.hidden = false
-              AND sp.user_id != :viewerId
               AND p.latitude BETWEEN :minLat AND :maxLat
               AND p.longitude BETWEEN :minLng AND :maxLng
               AND 6371000 * ACOS(LEAST(1.0, GREATEST(-1.0,
@@ -119,6 +118,7 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
               ))) <= :radiusM
               AND (
                   sp.visibility = 'PUBLIC'
+                  OR sp.user_id = :viewerId
                   OR EXISTS (
                       SELECT 1 FROM user_subscriptions us
                       WHERE us.subscriber_id = :viewerId
@@ -145,7 +145,6 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
             FROM steak_posts sp
             INNER JOIN places p ON p.id = sp.place_id
             WHERE sp.hidden = false
-              AND sp.user_id != :viewerId
               AND p.latitude BETWEEN :minLat AND :maxLat
               AND p.longitude BETWEEN :minLng AND :maxLng
               AND 6371000 * ACOS(LEAST(1.0, GREATEST(-1.0,
@@ -155,6 +154,7 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
               ))) <= :radiusM
               AND (
                   sp.visibility = 'PUBLIC'
+                  OR sp.user_id = :viewerId
                   OR EXISTS (
                       SELECT 1 FROM user_subscriptions us
                       WHERE us.subscriber_id = :viewerId
