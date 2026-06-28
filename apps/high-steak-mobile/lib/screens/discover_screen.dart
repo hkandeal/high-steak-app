@@ -129,9 +129,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     final palette = context.palette;
     final theme = Theme.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      children: [
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        children: [
         Text('Find steak lovers', style: theme.textTheme.headlineMedium),
         const SizedBox(height: 6),
         Text(
@@ -141,12 +145,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         const SizedBox(height: 16),
         TextField(
           controller: _query,
-          autofocus: true,
           decoration: const InputDecoration(
             hintText: 'Search by username or display name…',
             prefixIcon: Icon(Icons.search),
           ),
           textInputAction: TextInputAction.search,
+          onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
         ),
         if (_loading) ...[
           const SizedBox(height: 24),
@@ -196,6 +200,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           ),
         ],
       ],
+      ),
     );
   }
 }
