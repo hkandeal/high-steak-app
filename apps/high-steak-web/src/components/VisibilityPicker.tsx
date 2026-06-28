@@ -16,13 +16,13 @@ const OPTIONS: {
     value: 'PUBLIC',
     icon: '🌐',
     title: 'Public',
-    description: 'Shows on the nearby feed',
+    description: 'Shows on the nearby feed and map',
   },
   {
     value: 'FOLLOWERS_ONLY',
     icon: '👥',
     title: 'Followers only',
-    description: 'Only people who follow you',
+    description: 'People who follow you; also on the map for your followers',
   },
 ]
 

@@ -204,7 +204,7 @@ export function FeedPage() {
           <h1>Steak feed</h1>
           <p>
             {tab === 'nearby'
-              ? `Steaks from restaurants near ${userCoords ? 'you' : 'your area'}.`
+              ? `Public posts and people you follow, near ${userCoords ? 'you' : 'your area'}.`
               : 'Fresh from the grill — rated by people you follow.'}
           </p>
         </div>

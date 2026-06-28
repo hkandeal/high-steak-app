@@ -429,7 +429,10 @@ paths:
   /places/nearby:
     get:
       tags: [Places]
-      summary: Nearby places with public posts
+      summary: Nearby places with visible map-tagged posts
+      description: |
+        Restaurants within `radiusM` that have posts the viewer can see on the map —
+        public posts, the viewer's own posts, and posts from users they follow.
       operationId: findNearbyPlaces
       x-required-scopes:
         - places:read
@@ -495,7 +498,10 @@ paths:
   /places/{placeId}/posts:
     get:
       tags: [Places]
-      summary: Public posts at a place
+      summary: Posts at a place visible to the viewer
+      description: |
+        Map-tagged posts at the restaurant that the authenticated viewer can see —
+        public posts, their own posts, and posts from users they follow.
       operationId: getPostsAtPlace
       x-required-scopes:
         - places:read
@@ -523,10 +529,11 @@ paths:
   /posts/nearby:
     get:
       tags: [Posts]
-      summary: Nearby feed (public posts at tagged restaurants)
+      summary: Nearby feed (public and followed posts at tagged restaurants)
       description: |
-        Paginated public posts from restaurants within `radiusM` of the given coordinates.
-        Only posts linked to a place (`placeId`) appear. Excludes the viewer's own posts.
+        Paginated map-tagged posts from restaurants within `radiusM` of the given coordinates.
+        Includes public posts from the community and posts from users the viewer follows
+        (including `FOLLOWERS_ONLY`). Excludes the viewer's own posts.
       operationId: getNearbyFeed
       x-required-scopes:
         - posts:read

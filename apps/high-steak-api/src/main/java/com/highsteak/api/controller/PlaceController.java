@@ -41,12 +41,13 @@ public class PlaceController {
     @GetMapping("/nearby")
     @PreAuthorize("hasAuthority('places:read')")
     public PageDtos.PageResponse<PlaceDtos.PlaceNearbySummary> findNearby(
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam @DecimalMin("-90") @DecimalMax("90") double lat,
             @RequestParam @DecimalMin("-180") @DecimalMax("180") double lng,
             @RequestParam(required = false) Integer radiusM,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return placeService.findNearby(lat, lng, radiusM, page, size);
+        return placeService.findNearby(principal, lat, lng, radiusM, page, size);
     }
 
     @GetMapping("/google-preview/photo")

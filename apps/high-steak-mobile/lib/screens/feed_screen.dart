@@ -168,7 +168,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     Text(
                       _tab == FeedTab.following
                           ? 'Posts from people you follow'
-                          : 'Steaks from restaurants near ${_lat != null ? 'you' : 'your area'}',
+                          : 'Public posts and people you follow, near ${_lat != null ? 'you' : 'your area'}',
                       style: theme.textTheme.bodyMedium,
                     ),
                     if (_showFollowingTab) ...[
