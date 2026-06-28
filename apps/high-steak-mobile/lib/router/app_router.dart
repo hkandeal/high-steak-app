@@ -22,6 +22,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/app_shell.dart';
 import '../navigation/post_editor_leave_guard.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/reset_password_screen.dart';
 import '../navigation/deep_link_service.dart';
@@ -226,6 +227,7 @@ class AuthBootstrap extends StatefulWidget {
 class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserver {
   GoRouter? _router;
   final PostEditorLeaveGuard _leaveGuard = PostEditorLeaveGuard();
+  final PostRefreshNotifier _postRefresh = PostRefreshNotifier();
 
   @override
   void initState() {
@@ -267,14 +269,17 @@ class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserv
 
     return PostEditorLeaveScope(
       notifier: _leaveGuard,
-      child: FeedLayoutScope(
-        notifier: widget.feedLayout,
-        child: MaterialApp.router(
-          title: 'High Steaks',
-          debugShowCheckedModeBanner: false,
-          scrollBehavior: const AppScrollBehavior(),
-          theme: AppTheme.build(widget.theme.variant),
-          routerConfig: _router!,
+      child: PostRefreshScope(
+        notifier: _postRefresh,
+        child: FeedLayoutScope(
+          notifier: widget.feedLayout,
+          child: MaterialApp.router(
+            title: 'High Steaks',
+            debugShowCheckedModeBanner: false,
+            scrollBehavior: const AppScrollBehavior(),
+            theme: AppTheme.build(widget.theme.variant),
+            routerConfig: _router!,
+          ),
         ),
       ),
     );

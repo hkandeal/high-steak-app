@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../auth/auth_controller.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
 import '../utils/date_format.dart';
@@ -94,6 +95,7 @@ class _PostCardState extends State<PostCard> {
       }
       if (!mounted) return;
       setState(() => _bookmarked = !_bookmarked);
+      markPostsStale(context);
       widget.onBookmarkChanged?.call();
     } catch (e) {
       if (!mounted) return;
@@ -129,6 +131,8 @@ class _PostCardState extends State<PostCard> {
     setState(() => _deleteBusy = true);
     try {
       await widget.api!.deletePost(widget.post.id);
+      if (!mounted) return;
+      markPostsStale(context);
       widget.onDeleted?.call();
     } catch (e) {
       if (!mounted) return;

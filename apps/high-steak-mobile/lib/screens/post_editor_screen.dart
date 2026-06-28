@@ -13,6 +13,7 @@ import '../models/review_tag_catalog.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../navigation/post_editor_leave_guard.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/post_form_images.dart';
 import '../utils/post_image_picker.dart';
@@ -442,6 +443,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       }
       if (!mounted) return;
       setState(() => _allowLeave = true);
+      markPostsStale(context);
       context.go('/posts/${post.id}');
     } catch (e) {
       if (!mounted) return;

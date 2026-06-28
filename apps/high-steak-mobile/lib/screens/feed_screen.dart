@@ -7,6 +7,7 @@ import '../auth/auth_controller.dart';
 import '../controllers/paginated_list_controller.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/explore_location_store.dart';
 import '../utils/feed_grid.dart';
@@ -37,6 +38,7 @@ class _FeedScreenState extends State<FeedScreen> {
   String? _pendingFollowAuthorId;
   double? _lat;
   double? _lng;
+  PostRefreshSubscription? _postRefresh;
 
   bool get _showFollowingTab => widget.auth.hasScope('subscriptions:read');
   bool get _showAuthorFollow =>
@@ -49,9 +51,24 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _postRefresh ??= PostRefreshSubscription(
+      context: context,
+      onStale: _reloadFeed,
+    );
+    _postRefresh!.rebind(context);
+  }
+
+  @override
   void dispose() {
+    _postRefresh?.dispose();
     _controller?.dispose();
     super.dispose();
+  }
+
+  void _reloadFeed() {
+    _controller?.reload();
   }
 
   Future<void> _loadLocationBias() async {

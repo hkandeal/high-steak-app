@@ -10,6 +10,7 @@ import '../controllers/paginated_list_controller.dart';
 import '../models/steak_post.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/post_image_picker.dart';
 import '../utils/profile_validation.dart';
@@ -54,6 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _followBusy = false;
   bool _deletionRequested = false;
   bool _deletionBusy = false;
+  PostRefreshSubscription? _postRefresh;
 
   bool get _isOwnProfile => widget.auth.user?.id == widget.userId;
 
@@ -75,10 +77,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _postRefresh ??= PostRefreshSubscription(
+      context: context,
+      onStale: _reloadPosts,
+    );
+    _postRefresh!.rebind(context);
+  }
+
+  @override
   void dispose() {
+    _postRefresh?.dispose();
     _displayName.dispose();
     _posts?.dispose();
     super.dispose();
+  }
+
+  void _reloadPosts() {
+    _posts?.reload();
   }
 
   Future<void> _loadProfile() async {
