@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/steak_post.dart';
 import '../theme/app_palette.dart';
-import '../utils/google_maps.dart';
+import '../utils/open_google_maps.dart';
 
 class PostVenue extends StatelessWidget {
   const PostVenue({
@@ -22,9 +21,12 @@ class PostVenue extends StatelessWidget {
   Future<void> _openMaps(BuildContext context) async {
     final place = post.place;
     if (place == null) return;
-    final uri = Uri.parse(googleMapsUrlForPlace(place));
-    if (!await canLaunchUrl(uri)) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final opened = await openGoogleMapsForPlace(place);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps')),
+      );
+    }
   }
 
   @override

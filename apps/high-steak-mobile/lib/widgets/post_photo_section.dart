@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/cyclic_index.dart';
 import '../utils/post_form_images.dart';
 import 'image_lightbox.dart';
 
@@ -65,6 +66,14 @@ class _PostPhotoSectionState extends State<PostPhotoSection> {
     _updateImages(next);
   }
 
+  void _goPrevious() {
+    _setActiveIndex(cyclicPreviousIndex(_activeIndex, widget.images.length));
+  }
+
+  void _goNext() {
+    _setActiveIndex(cyclicNextIndex(_activeIndex, widget.images.length));
+  }
+
   void _openLightbox() {
     ImageLightbox.showFormImages(
       context,
@@ -122,9 +131,7 @@ class _PostPhotoSectionState extends State<PostPhotoSection> {
                         child: Center(
                           child: _GalleryNavButton(
                             icon: Icons.chevron_left,
-                            onPressed: _activeIndex > 0
-                                ? () => _setActiveIndex(_activeIndex - 1)
-                                : null,
+                            onPressed: _goPrevious,
                           ),
                         ),
                       ),
@@ -135,9 +142,7 @@ class _PostPhotoSectionState extends State<PostPhotoSection> {
                         child: Center(
                           child: _GalleryNavButton(
                             icon: Icons.chevron_right,
-                            onPressed: _activeIndex < widget.images.length - 1
-                                ? () => _setActiveIndex(_activeIndex + 1)
-                                : null,
+                            onPressed: _goNext,
                           ),
                         ),
                       ),
@@ -343,7 +348,7 @@ class _GalleryNavButton extends StatelessWidget {
   });
 
   final IconData icon;
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +362,7 @@ class _GalleryNavButton extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           child: Icon(
             icon,
-            color: onPressed == null ? Colors.white38 : Colors.white,
+            color: Colors.white,
             size: 28,
           ),
         ),

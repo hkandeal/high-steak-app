@@ -1,0 +1,81 @@
+---
+description: Feature branches must track their own remote branch, never origin/main
+alwaysApply: true
+---
+
+# Git — Feature branch tracking
+
+**Never** let a feature/fix/hotfix branch track `origin/main`. A plain `git push` updates whatever upstream is set — if upstream is `main`, you push directly to production’s default branch and skip the PR workflow.
+
+## Create a feature branch
+
+```bash
+git fetch origin main
+git checkout -b feature/my-feature origin/main
+```
+
+Use prefixes: `feature/`, `fix/`, `hotfix/` (match existing repo style).
+
+## First push — set upstream to the same branch name
+
+```bash
+git push -u origin HEAD
+# or explicitly:
+git push -u origin feature/my-feature
+```
+
+After this, `git branch -vv` must show:
+
+```text
+feature/my-feature  abc1234 [origin/feature/my-feature] ...
+```
+
+**Not:**
+
+```text
+feature/my-feature  abc1234 [origin/main] ...
+```
+
+## Before pushing — verify tracking
+
+```bash
+git branch -vv
+git status -sb
+```
+
+If upstream is `origin/main` on a non-`main` branch:
+
+```bash
+git branch --unset-upstream
+git push -u origin HEAD
+```
+
+## Open a PR (required for feature work)
+
+`git push` does **not** open a PR. After the branch exists on GitHub:
+
+```bash
+gh pr create --base main --head feature/my-feature \
+  --title "..." \
+  --body "$(cat <<'EOF'
+## Summary
+- ...
+
+## Test plan
+- [ ] ...
+EOF
+)"
+```
+
+## Agent checklist
+
+When starting feature work:
+
+1. Create or checkout a named branch (not `main`).
+2. Confirm upstream is **not** `origin/main`.
+3. First push uses `git push -u origin HEAD`.
+4. Offer `gh pr create` when the user wants to share or merge — never push feature commits to `main` unless explicitly asked.
+
+## Commits
+
+Only commit when the user asks. Never `git push` to `main` for feature work unless the user explicitly requests it.

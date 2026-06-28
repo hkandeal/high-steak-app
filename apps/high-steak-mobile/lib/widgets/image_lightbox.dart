@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../navigation/app_navigator.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/cyclic_index.dart';
 import '../utils/post_form_images.dart';
 
 /// Full-screen photo viewer with swipe between images (matches web lightbox).
@@ -141,6 +142,14 @@ class _ImageLightboxPageState extends State<_ImageLightboxPage> {
     );
   }
 
+  void _goPrevious() {
+    _goTo(cyclicPreviousIndex(_index, widget.items.length));
+  }
+
+  void _goNext() {
+    _goTo(cyclicNextIndex(_index, widget.items.length));
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -215,15 +224,14 @@ class _ImageLightboxPageState extends State<_ImageLightboxPage> {
                       left: 4,
                       child: _NavButton(
                         icon: Icons.chevron_left,
-                        onPressed: _index > 0 ? () => _goTo(_index - 1) : null,
+                        onPressed: _goPrevious,
                       ),
                     ),
                     Positioned(
                       right: 4,
                       child: _NavButton(
                         icon: Icons.chevron_right,
-                        onPressed:
-                            _index < widget.items.length - 1 ? () => _goTo(_index + 1) : null,
+                        onPressed: _goNext,
                       ),
                     ),
                   ],
@@ -334,7 +342,7 @@ class _NavButton extends StatelessWidget {
   const _NavButton({required this.icon, required this.onPressed});
 
   final IconData icon;
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {

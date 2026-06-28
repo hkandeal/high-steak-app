@@ -79,6 +79,8 @@ Docs-only or `.cursor/` edits do not require Docker restart unless the user asks
 
 Only commit when the user asks. Follow existing commit message style.
 
+**Feature branches:** must track `origin/<same-branch-name>`, never `origin/main`. See `git-feature-branches.mdc`.
+
 ## Examples
 
 ```java

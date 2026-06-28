@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/cyclic_index.dart';
 import 'image_lightbox.dart';
 
 class PostPhotoGallery extends StatefulWidget {
@@ -40,6 +41,14 @@ class _PostPhotoGalleryState extends State<PostPhotoGallery> {
   void _setIndex(int index) {
     if (index < 0 || index >= widget.imageUrls.length) return;
     setState(() => _activeIndex = index);
+  }
+
+  void _goPrevious() {
+    _setIndex(cyclicPreviousIndex(_activeIndex, widget.imageUrls.length));
+  }
+
+  void _goNext() {
+    _setIndex(cyclicNextIndex(_activeIndex, widget.imageUrls.length));
   }
 
   void _openLightbox() {
@@ -103,9 +112,7 @@ class _PostPhotoGalleryState extends State<PostPhotoGallery> {
                     child: Center(
                       child: _GalleryNavButton(
                         icon: Icons.chevron_left,
-                        onPressed: _activeIndex > 0
-                            ? () => _setIndex(_activeIndex - 1)
-                            : null,
+                        onPressed: _goPrevious,
                       ),
                     ),
                   ),
@@ -116,9 +123,7 @@ class _PostPhotoGalleryState extends State<PostPhotoGallery> {
                     child: Center(
                       child: _GalleryNavButton(
                         icon: Icons.chevron_right,
-                        onPressed: _activeIndex < widget.imageUrls.length - 1
-                            ? () => _setIndex(_activeIndex + 1)
-                            : null,
+                        onPressed: _goNext,
                       ),
                     ),
                   ),
@@ -198,7 +203,7 @@ class _GalleryNavButton extends StatelessWidget {
   });
 
   final IconData icon;
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +217,7 @@ class _GalleryNavButton extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           child: Icon(
             icon,
-            color: onPressed == null ? Colors.white38 : Colors.white,
+            color: Colors.white,
             size: 28,
           ),
         ),
