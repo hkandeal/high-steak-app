@@ -9,18 +9,17 @@ import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
+import '../utils/explore_location_service.dart';
 import '../utils/explore_location_store.dart';
 import '../utils/feed_grid.dart';
 import '../widgets/feed_layout_scope.dart';
 import '../widgets/feed_layout_toggle.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/paginated_post_feed.dart';
 import '../widgets/pill_tab_bar.dart';
 import '../widgets/post_card.dart';
 
 enum FeedTab { nearby, following }
-
-const _defaultFeedLat = 25.2048;
-const _defaultFeedLng = 55.2708;
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key, required this.auth, required this.api});
@@ -38,6 +37,7 @@ class _FeedScreenState extends State<FeedScreen> {
   String? _pendingFollowAuthorId;
   double? _lat;
   double? _lng;
+  bool _locationLoading = false;
   PostRefreshSubscription? _postRefresh;
 
   bool get _showFollowingTab => widget.auth.hasScope('subscriptions:read');
@@ -47,7 +47,7 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_loadLocationBias());
+    unawaited(_bootstrap());
   }
 
   @override
@@ -71,23 +71,66 @@ class _FeedScreenState extends State<FeedScreen> {
     _controller?.reload();
   }
 
-  Future<void> _loadLocationBias() async {
+  Future<void> _bootstrap() async {
     final cached = await ExploreLocationStore.readCoords() ??
         await ExploreLocationStore.readBrowseCenter();
     if (!mounted) return;
+
     if (cached != null) {
       setState(() {
         _lat = cached.lat;
         _lng = cached.lng;
       });
+      _initController();
+      unawaited(_refreshNearbyLocation());
+      return;
     }
+
+    setState(() => _locationLoading = true);
+    await _resolveNearbyLocationFromGps();
+    if (!mounted) return;
+    setState(() => _locationLoading = false);
     _initController();
+  }
+
+  Future<void> _resolveNearbyLocationFromGps() async {
+    final result = await requestUserLocation();
+    if (!mounted) return;
+
+    final coords = result.coords;
+    if (coords != null) {
+      _lat = coords.lat;
+      _lng = coords.lng;
+      return;
+    }
+
+    final fallback = ExploreLocationStore.exploreDefaultCenter;
+    _lat = fallback.lat;
+    _lng = fallback.lng;
+  }
+
+  Future<void> _refreshNearbyLocation() async {
+    final previousLat = _lat;
+    final previousLng = _lng;
+    final result = await requestUserLocation();
+    if (!mounted || result.coords == null) return;
+
+    final coords = result.coords!;
+    if (previousLat == coords.lat && previousLng == coords.lng) return;
+
+    setState(() {
+      _lat = coords.lat;
+      _lng = coords.lng;
+    });
+    if (_tab == FeedTab.nearby) {
+      _initController();
+    }
   }
 
   void _initController() {
     _controller?.dispose();
-    final lat = _lat ?? _defaultFeedLat;
-    final lng = _lng ?? _defaultFeedLng;
+    final lat = _lat ?? ExploreLocationStore.exploreDefaultCenter.lat;
+    final lng = _lng ?? ExploreLocationStore.exploreDefaultCenter.lng;
     _controller = PaginatedListController<SteakPost>((page) {
       if (_tab == FeedTab.following) {
         return widget.api.fetchFollowingPosts(page: page);
@@ -104,7 +147,9 @@ class _FeedScreenState extends State<FeedScreen> {
       _tab = tab;
       _pendingFollowAuthorId = null;
     });
-    _initController();
+    if (tab == FeedTab.following || (_lat != null && _lng != null)) {
+      _initController();
+    }
   }
 
   Future<void> _toggleAuthorFollow(SteakPost post) async {
@@ -134,6 +179,22 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  Widget? _emptyFeedAction(BuildContext context) {
+    if (_tab == FeedTab.following) {
+      if (!widget.auth.hasScope('users:discover')) return null;
+      return FilledButton(
+        onPressed: () => context.go('/discover'),
+        child: const Text('Find steak lovers'),
+      );
+    }
+
+    if (!widget.auth.hasScope('posts:write')) return null;
+    return FilledButton(
+      onPressed: () => context.push('/post/new'),
+      child: const Text('Rate a steak'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -141,8 +202,25 @@ class _FeedScreenState extends State<FeedScreen> {
     final palette = context.palette;
     final feedLayout = FeedLayoutScope.of(context);
 
-    if (controller == null) {
-      return const Center(child: CircularProgressIndicator());
+    if (controller == null || (_tab == FeedTab.nearby && _locationLoading)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              'Steak feed',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: palette.creamMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Expanded(
+            child: LoadingState(message: 'Finding nearby steaks…'),
+          ),
+        ],
+      );
     }
 
     return Column(
@@ -197,22 +275,11 @@ class _FeedScreenState extends State<FeedScreen> {
             gridChildAspectRatio: feedGridChildAspectRatio(context),
             emptyMessage: _tab == FeedTab.following
                 ? "You're not following anyone yet."
-                : 'No steaks nearby yet. Tag a restaurant when you post.',
+                : 'No steaks nearby yet. Tag a restaurant when you post, or open Explore for the map.',
             emptyIcon: _tab == FeedTab.following
                 ? Icons.group_outlined
                 : Icons.local_fire_department_outlined,
-            action: _tab == FeedTab.following &&
-                    widget.auth.hasScope('users:discover')
-                ? FilledButton(
-                    onPressed: () => context.go('/discover'),
-                    child: const Text('Find steak lovers'),
-                  )
-                : widget.auth.hasScope('places:read')
-                    ? FilledButton(
-                        onPressed: () => context.go('/explore'),
-                        child: const Text('Explore map'),
-                      )
-                    : null,
+            action: _emptyFeedAction(context),
             itemBuilder: (context, item, {required bool dense}) => PostCard(
               post: item,
               dense: dense,

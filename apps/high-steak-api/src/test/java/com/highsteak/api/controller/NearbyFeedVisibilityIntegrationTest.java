@@ -41,6 +41,20 @@ class NearbyFeedVisibilityIntegrationTest {
     private UserRepository userRepository;
 
     @Test
+    void nearbyFeedIncludesViewersOwnPostsAtTaggedPlaces() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String authorToken = register("nearself" + suffix, "nearself" + suffix + "@test.com", "Self");
+
+        UUID placeId = resolveManualPlace(authorToken, "Self Steakhouse " + suffix);
+        UUID ownPostId = createPostAtPlace(authorToken, "My steak " + suffix, placeId, "PUBLIC");
+
+        assertTrue(postsNearbyContain(authorToken, ownPostId));
+
+        JsonNode places = placesNearby(authorToken);
+        assertTrue(containsPlaceWithPost(places, placeId));
+    }
+
+    @Test
     void nearbyFeedAndMapIncludeFollowersOnlyPostsFromFollowedAuthors() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         String authorToken = register("nearauthor" + suffix, "nearauthor" + suffix + "@test.com", "Author");
