@@ -1782,13 +1782,23 @@ components:
           items:
             type: string
             maxLength: 512
-          description: Existing image URLs to retain, in display order.
+          description: Existing image URLs to retain, in display order. Ignored when `imageOrder` is sent.
           example: [/uploads/abc123.jpg]
+        imageOrder:
+          type: array
+          items:
+            type: string
+            maxLength: 512
+          description: |
+            Full desired image sequence for the post. Each entry is either an existing image URL
+            or a new-upload slot `__new__:0`, `__new__:1`, … matching the multipart `images` array.
+            When provided, this takes precedence over `keepImageUrls` and allows new uploads
+            to appear before saved photos (cover photo).
         images:
           type: array
           items:
             $ref: '#/components/schemas/ImageUpload'
-          description: New photos to append. Each ≤ 5 MB. Combined with kept URLs, at least one image must remain.
+          description: New photos referenced by `__new__:N` slots in `imageOrder`, or appended after `keepImageUrls` when `imageOrder` is omitted. Each ≤ 5 MB. Combined with kept URLs, at least one image must remain.
         tagIds:
           $ref: '#/components/schemas/TagIdList'
         visibility:

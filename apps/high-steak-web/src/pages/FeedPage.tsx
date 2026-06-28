@@ -26,6 +26,7 @@ import { PostFeedLayout } from '../components/PostFeedLayout'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
+import { PostVenue } from '../components/PostVenue'
 import { useAuth } from '../context/AuthContext'
 import { useInfinitePostFeed } from '../hooks/useInfinitePostFeed'
 import { useImageLightbox } from '../hooks/useImageLightbox'
@@ -368,9 +369,7 @@ export function FeedPage() {
                   </Link>
                   <StarRating value={post.rating} readOnly />
                   <ReviewTagChips tags={post.tags ?? []} compact />
-                  {post.restaurantName && (
-                    <p className="post-restaurant">{post.restaurantName}</p>
-                  )}
+                  <PostVenue post={post} showLocation={Boolean(post.place)} />
                   {post.comment && <p className="post-comment">{post.comment}</p>}
                 </div>
               </article>

@@ -30,6 +30,7 @@ import { PostBookmarkButton } from '../components/PostBookmarkButton'
 import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
 import { PostFeedLayout } from '../components/PostFeedLayout'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
+import { PostVenue } from '../components/PostVenue'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { useAuth } from '../context/AuthContext'
@@ -659,7 +660,7 @@ export function ProfilePage() {
                 </Link>
                 <StarRating value={post.rating} readOnly />
                 <ReviewTagChips tags={post.tags ?? []} compact />
-                {post.restaurantName && <p className="post-restaurant">{post.restaurantName}</p>}
+                <PostVenue post={post} showLocation={Boolean(post.place)} />
               </div>
             </article>
           )

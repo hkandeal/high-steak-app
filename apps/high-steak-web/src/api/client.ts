@@ -270,8 +270,8 @@ export type PlaceSummary = {
   provider: 'google' | 'mapbox' | 'osm' | 'manual'
   name: string
   formattedAddress: string | null
-  latitude: string
-  longitude: string
+  latitude: string | number
+  longitude: string | number
   locationPrecision: 'EXACT' | 'APPROXIMATE'
   previewPhotoUrl: string | null
   previewPhotoSource: CoverImageSource | null
@@ -282,8 +282,8 @@ export type PlaceSuggestion = {
   providerPlaceId: string
   name: string
   formattedAddress: string | null
-  latitude: string | null
-  longitude: string | null
+  latitude: string | number | null
+  longitude: string | number | null
   previewPhotoUrl: string | null
 }
 
@@ -291,8 +291,8 @@ export type PlaceNearbySummary = {
   id: string
   name: string
   formattedAddress: string | null
-  latitude: string
-  longitude: string
+  latitude: string | number
+  longitude: string | number
   distanceM: number
   postCount: number
   avgRating: number | null
@@ -782,6 +782,7 @@ export async function updatePost(
     visibility?: PostVisibility
     keepImageUrls: string[]
     newImages: File[]
+    imageOrder?: string[]
     tagIds?: string[]
   },
 ): Promise<SteakPost> {
@@ -793,7 +794,11 @@ export async function updatePost(
   if (data.restaurantLocation) form.append('restaurantLocation', data.restaurantLocation)
   if (data.placeId) form.append('placeId', data.placeId)
   if (data.visibility) form.append('visibility', data.visibility)
-  data.keepImageUrls.forEach((url) => form.append('keepImageUrls', url))
+  if (data.imageOrder?.length) {
+    data.imageOrder.forEach((slot) => form.append('imageOrder', slot))
+  } else {
+    data.keepImageUrls.forEach((url) => form.append('keepImageUrls', url))
+  }
   data.newImages.forEach((image) => form.append('images', image))
   data.tagIds?.forEach((tagId) => form.append('tagIds', tagId))
 

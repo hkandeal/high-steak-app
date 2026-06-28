@@ -39,8 +39,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,6 +58,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Service
 @RequiredArgsConstructor
 public class SteakPostService {
+
+    static final String NEW_IMAGE_SLOT_PREFIX = "__new__:";
 
     private final SteakPostRepository steakPostRepository;
     private final PlaceRepository placeRepository;
@@ -363,6 +367,7 @@ public class SteakPostService {
             UUID placeId,
             String visibility,
             List<String> keepImageUrls,
+            List<String> imageOrder,
             MultipartFile[] newImages,
             List<UUID> tagIds) {
         ValidatedPostFields fields = validatePostFields(title, comment, rating, restaurantName, restaurantLocation);
@@ -384,7 +389,11 @@ public class SteakPostService {
         }
         applyPlaceIfPresent(post, placeId);
 
-        syncImages(post, keepImageUrls, newImages);
+        if (imageOrder != null && !imageOrder.isEmpty()) {
+            syncImagesOrdered(post, imageOrder, newImages);
+        } else {
+            syncImages(post, keepImageUrls, newImages);
+        }
         replaceReviewTags(post, tagIds);
         steakPostRepository.saveAndFlush(post);
         return loadPostResponse(post.getId(), principal);
@@ -421,6 +430,80 @@ public class SteakPostService {
 
         if (post.getImages().isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "At least one image is required");
+        }
+    }
+
+    private void syncImagesOrdered(SteakPost post, List<String> imageOrder, MultipartFile[] newImages) {
+        MultipartFile[] uploads = newImages != null ? newImages : new MultipartFile[0];
+        Map<String, PostImage> existingByUrl = post.getImages().stream()
+                .collect(Collectors.toMap(PostImage::getImageUrl, Function.identity(), (left, right) -> left));
+
+        Set<String> keepUrls = new LinkedHashSet<>();
+        Set<Integer> referencedNewIndexes = new HashSet<>();
+        for (String slot : imageOrder) {
+            if (slot == null || slot.isBlank()) {
+                throw new ResponseStatusException(BAD_REQUEST, "Image order entries cannot be blank");
+            }
+            if (slot.startsWith(NEW_IMAGE_SLOT_PREFIX)) {
+                int index = parseNewImageSlotIndex(slot);
+                if (index < 0 || index >= uploads.length) {
+                    throw new ResponseStatusException(BAD_REQUEST, "Invalid new image slot in image order");
+                }
+                if (!referencedNewIndexes.add(index)) {
+                    throw new ResponseStatusException(BAD_REQUEST, "Each new image must appear once in image order");
+                }
+                continue;
+            }
+            if (!existingByUrl.containsKey(slot)) {
+                throw new ResponseStatusException(BAD_REQUEST, "Image order references an unknown existing image");
+            }
+            keepUrls.add(slot);
+        }
+
+        for (int index = 0; index < uploads.length; index++) {
+            MultipartFile upload = uploads[index];
+            if (upload == null || upload.isEmpty()) {
+                continue;
+            }
+            if (!referencedNewIndexes.contains(index)) {
+                throw new ResponseStatusException(BAD_REQUEST, "Each uploaded image must appear once in image order");
+            }
+        }
+
+        post.getImages().removeIf(image -> !keepUrls.contains(image.getImageUrl()));
+
+        int sortOrder = 0;
+        for (String slot : imageOrder) {
+            if (slot.startsWith(NEW_IMAGE_SLOT_PREFIX)) {
+                int index = parseNewImageSlotIndex(slot);
+                MultipartFile upload = uploads[index];
+                if (upload == null || upload.isEmpty()) {
+                    throw new ResponseStatusException(BAD_REQUEST, "Invalid new image slot in image order");
+                }
+                post.getImages().add(PostImage.builder()
+                        .imageUrl(storeImage(upload))
+                        .sortOrder(sortOrder++)
+                        .post(post)
+                        .build());
+                continue;
+            }
+
+            PostImage existing = existingByUrl.get(slot);
+            if (existing != null) {
+                existing.setSortOrder(sortOrder++);
+            }
+        }
+
+        if (post.getImages().isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "At least one image is required");
+        }
+    }
+
+    private static int parseNewImageSlotIndex(String slot) {
+        try {
+            return Integer.parseInt(slot.substring(NEW_IMAGE_SLOT_PREFIX.length()));
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(BAD_REQUEST, "Invalid new image slot in image order");
         }
     }
 
@@ -575,9 +658,9 @@ public class SteakPostService {
 
     private List<String> uniqueImageUrls(List<PostImage> images) {
         LinkedHashSet<String> urls = new LinkedHashSet<>();
-        for (PostImage image : images) {
-            urls.add(image.getImageUrl());
-        }
+        images.stream()
+                .sorted(Comparator.comparingInt(PostImage::getSortOrder))
+                .forEach(image -> urls.add(image.getImageUrl()));
         return new ArrayList<>(urls);
     }
 

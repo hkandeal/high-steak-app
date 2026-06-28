@@ -8,6 +8,7 @@ import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
 import '../utils/date_format.dart';
 import 'image_lightbox.dart';
+import 'post_venue.dart';
 import 'author_follow_button.dart';
 import 'star_rating.dart';
 import 'user_avatar.dart';
@@ -255,11 +256,10 @@ class _PostCardState extends State<PostCard> {
                   StarRating(value: post.rating, size: 18),
                   if (post.restaurantName != null) ...[
                     const SizedBox(height: 10),
-                    _InfoChip(
-                      icon: Icons.restaurant,
-                      label: post.restaurantLocation != null
-                          ? '${post.restaurantName} · ${post.restaurantLocation}'
-                          : post.restaurantName!,
+                    PostVenue(
+                      post: post,
+                      showLocation: post.place != null,
+                      useChip: true,
                     ),
                   ],
                   if (post.comment != null && post.comment!.isNotEmpty) ...[
@@ -443,14 +443,10 @@ class _PostCardState extends State<PostCard> {
                         ],
                         if (post.restaurantName != null) ...[
                           const Spacer(),
-                          Text(
-                            post.restaurantName!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: palette.creamMuted,
-                              fontSize: 11,
-                            ),
+                          PostVenue(
+                            post: post,
+                            dense: true,
+                            showLocation: false,
                           ),
                         ],
                       ],
@@ -598,33 +594,6 @@ class _Badge extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: palette.gold),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: palette.creamMuted,
-                ),
-          ),
-        ),
-      ],
     );
   }
 }

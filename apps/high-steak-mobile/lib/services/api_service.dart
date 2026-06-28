@@ -707,6 +707,7 @@ class ApiService {
     required int rating,
     required List<String> keepImageUrls,
     required List<XFile> newImages,
+    List<String>? imageOrder,
     String? restaurantName,
     String? restaurantLocation,
     String? placeId,
@@ -735,8 +736,14 @@ class ApiService {
         if (placeId != null && placeId.isNotEmpty) {
           request.fields['placeId'] = placeId;
         }
-        for (final url in keepImageUrls) {
-          request.files.add(http.MultipartFile.fromString('keepImageUrls', url));
+        if (imageOrder != null && imageOrder.isNotEmpty) {
+          for (final slot in imageOrder) {
+            request.files.add(http.MultipartFile.fromString('imageOrder', slot));
+          }
+        } else {
+          for (final url in keepImageUrls) {
+            request.files.add(http.MultipartFile.fromString('keepImageUrls', url));
+          }
         }
         for (final tagId in tagIds) {
           request.files.add(http.MultipartFile.fromString('tagIds', tagId));

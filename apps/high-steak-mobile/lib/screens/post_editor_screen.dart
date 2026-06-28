@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,7 @@ import '../models/review_tag_catalog.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
+import '../utils/post_form_images.dart';
 import '../utils/post_image_picker.dart';
 import '../utils/post_validation.dart';
 import '../widgets/auth_card.dart';
@@ -21,6 +23,8 @@ import '../widgets/post_photo_section.dart';
 import '../widgets/review_tag_picker.dart';
 import '../widgets/star_rating.dart';
 import '../widgets/visibility_picker.dart';
+
+enum _LeaveAction { keepEditing, save, discard }
 
 class PostEditorScreen extends StatefulWidget {
   const PostEditorScreen({
@@ -51,8 +55,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
 
   int _rating = 5;
   PostVisibility _visibility = PostVisibility.public;
-  List<String> _keepImageUrls = [];
-  List<XFile> _newImages = [];
+  List<FormImage> _formImages = [];
   List<String> _selectedTagIds = [];
   PlaceSummary? _selectedPlace;
   ReviewTagCatalog? _tagCatalog;
@@ -60,12 +63,24 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   bool _loadingTags = true;
   bool _pickingPhotos = false;
   bool _submitting = false;
-  String? _error;
   bool _notAllowed = false;
+  bool _allowLeave = false;
+  String? _error;
+
+  String _initialTitle = '';
+  String _initialComment = '';
+  int _initialRating = 5;
+  PostVisibility _initialVisibility = PostVisibility.public;
+  List<String> _initialTagIds = [];
+  List<String> _initialImageUrls = [];
+  String? _initialPlaceId;
+  String _initialRestaurantName = '';
+  String _initialRestaurantLocation = '';
 
   @override
   void initState() {
     super.initState();
+    _initialPlaceId = widget.initialPlaceId;
     _bootstrap();
     _restoreLostAndroidPhotos();
   }
@@ -77,6 +92,42 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     _restaurantName.dispose();
     _restaurantLocation.dispose();
     super.dispose();
+  }
+
+  bool get _hasPhotos => _formImages.isNotEmpty;
+
+  bool get _isDirty {
+    if (widget.isEditing) {
+      return _title.text.trim() != _initialTitle ||
+          _comment.text.trim() != _initialComment ||
+          _rating != _initialRating ||
+          _visibility != _initialVisibility ||
+          !_listEquals(_selectedTagIds, _initialTagIds) ||
+          _selectedPlace?.id != _initialPlaceId ||
+          _restaurantName.text.trim() != _initialRestaurantName ||
+          _restaurantLocation.text.trim() != _initialRestaurantLocation ||
+          PostFormImagePayload.isDirty(_formImages, _initialImageUrls);
+    }
+
+    final placeDirty = _selectedPlace?.id != _initialPlaceId;
+    return _title.text.trim().isNotEmpty ||
+        _comment.text.trim().isNotEmpty ||
+        _rating != 5 ||
+        placeDirty ||
+        (_selectedPlace == null &&
+            (_restaurantName.text.trim().isNotEmpty ||
+                _restaurantLocation.text.trim().isNotEmpty)) ||
+        _visibility != PostVisibility.public ||
+        _selectedTagIds.isNotEmpty ||
+        _formImages.isNotEmpty;
+  }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var index = 0; index < a.length; index++) {
+      if (a[index] != b[index]) return false;
+    }
+    return true;
   }
 
   Future<void> _bootstrap() async {
@@ -109,7 +160,12 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       if (response.isEmpty || !mounted) return;
       final files = response.files;
       if (files != null && files.isNotEmpty) {
-        setState(() => _newImages = [..._newImages, ...files]);
+        setState(() {
+          _formImages = [
+            ..._formImages,
+            ...files.map(FormImage.newFile),
+          ];
+        });
       } else if (response.exception != null) {
         setState(() => _error = pickerErrorMessage(response.exception!));
       }
@@ -147,12 +203,23 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       _comment.text = post.comment ?? '';
       _restaurantName.text = post.restaurantName ?? '';
       _restaurantLocation.text = post.restaurantLocation ?? '';
+
       setState(() {
         _rating = post.rating;
         _visibility = post.visibility;
-        _keepImageUrls = List.of(post.imageUrls);
+        _formImages = PostFormImagePayload.fromUrls(post.imageUrls);
         _selectedTagIds = post.tags.map((tag) => tag.id).toList();
         _selectedPlace = post.place;
+
+        _initialTitle = post.title;
+        _initialComment = post.comment ?? '';
+        _initialRating = post.rating;
+        _initialVisibility = post.visibility;
+        _initialImageUrls = List.of(post.imageUrls);
+        _initialTagIds = post.tags.map((tag) => tag.id).toList();
+        _initialPlaceId = post.place?.id;
+        _initialRestaurantName = post.restaurantName ?? '';
+        _initialRestaurantLocation = post.restaurantLocation ?? '';
       });
     } catch (e) {
       if (!mounted) return;
@@ -163,9 +230,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   Future<void> _pickImages() async {
     if (_pickingPhotos) return;
 
-    final remaining = ApiConstraints.maxImagesPerPost -
-        _keepImageUrls.length -
-        _newImages.length;
+    final remaining = ApiConstraints.maxImagesPerPost - _formImages.length;
     if (remaining <= 0) {
       setState(() {
         _error =
@@ -205,7 +270,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       }
 
       setState(() {
-        _newImages = [..._newImages, ...picked];
+        _formImages = [..._formImages, ...picked.map(FormImage.newFile)];
         _pickingPhotos = false;
       });
     } catch (e) {
@@ -217,24 +282,62 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     }
   }
 
-  void _removeExistingImage(int index) {
-    setState(() => _keepImageUrls = List.of(_keepImageUrls)..removeAt(index));
+  Future<_LeaveAction?> _promptLeave() {
+    final isEditing = widget.isEditing;
+    return showDialog<_LeaveAction>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unsaved changes'),
+        content: Text(
+          isEditing
+              ? "You have edits that aren't saved yet. Save before leaving, or discard them?"
+              : "You have a draft that isn't saved yet. Share it before leaving, or discard it?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, _LeaveAction.keepEditing),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _LeaveAction.save),
+            child: Text(isEditing ? 'Save changes' : 'Share to feed'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, _LeaveAction.discard),
+            child: const Text('Discard & leave'),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _removeNewImage(int index) {
-    setState(() => _newImages = List.of(_newImages)..removeAt(index));
+  Future<void> _handlePopInvoked(bool didPop) async {
+    if (didPop || !_isDirty || _allowLeave) return;
+    final action = await _promptLeave();
+    if (!mounted) return;
+    switch (action) {
+      case _LeaveAction.discard:
+        setState(() => _allowLeave = true);
+        context.pop();
+      case _LeaveAction.save:
+        await _submit(leaveAfterSave: true);
+      case _LeaveAction.keepEditing:
+      case null:
+        break;
+    }
   }
 
-  bool get _hasPhotos => _keepImageUrls.isNotEmpty || _newImages.isNotEmpty;
-
-  Future<void> _submit() async {
+  Future<void> _submit({bool leaveAfterSave = false}) async {
     final validationError = validatePostTitle(_title.text) ??
         validatePostComment(_comment.text) ??
         validateRestaurantName(_restaurantName.text) ??
         validateRestaurantLocation(_restaurantLocation.text) ??
         (widget.isEditing
-            ? validatePostImageTotals(_keepImageUrls.length, _newImages.length)
-            : validatePostImageCount(_newImages.length));
+            ? validatePostImageTotals(
+                _formImages.where((image) => image.isExisting).length,
+                _formImages.where((image) => image.isNew).length,
+              )
+            : validatePostImageCount(_formImages.length));
     if (validationError != null) {
       setState(() => _error = validationError);
       return;
@@ -246,6 +349,10 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     });
 
     try {
+      final payload = PostFormImagePayload.fromFormImages(
+        _formImages,
+        forEdit: widget.isEditing,
+      );
       final SteakPost post;
       if (widget.isEditing) {
         post = await widget.api.updatePost(
@@ -253,8 +360,9 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           title: _title.text.trim(),
           comment: _comment.text.trim(),
           rating: _rating,
-          keepImageUrls: _keepImageUrls,
-          newImages: _newImages,
+          keepImageUrls: payload.keepImageUrls,
+          newImages: payload.newImages,
+          imageOrder: payload.imageOrder,
           restaurantName: _selectedPlace?.name ??
               (_restaurantName.text.trim().isEmpty
                   ? null
@@ -272,7 +380,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           title: _title.text.trim(),
           comment: _comment.text.trim(),
           rating: _rating,
-          images: _newImages,
+          images: payload.newImages,
           restaurantName: _selectedPlace?.name ??
               (_restaurantName.text.trim().isEmpty
                   ? null
@@ -287,6 +395,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
         );
       }
       if (!mounted) return;
+      setState(() => _allowLeave = true);
       context.go('/posts/${post.id}');
     } catch (e) {
       if (!mounted) return;
@@ -316,165 +425,169 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     final theme = Theme.of(context);
     final isEditing = widget.isEditing;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-      children: [
-        Text(
-          isEditing ? 'Edit your steak' : 'Rate your steak',
-          style: theme.textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          isEditing
-              ? 'Update photos, rating, tags, or visibility.'
-              : 'Upload photos, score the experience, and share where you ate.',
-          style: theme.textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 20),
-        if (_error != null) ...[
-          AuthErrorBanner(message: _error!),
-          const SizedBox(height: 16),
-        ],
-        Text(
-          'JPEG, PNG, or WebP · max ${ApiConstraints.maxImageMb} MB each',
-          style: TextStyle(color: palette.creamMuted, fontSize: 13),
-        ),
-        if (isDesktopPicker) ...[
-          const SizedBox(height: 4),
+    return PopScope(
+      canPop: !_isDirty || _allowLeave,
+      onPopInvokedWithResult: (didPop, _) {
+        unawaited(_handlePopInvoked(didPop));
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        children: [
           Text(
-            'On macOS, use the file picker to select images from your Mac.',
-            style: TextStyle(color: palette.creamMuted, fontSize: 12),
+            isEditing ? 'Edit your steak' : 'Rate your steak',
+            style: theme.textTheme.headlineMedium,
           ),
-        ],
-        const SizedBox(height: 16),
-        PostPhotoSection(
-          existingImageUrls: _keepImageUrls,
-          newImages: _newImages,
-          picking: _pickingPhotos,
-          onPick: _pickImages,
-          onRemoveExisting: _removeExistingImage,
-          onRemoveNew: _removeNewImage,
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _title,
-          decoration: const InputDecoration(
-            labelText: 'Title',
-            hintText: 'e.g. Ribeye night',
+          const SizedBox(height: 6),
+          Text(
+            isEditing
+                ? 'Update photos, rating, tags, or visibility.'
+                : 'Upload photos, score the experience, and share where you ate.',
+            style: theme.textTheme.bodyMedium,
           ),
-          textInputAction: TextInputAction.next,
-        ),
-        const SizedBox(height: 16),
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.map_outlined, color: palette.gold, size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Restaurant on the map', style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Search Google Maps to tag where you ate.',
-                            style: TextStyle(color: palette.creamMuted, fontSize: 13),
-                          ),
-                        ],
+          const SizedBox(height: 20),
+          if (_error != null) ...[
+            AuthErrorBanner(message: _error!),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            'JPEG, PNG, or WebP · max ${ApiConstraints.maxImageMb} MB each',
+            style: TextStyle(color: palette.creamMuted, fontSize: 13),
+          ),
+          if (isDesktopPicker) ...[
+            const SizedBox(height: 4),
+            Text(
+              'On macOS, use the file picker to select images from your Mac.',
+              style: TextStyle(color: palette.creamMuted, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 16),
+          PostPhotoSection(
+            images: _formImages,
+            picking: _pickingPhotos,
+            onPick: _pickImages,
+            onImagesChanged: (images) => setState(() => _formImages = images),
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _title,
+            decoration: const InputDecoration(
+              labelText: 'Title',
+              hintText: 'e.g. Ribeye night',
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 16),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.map_outlined, color: palette.gold, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Restaurant on the map', style: theme.textTheme.titleMedium),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Search Google Maps to tag where you ate.',
+                              style: TextStyle(color: palette.creamMuted, fontSize: 13),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                PlacePicker(
-                  api: widget.api,
-                  value: _selectedPlace,
-                  onChanged: (place) => setState(() {
-                    _selectedPlace = place;
-                    if (place != null) {
-                      _restaurantName.text = place.name;
-                      _restaurantLocation.text = place.formattedAddress ?? '';
-                    }
-                  }),
-                  hideLabel: true,
-                  placeholder: 'Search restaurants on the map…',
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  PlacePicker(
+                    api: widget.api,
+                    value: _selectedPlace,
+                    onChanged: (place) => setState(() {
+                      _selectedPlace = place;
+                      if (place != null) {
+                        _restaurantName.text = place.name;
+                        _restaurantLocation.text = place.formattedAddress ?? '';
+                      }
+                    }),
+                    hideLabel: true,
+                    placeholder: 'Search restaurants on the map…',
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Text('Your rating', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        StarRating(value: _rating, size: 32, onChanged: (v) => setState(() => _rating = v)),
-        const SizedBox(height: 16),
-        if (_loadingTags)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Loading quick tags…'),
-          )
-        else if (_tagCatalog != null)
-          ReviewTagPicker(
-            catalog: _tagCatalog!,
-            selectedIds: _selectedTagIds,
-            onChanged: (ids) => setState(() => _selectedTagIds = ids),
-          ),
-        const SizedBox(height: 16),
-        if (_selectedPlace == null) ...[
+          const SizedBox(height: 16),
+          Text('Your rating', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          StarRating(value: _rating, size: 32, onChanged: (v) => setState(() => _rating = v)),
+          const SizedBox(height: 16),
+          if (_loadingTags)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('Loading quick tags…'),
+            )
+          else if (_tagCatalog != null)
+            ReviewTagPicker(
+              catalog: _tagCatalog!,
+              selectedIds: _selectedTagIds,
+              onChanged: (ids) => setState(() => _selectedTagIds = ids),
+            ),
+          const SizedBox(height: 16),
+          if (_selectedPlace == null) ...[
+            const SizedBox(height: 14),
+            TextField(
+              controller: _restaurantName,
+              decoration: const InputDecoration(
+                labelText: 'Restaurant name',
+                hintText: 'e.g. The Prime Cut',
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _restaurantLocation,
+              decoration: const InputDecoration(
+                labelText: 'Location',
+                hintText: 'e.g. Austin, TX',
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+          ],
           const SizedBox(height: 14),
           TextField(
-            controller: _restaurantName,
+            controller: _comment,
             decoration: const InputDecoration(
-              labelText: 'Restaurant name',
-              hintText: 'e.g. The Prime Cut',
+              labelText: 'Comment',
+              hintText: 'Cut, seasoning, grill temp, doneness…',
             ),
-            textInputAction: TextInputAction.next,
+            minLines: 3,
+            maxLines: 6,
           ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _restaurantLocation,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              hintText: 'e.g. Austin, TX',
+          const SizedBox(height: 16),
+          VisibilityPicker(
+            value: _visibility,
+            onChanged: (v) => setState(() => _visibility = v),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _submitting || !_hasPhotos ? null : () => _submit(),
+              child: Text(
+                _submitting
+                    ? (isEditing ? 'Saving…' : 'Posting…')
+                    : (isEditing ? 'Save changes' : 'Share to feed'),
+              ),
             ),
-            textInputAction: TextInputAction.next,
           ),
         ],
-        const SizedBox(height: 14),
-        TextField(
-          controller: _comment,
-          decoration: const InputDecoration(
-            labelText: 'Comment',
-            hintText: 'Cut, seasoning, grill temp, doneness…',
-          ),
-          minLines: 3,
-          maxLines: 6,
-        ),
-        const SizedBox(height: 16),
-        VisibilityPicker(
-          value: _visibility,
-          onChanged: (v) => setState(() => _visibility = v),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: _submitting || !_hasPhotos ? null : _submit,
-            child: Text(
-              _submitting
-                  ? (isEditing ? 'Saving…' : 'Posting…')
-                  : (isEditing ? 'Save changes' : 'Share to feed'),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

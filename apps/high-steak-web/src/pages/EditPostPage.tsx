@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useBlocker, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { fetchPost, updatePost, type PlaceSummary, type PostVisibility } from '../api/client'
 import { PageBackLink } from '../components/BackLink'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { PostForm, type PostFormHandle, type PostFormSubmitData } from '../components/PostForm'
 import { useAuth } from '../context/AuthContext'
+import { usePostEditorLeaveGuard } from '../hooks/usePostEditorLeaveGuard'
 import '../components/PostForm.css'
 
 export function EditPostPage() {
@@ -16,8 +17,6 @@ export function EditPostPage() {
   const [error, setError] = useState<string | null>(null)
   const [notAllowed, setNotAllowed] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
-  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
-  const [savingLeave, setSavingLeave] = useState(false)
   const [initial, setInitial] = useState<{
     title: string
     comment: string
@@ -30,27 +29,14 @@ export function EditPostPage() {
     visibility: PostVisibility
   } | null>(null)
 
-  const shouldBlockLeave = useCallback(() => isDirty, [isDirty])
-
-  const blocker = useBlocker(shouldBlockLeave)
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setLeaveDialogOpen(true)
-    }
-  }, [blocker.state])
-
-  useEffect(() => {
-    if (!isDirty) return
-
-    function handleBeforeUnload(event: BeforeUnloadEvent) {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isDirty])
+  const {
+    leaveDialogOpen,
+    savingLeave,
+    permitLeave,
+    handleLeaveCancel,
+    handleLeaveConfirm,
+    handleSaveAndLeave,
+  } = usePostEditorLeaveGuard(isDirty, formRef)
 
   useEffect(() => {
     if (!postId || !token) return
@@ -90,38 +76,9 @@ export function EditPostPage() {
       visibility: data.visibility,
       keepImageUrls: data.keepImageUrls,
       newImages: data.newImages,
+      imageOrder: data.imageOrder,
       tagIds: data.tagIds,
     })
-  }
-
-  function handleLeaveCancel() {
-    setLeaveDialogOpen(false)
-    if (blocker.state === 'blocked') {
-      blocker.reset()
-    }
-  }
-
-  function handleLeaveConfirm() {
-    setLeaveDialogOpen(false)
-    setIsDirty(false)
-    if (blocker.state === 'blocked') {
-      blocker.proceed()
-    }
-  }
-
-  async function handleSaveAndLeave() {
-    setSavingLeave(true)
-    try {
-      const saved = await formRef.current?.submit()
-      if (!saved) return
-      setLeaveDialogOpen(false)
-      setIsDirty(false)
-      if (blocker.state === 'blocked') {
-        blocker.proceed()
-      }
-    } finally {
-      setSavingLeave(false)
-    }
   }
 
   if (!postId) {
@@ -158,7 +115,10 @@ export function EditPostPage() {
           pendingLabel="Saving…"
           onDirtyChange={setIsDirty}
           onSubmit={savePost}
-          onComplete={() => navigate(`/posts/${postId}`)}
+          onComplete={() => {
+            permitLeave()
+            navigate(`/posts/${postId}`)
+          }}
         />
       )}
 
@@ -174,7 +134,7 @@ export function EditPostPage() {
         onConfirm={handleLeaveConfirm}
         onCancel={handleLeaveCancel}
         onSecondary={() => {
-          void handleSaveAndLeave()
+          void handleSaveAndLeave(() => setIsDirty(false))
         }}
       />
     </section>

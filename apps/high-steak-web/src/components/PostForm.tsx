@@ -3,6 +3,7 @@ import { postImageUrl, type PostVisibility } from '../api/client'
 import { API_CONSTRAINTS, MAX_IMAGE_MB } from '../api/constraints'
 import { validateImageFiles, validatePostForm, isUploadRelatedError } from '../utils/validation'
 import { ImageLightbox } from './ImageLightbox'
+import { PhotoGallery } from './PhotoGallery'
 import { ReviewTagPicker } from './ReviewTagPicker'
 import { PlacePicker } from './PlacePicker'
 import { StarRating } from './StarRating'
@@ -21,6 +22,7 @@ export type PostFormSubmitData = {
   tagIds: string[]
   newImages: File[]
   keepImageUrls: string[]
+  imageOrder?: string[]
 }
 
 export type PostFormHandle = {
@@ -45,6 +47,21 @@ type PostFormProps = {
   onDirtyChange?: (dirty: boolean) => void
 }
 
+type FormImage =
+  | { id: string; kind: 'existing'; url: string }
+  | { id: string; kind: 'new'; file: File; preview: string }
+
+let formImageIdCounter = 0
+
+function nextFormImageId() {
+  formImageIdCounter += 1
+  return `form-image-${formImageIdCounter}`
+}
+
+function imagesFromUrls(urls: string[]): FormImage[] {
+  return urls.map((url) => ({ id: nextFormImageId(), kind: 'existing', url }))
+}
+
 function tagIdsEqual(a: string[], b: string[]) {
   if (a.length !== b.length) return false
   const left = [...a].sort()
@@ -52,8 +69,29 @@ function tagIdsEqual(a: string[], b: string[]) {
   return left.every((value, index) => value === right[index])
 }
 
-function urlsEqual(a: string[], b: string[]) {
-  return a.length === b.length && a.every((value, index) => value === b[index])
+function partitionFormImages(images: FormImage[]) {
+  const keepImageUrls: string[] = []
+  const newImages: File[] = []
+  const imageOrder: string[] = []
+  for (const image of images) {
+    if (image.kind === 'existing') {
+      keepImageUrls.push(image.url)
+      imageOrder.push(image.url)
+    } else {
+      const index = newImages.length
+      newImages.push(image.file)
+      imageOrder.push(`__new__:${index}`)
+    }
+  }
+  return { keepImageUrls, newImages, imageOrder }
+}
+
+function formImagesDirty(images: FormImage[], initialUrls: string[]) {
+  if (images.some((image) => image.kind === 'new')) return true
+  if (images.length !== initialUrls.length) return true
+  return images.some(
+    (image, index) => image.kind !== 'existing' || image.url !== initialUrls[index],
+  )
 }
 
 export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostForm(
@@ -84,18 +122,25 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   const [selectedPlace, setSelectedPlace] = useState<PlaceSummary | null>(initialPlace)
   const [visibility, setVisibility] = useState<PostVisibility>(initialVisibility)
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(initialTagIds)
-  const [keepImageUrls, setKeepImageUrls] = useState<string[]>(initialImageUrls)
-  const [newImages, setNewImages] = useState<File[]>([])
-  const [newPreviews, setNewPreviews] = useState<string[]>([])
+  const [formImages, setFormImages] = useState<FormImage[]>(() => imagesFromUrls(initialImageUrls))
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
-  const totalImages = keepImageUrls.length + newImages.length
+  const totalImages = formImages.length
   const previewImages = useMemo(
-    () => [...keepImageUrls.map((url) => postImageUrl(url)), ...newPreviews],
-    [keepImageUrls, newPreviews],
+    () =>
+      formImages.map((image) =>
+        image.kind === 'existing' ? postImageUrl(image.url) : image.preview,
+      ),
+    [formImages],
+  )
+
+  const { keepImageUrls, newImages, imageOrder } = useMemo(
+    () => partitionFormImages(formImages),
+    [formImages],
   )
 
   function setFormErrors(message: string | null) {
@@ -114,17 +159,25 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
   }
 
   const isDirty =
-    mode === 'edit' &&
-    (title !== initialTitle ||
-      comment !== initialComment ||
-      rating !== initialRating ||
-      restaurantName !== initialRestaurantName ||
-      restaurantLocation !== initialRestaurantLocation ||
-      selectedPlace?.id !== initialPlace?.id ||
-      visibility !== initialVisibility ||
-      !tagIdsEqual(selectedTagIds, initialTagIds) ||
-      !urlsEqual(keepImageUrls, initialImageUrls) ||
-      newImages.length > 0)
+    mode === 'edit'
+      ? title !== initialTitle ||
+        comment !== initialComment ||
+        rating !== initialRating ||
+        restaurantName !== initialRestaurantName ||
+        restaurantLocation !== initialRestaurantLocation ||
+        selectedPlace?.id !== initialPlace?.id ||
+        visibility !== initialVisibility ||
+        !tagIdsEqual(selectedTagIds, initialTagIds) ||
+        formImagesDirty(formImages, initialImageUrls)
+      : title.trim() !== '' ||
+        comment.trim() !== '' ||
+        rating !== initialRating ||
+        selectedPlace?.id !== (initialPlace?.id ?? null) ||
+        (!selectedPlace &&
+          (restaurantName.trim() !== '' || restaurantLocation.trim() !== '')) ||
+        visibility !== initialVisibility ||
+        selectedTagIds.length > 0 ||
+        formImages.length > 0
 
   useEffect(() => {
     onDirtyChange?.(isDirty)
@@ -136,6 +189,11 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
     setRestaurantName(initialPlace.name)
     setRestaurantLocation(initialPlace.formattedAddress ?? '')
   }, [initialPlace])
+
+  useEffect(() => {
+    if (activeGalleryIndex < formImages.length) return
+    setActiveGalleryIndex(Math.max(0, formImages.length - 1))
+  }, [activeGalleryIndex, formImages.length])
 
   function buildSubmitData(): PostFormSubmitData | null {
     if (totalImages === 0) return null
@@ -152,6 +210,7 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       tagIds: selectedTagIds,
       newImages,
       keepImageUrls,
+      imageOrder: mode === 'edit' ? imageOrder : undefined,
     }
   }
 
@@ -200,18 +259,38 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
       return
     }
     setFormErrors(null)
-    setNewImages((current) => [...current, ...picked])
-    setNewPreviews((current) => [...current, ...picked.map((file) => URL.createObjectURL(file))])
+    const added: FormImage[] = picked.map((file) => ({
+      id: nextFormImageId(),
+      kind: 'new',
+      file,
+      preview: URL.createObjectURL(file),
+    }))
+    setFormImages((current) => {
+      setActiveGalleryIndex(current.length)
+      return [...current, ...added]
+    })
   }
 
-  function removeExistingImage(url: string) {
-    setKeepImageUrls((current) => current.filter((item) => item !== url))
+  function removeImage(index: number) {
+    setFormImages((current) => {
+      const target = current[index]
+      if (target?.kind === 'new') {
+        URL.revokeObjectURL(target.preview)
+      }
+      return current.filter((_, itemIndex) => itemIndex !== index)
+    })
+    setActiveGalleryIndex((current) => Math.max(0, current - (index <= current ? 1 : 0)))
   }
 
-  function removeNewImage(index: number) {
-    URL.revokeObjectURL(newPreviews[index])
-    setNewImages((current) => current.filter((_, i) => i !== index))
-    setNewPreviews((current) => current.filter((_, i) => i !== index))
+  function setAsCover(index: number) {
+    if (index === 0) return
+    setFormImages((current) => {
+      const next = [...current]
+      const [item] = next.splice(index, 1)
+      next.unshift(item)
+      return next
+    })
+    setActiveGalleryIndex(0)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -223,37 +302,17 @@ export const PostForm = forwardRef<PostFormHandle, PostFormProps>(function PostF
     <form className="post-form" onSubmit={handleSubmit}>
       <div className={`upload-zone${uploadError ? ' upload-zone-error' : ''}`}>
         {totalImages > 0 ? (
-          <div className="preview-grid">
-            {keepImageUrls.map((url, index) => (
-              <div key={url} className="preview-item">
-                <button
-                  type="button"
-                  className="preview-image-button"
-                  onClick={() => setLightboxIndex(index)}
-                  aria-label={`View photo ${index + 1} full size`}
-                >
-                  <img src={postImageUrl(url)} alt="" className="preview-image" />
-                </button>
-                <button type="button" className="preview-remove" onClick={() => removeExistingImage(url)}>
-                  Remove
-                </button>
-              </div>
-            ))}
-            {newPreviews.map((preview, index) => (
-              <div key={preview} className="preview-item">
-                <button
-                  type="button"
-                  className="preview-image-button"
-                  onClick={() => setLightboxIndex(keepImageUrls.length + index)}
-                  aria-label={`View photo ${keepImageUrls.length + index + 1} full size`}
-                >
-                  <img src={preview} alt="" className="preview-image" />
-                </button>
-                <button type="button" className="preview-remove" onClick={() => removeNewImage(index)}>
-                  Remove
-                </button>
-              </div>
-            ))}
+          <div className="upload-gallery">
+            <PhotoGallery
+              images={previewImages}
+              activeIndex={activeGalleryIndex}
+              onActiveIndexChange={setActiveGalleryIndex}
+              alt="Post photo preview"
+              onZoom={(index) => setLightboxIndex(index)}
+              coverIndex={0}
+              onSetCover={setAsCover}
+              onRemove={removeImage}
+            />
           </div>
         ) : (
           <div className="upload-placeholder">

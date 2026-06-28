@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../navigation/app_navigator.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import '../utils/post_form_images.dart';
 
 /// Full-screen photo viewer with swipe between images (matches web lightbox).
 class ImageLightbox {
@@ -37,6 +38,22 @@ class ImageLightbox {
       ...existingImageUrls.map(_LightboxImage.network),
       ...newImages.map(_LightboxImage.file),
     ];
+    return _show(context, items: items, initialIndex: initialIndex, title: title);
+  }
+
+  static Future<void> showFormImages(
+    BuildContext context, {
+    required List<FormImage> images,
+    int initialIndex = 0,
+    String? title,
+  }) {
+    final items = images
+        .map(
+          (image) => image.isExisting
+              ? _LightboxImage.network(image.url!)
+              : _LightboxImage.file(image.file!),
+        )
+        .toList(growable: false);
     return _show(context, items: items, initialIndex: initialIndex, title: title);
   }
 

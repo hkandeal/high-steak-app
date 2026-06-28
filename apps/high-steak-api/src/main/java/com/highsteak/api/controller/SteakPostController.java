@@ -126,11 +126,12 @@ public class SteakPostController {
             @RequestParam(required = false) UUID placeId,
             @RequestParam(required = false) String visibility,
             @RequestParam(required = false) List<String> keepImageUrls,
+            @RequestParam(required = false) List<String> imageOrder,
             @RequestParam(required = false) MultipartFile[] images,
             @RequestParam(required = false) List<UUID> tagIds) {
         return steakPostService.updatePost(
                 principal, id, title, comment, rating, restaurantName, restaurantLocation,
-                placeId, visibility, keepImageUrls, images, tagIds);
+                placeId, visibility, keepImageUrls, imageOrder, images, tagIds);
     }
 
     @DeleteMapping("/{id}")

@@ -19,8 +19,10 @@ import { CommentComposer } from '../components/CommentComposer'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { ImageLightbox } from '../components/ImageLightbox'
+import { PhotoGallery } from '../components/PhotoGallery'
 import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
 import { PageBackLink } from '../components/BackLink'
+import { PostVenue } from '../components/PostVenue'
 import { useAuth } from '../context/AuthContext'
 import { useModerationNoticesContext } from '../context/ModerationNoticesContext'
 import { useInfiniteComments } from '../hooks/useInfiniteComments'
@@ -211,36 +213,13 @@ export function PostDetailPage() {
           )}
 
           <div className="post-detail-grid">
-            <div className="post-gallery">
-              <button
-                type="button"
-                className="post-gallery-main post-gallery-main-button"
-                onClick={() => openLightbox(galleryImages, activeImage, post.title)}
-                aria-label="View photo full size"
-              >
-                <img
-                  src={postImageUrl(post.imageUrls[activeImage] ?? '')}
-                  alt={post.title}
-                />
-                <span className="post-gallery-expand" aria-hidden="true">⤢</span>
-              </button>
-              {post.imageUrls.length > 1 && (
-                <div className="post-gallery-thumbs">
-                  {post.imageUrls.map((url, index) => (
-                    <button
-                      key={`${url}-${index}`}
-                      type="button"
-                      className={`thumb ${index === activeImage ? 'active' : ''}`}
-                      onClick={() => setActiveImage(index)}
-                      onDoubleClick={() => openLightbox(galleryImages, index, post.title)}
-                      aria-label={`Show photo ${index + 1}`}
-                    >
-                      <img src={postImageUrl(url)} alt="" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <PhotoGallery
+              images={galleryImages}
+              activeIndex={activeImage}
+              onActiveIndexChange={setActiveImage}
+              alt={post.title}
+              onZoom={(index) => openLightbox(galleryImages, index, post.title)}
+            />
 
             <div className="post-detail-body">
               <div className="post-meta">
@@ -277,12 +256,7 @@ export function PostDetailPage() {
               )}
               <StarRating value={post.rating} readOnly />
               <ReviewTagChips tags={post.tags ?? []} />
-              {post.restaurantName && (
-                <p className="post-venue">
-                  <strong>{post.restaurantName}</strong>
-                  {post.restaurantLocation && <span> · {post.restaurantLocation}</span>}
-                </p>
-              )}
+              <PostVenue post={post} className="post-venue" />
               {post.comment && <p className="post-caption">{post.comment}</p>}
             </div>
           </div>

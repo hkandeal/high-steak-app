@@ -14,6 +14,7 @@ import { ImageLightbox } from '../components/ImageLightbox'
 import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
 import { PostFeedLayout } from '../components/PostFeedLayout'
 import { PostCardMenu, type PostCardMenuItem } from '../components/PostCardMenu'
+import { PostVenue } from '../components/PostVenue'
 import { ReviewTagChips } from '../components/ReviewTagChips'
 import { StarRating } from '../components/StarRating'
 import { useAuth } from '../context/AuthContext'
@@ -158,9 +159,7 @@ export function BookmarksPage() {
                   </Link>
                   <StarRating value={post.rating} readOnly />
                   <ReviewTagChips tags={post.tags ?? []} compact />
-                  {post.restaurantName && (
-                    <p className="post-restaurant">{post.restaurantName}</p>
-                  )}
+                  <PostVenue post={post} showLocation={Boolean(post.place)} />
                   {post.comment && <p className="post-comment">{post.comment}</p>}
                 </div>
               </article>
