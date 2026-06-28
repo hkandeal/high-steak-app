@@ -31,7 +31,15 @@ public interface PlaceRepository extends JpaRepository<Place, UUID> {
             FROM places p
             INNER JOIN steak_posts sp ON sp.place_id = p.id
             WHERE sp.hidden = false
-              AND sp.visibility = 'PUBLIC'
+              AND (
+                  sp.visibility = 'PUBLIC'
+                  OR sp.user_id = :viewerId
+                  OR EXISTS (
+                      SELECT 1 FROM user_subscriptions us
+                      WHERE us.subscriber_id = :viewerId
+                        AND us.target_user_id = sp.user_id
+                  )
+              )
               AND p.latitude BETWEEN :minLat AND :maxLat
               AND p.longitude BETWEEN :minLng AND :maxLng
             GROUP BY p.id, p.name, p.formatted_address, p.latitude, p.longitude, p.provider_photo_name
@@ -44,6 +52,7 @@ public interface PlaceRepository extends JpaRepository<Place, UUID> {
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
     java.util.List<PlaceNearbyProjection> findNearbyWithPosts(
+            @Param("viewerId") String viewerId,
             @Param("lat") double lat,
             @Param("lng") double lng,
             @Param("minLat") double minLat,
@@ -60,7 +69,15 @@ public interface PlaceRepository extends JpaRepository<Place, UUID> {
                 FROM places p
                 INNER JOIN steak_posts sp ON sp.place_id = p.id
                 WHERE sp.hidden = false
-                  AND sp.visibility = 'PUBLIC'
+                  AND (
+                      sp.visibility = 'PUBLIC'
+                      OR sp.user_id = :viewerId
+                      OR EXISTS (
+                          SELECT 1 FROM user_subscriptions us
+                          WHERE us.subscriber_id = :viewerId
+                            AND us.target_user_id = sp.user_id
+                      )
+                  )
                   AND p.latitude BETWEEN :minLat AND :maxLat
                   AND p.longitude BETWEEN :minLng AND :maxLng
                 GROUP BY p.id, p.latitude, p.longitude
@@ -72,6 +89,7 @@ public interface PlaceRepository extends JpaRepository<Place, UUID> {
             ) nearby
             """, nativeQuery = true)
     long countNearbyWithPosts(
+            @Param("viewerId") String viewerId,
             @Param("lat") double lat,
             @Param("lng") double lng,
             @Param("minLat") double minLat,

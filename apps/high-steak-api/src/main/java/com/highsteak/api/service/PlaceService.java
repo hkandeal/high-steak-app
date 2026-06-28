@@ -5,7 +5,6 @@ import com.highsteak.api.domain.CoverImageSource;
 import com.highsteak.api.domain.LocationPrecision;
 import com.highsteak.api.domain.Place;
 import com.highsteak.api.domain.PlaceProvider;
-import com.highsteak.api.domain.PostVisibility;
 import com.highsteak.api.domain.SteakPost;
 import com.highsteak.api.dto.PageDtos;
 import com.highsteak.api.dto.PlaceDtos;
@@ -98,6 +97,7 @@ public class PlaceService {
 
     @Transactional(readOnly = true)
     public PageDtos.PageResponse<PlaceDtos.PlaceNearbySummary> findNearby(
+            UserPrincipal viewer,
             double latitude,
             double longitude,
             Integer radiusM,
@@ -106,8 +106,10 @@ public class PlaceService {
         int effectiveRadius = normalizeRadius(radiusM);
         BoundingBox box = BoundingBox.around(latitude, longitude, effectiveRadius);
         Pageable pageable = PaginationHelper.pageable(page, size);
+        String viewerId = viewer.getId().toString();
 
         List<PlaceRepository.PlaceNearbyProjection> rows = placeRepository.findNearbyWithPosts(
+                viewerId,
                 latitude,
                 longitude,
                 box.minLat(),
@@ -119,6 +121,7 @@ public class PlaceService {
                 (int) pageable.getOffset());
 
         long total = placeRepository.countNearbyWithPosts(
+                viewerId,
                 latitude,
                 longitude,
                 box.minLat(),
@@ -129,7 +132,7 @@ public class PlaceService {
 
         List<PlaceDtos.PlaceNearbySummary> content = rows.stream()
                 .map(row -> {
-                    CoverImage cover = resolveCoverImage(row.getPlaceId(), row.getProviderPhotoName());
+                    CoverImage cover = resolveCoverImage(row.getPlaceId(), row.getProviderPhotoName(), viewer.getId());
                     return new PlaceDtos.PlaceNearbySummary(
                             row.getPlaceId(),
                             row.getPlaceName(),
@@ -160,9 +163,9 @@ public class PlaceService {
             throw new ResponseStatusException(NOT_FOUND, "Place not found");
         }
         Pageable pageable = PaginationHelper.pageable(page, size);
-        Page<SteakPost> posts = steakPostRepository.findByPlaceIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
-                placeId, PostVisibility.PUBLIC, pageable);
-        return PaginationHelper.toPageResponse(posts, post -> steakPostService.toResponse(post, viewer));
+        Page<SteakPost> posts = steakPostRepository.findVisiblePostsAtPlace(
+                placeId, viewer.getId(), pageable);
+        return steakPostService.toFeedPageResponse(posts, viewer);
     }
 
     @Transactional(readOnly = true)
@@ -319,9 +322,11 @@ public class PlaceService {
         return place.getLatitude() + ", " + place.getLongitude();
     }
 
-    private CoverImage resolveCoverImage(UUID placeId, String providerPhotoName) {
+    private CoverImage resolveCoverImage(UUID placeId, String providerPhotoName, UUID viewerId) {
         String postImage = steakPostRepository
-                .findFirstByPlaceIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(placeId, PostVisibility.PUBLIC)
+                .findVisiblePostsAtPlace(placeId, viewerId, Pageable.ofSize(1))
+                .stream()
+                .findFirst()
                 .flatMap(post -> post.getImages().stream().findFirst().map(image -> image.getImageUrl()))
                 .orElse(null);
         if (postImage != null) {

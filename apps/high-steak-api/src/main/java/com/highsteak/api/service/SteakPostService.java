@@ -219,7 +219,7 @@ public class SteakPostService {
                 posts, post -> toResponse(post, viewer, bookmarkedIds.contains(post.getId())));
     }
 
-    private PageDtos.PageResponse<PostDtos.PostResponse> toFeedPageResponse(
+    public PageDtos.PageResponse<PostDtos.PostResponse> toFeedPageResponse(
             Page<SteakPost> posts, UserPrincipal viewer) {
         Set<UUID> bookmarkedIds = resolveBookmarkedIds(viewer, posts.getContent());
         return PaginationHelper.toPageResponse(

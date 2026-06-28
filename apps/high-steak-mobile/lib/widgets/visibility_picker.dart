@@ -28,7 +28,7 @@ class VisibilityPicker extends StatelessWidget {
         _OptionCard(
           icon: Icons.public,
           title: 'Public',
-          description: 'Shows on the nearby feed',
+          description: 'Shows on the nearby feed and map',
           selected: value == PostVisibility.public,
           palette: palette,
           onTap: () => onChanged(PostVisibility.public),
@@ -37,7 +37,7 @@ class VisibilityPicker extends StatelessWidget {
         _OptionCard(
           icon: Icons.group_outlined,
           title: 'Followers only',
-          description: 'Only people who follow you',
+          description: 'People who follow you; also on the map for your followers',
           selected: value == PostVisibility.followersOnly,
           palette: palette,
           onTap: () => onChanged(PostVisibility.followersOnly),

@@ -70,6 +70,27 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
     Page<SteakPost> findByPlaceIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
             UUID placeId, PostVisibility visibility, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"user", "place", "images", "reviewTags", "reviewTags.tag"})
+    @Query("""
+            SELECT p FROM SteakPost p
+            WHERE p.place.id = :placeId
+              AND p.hidden = false
+              AND (
+                  p.visibility = com.highsteak.api.domain.PostVisibility.PUBLIC
+                  OR p.user.id = :viewerId
+                  OR EXISTS (
+                      SELECT 1 FROM UserSubscription s
+                      WHERE s.id.subscriberId = :viewerId
+                        AND s.id.targetUserId = p.user.id
+                  )
+              )
+            ORDER BY p.createdAt DESC
+            """)
+    Page<SteakPost> findVisiblePostsAtPlace(
+            @Param("placeId") UUID placeId,
+            @Param("viewerId") UUID viewerId,
+            Pageable pageable);
+
     @EntityGraph(attributePaths = {"images"})
     Optional<SteakPost> findFirstByPlaceIdAndHiddenFalseAndVisibilityOrderByCreatedAtDesc(
             UUID placeId, PostVisibility visibility);
@@ -88,7 +109,6 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
             FROM steak_posts sp
             INNER JOIN places p ON p.id = sp.place_id
             WHERE sp.hidden = false
-              AND sp.visibility = 'PUBLIC'
               AND sp.user_id != :viewerId
               AND p.latitude BETWEEN :minLat AND :maxLat
               AND p.longitude BETWEEN :minLng AND :maxLng
@@ -97,6 +117,14 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
                       * COS(RADIANS(p.longitude) - RADIANS(:lng))
                   + SIN(RADIANS(:lat)) * SIN(RADIANS(p.latitude))
               ))) <= :radiusM
+              AND (
+                  sp.visibility = 'PUBLIC'
+                  OR EXISTS (
+                      SELECT 1 FROM user_subscriptions us
+                      WHERE us.subscriber_id = :viewerId
+                        AND us.target_user_id = sp.user_id
+                  )
+              )
             ORDER BY sp.created_at DESC
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
@@ -117,7 +145,6 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
             FROM steak_posts sp
             INNER JOIN places p ON p.id = sp.place_id
             WHERE sp.hidden = false
-              AND sp.visibility = 'PUBLIC'
               AND sp.user_id != :viewerId
               AND p.latitude BETWEEN :minLat AND :maxLat
               AND p.longitude BETWEEN :minLng AND :maxLng
@@ -126,6 +153,14 @@ public interface SteakPostRepository extends JpaRepository<SteakPost, UUID> {
                       * COS(RADIANS(p.longitude) - RADIANS(:lng))
                   + SIN(RADIANS(:lat)) * SIN(RADIANS(p.latitude))
               ))) <= :radiusM
+              AND (
+                  sp.visibility = 'PUBLIC'
+                  OR EXISTS (
+                      SELECT 1 FROM user_subscriptions us
+                      WHERE us.subscriber_id = :viewerId
+                        AND us.target_user_id = sp.user_id
+                  )
+              )
             """, nativeQuery = true)
     long countNearbyPosts(
             @Param("viewerId") String viewerId,
