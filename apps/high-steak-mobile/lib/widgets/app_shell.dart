@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../auth/auth_controller.dart';
 import '../screens/feed_screen.dart';
 import '../services/api_service.dart';
+import '../navigation/post_editor_leave_guard.dart';
 import '../theme/app_palette.dart';
 import '../theme/theme_controller.dart';
 import 'brand_background.dart';
@@ -137,6 +138,14 @@ class AppShell extends StatelessWidget {
   bool _canCreatePost(String path) =>
       path == '/feed' && auth.hasScope('posts:write');
 
+  Future<void> _navigateIfAllowed(
+    BuildContext context,
+    VoidCallback navigate,
+  ) async {
+    if (!await confirmPostEditorLeave(context)) return;
+    if (context.mounted) navigate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
@@ -152,8 +161,13 @@ class AppShell extends StatelessWidget {
           leading: showBack
               ? IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                  onPressed: () =>
-                      context.canPop() ? context.pop() : context.go('/feed'),
+                  onPressed: () => _navigateIfAllowed(context, () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/feed');
+                    }
+                  }),
                 )
               : null,
           title: Text(_title(path)),
@@ -170,21 +184,27 @@ class AppShell extends StatelessWidget {
               color: palette.charcoalLight,
               onSelected: (value) async {
                 if (value == 'logout') {
+                  if (!await confirmPostEditorLeave(context)) return;
                   await auth.logout();
                   if (context.mounted) context.go('/');
                 } else if (value == 'profile') {
                   final userId = auth.user?.id;
-                  if (userId != null) context.go('/users/$userId');
+                  if (userId != null) {
+                    await _navigateIfAllowed(
+                      context,
+                      () => context.go('/users/$userId'),
+                    );
+                  }
                 } else if (value == 'new-post') {
                   context.push('/post/new');
                 } else if (value == 'bookmarks') {
-                  context.go('/bookmarks');
+                  await _navigateIfAllowed(context, () => context.go('/bookmarks'));
                 } else if (value == 'discover') {
-                  context.go('/discover');
+                  await _navigateIfAllowed(context, () => context.go('/discover'));
                 } else if (value == 'following') {
-                  context.go('/following');
+                  await _navigateIfAllowed(context, () => context.go('/following'));
                 } else if (value == 'explore') {
-                  context.go('/explore');
+                  await _navigateIfAllowed(context, () => context.go('/explore'));
                 } else if (value == 'notifications') {
                   context.push('/notifications');
                 }
@@ -239,7 +259,11 @@ class AppShell extends StatelessWidget {
             : null,
         bottomNavigationBar: NavigationBar(
           selectedIndex: navIndex.clamp(0, destinations.length - 1),
-          onDestinationSelected: (index) => context.go(destinations[index].path),
+          onDestinationSelected: (index) {
+            final destination = destinations[index].path;
+            if (destination == path) return;
+            _navigateIfAllowed(context, () => context.go(destination));
+          },
           destinations: destinations
               .map(
                 (dest) => NavigationDestination(

@@ -12,6 +12,7 @@ import '../models/place.dart';
 import '../models/review_tag_catalog.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../navigation/post_editor_leave_guard.dart';
 import '../theme/app_palette.dart';
 import '../utils/post_form_images.dart';
 import '../utils/post_image_picker.dart';
@@ -66,6 +67,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   bool _notAllowed = false;
   bool _allowLeave = false;
   String? _error;
+  PostEditorLeaveGuard? _leaveGuard;
 
   String _initialTitle = '';
   String _initialComment = '';
@@ -81,12 +83,39 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   void initState() {
     super.initState();
     _initialPlaceId = widget.initialPlaceId;
+    for (final controller in [
+      _title,
+      _comment,
+      _restaurantName,
+      _restaurantLocation,
+    ]) {
+      controller.addListener(_onFormFieldChanged);
+    }
     _bootstrap();
     _restoreLostAndroidPhotos();
   }
 
+  void _onFormFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _leaveGuard = PostEditorLeaveScope.of(context);
+  }
+
   @override
   void dispose() {
+    _leaveGuard?.unbindEditor();
+    for (final controller in [
+      _title,
+      _comment,
+      _restaurantName,
+      _restaurantLocation,
+    ]) {
+      controller.removeListener(_onFormFieldChanged);
+    }
     _title.dispose();
     _comment.dispose();
     _restaurantName.dispose();
@@ -311,19 +340,36 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     );
   }
 
-  Future<void> _handlePopInvoked(bool didPop) async {
-    if (didPop || !_isDirty || _allowLeave) return;
+  Future<bool> _confirmLeave() async {
+    if (!_isDirty || _allowLeave) return true;
     final action = await _promptLeave();
-    if (!mounted) return;
+    if (!mounted) return false;
     switch (action) {
       case _LeaveAction.discard:
         setState(() => _allowLeave = true);
-        context.pop();
+        return true;
       case _LeaveAction.save:
         await _submit(leaveAfterSave: true);
+        return _allowLeave;
       case _LeaveAction.keepEditing:
       case null:
-        break;
+        return false;
+    }
+  }
+
+  void _syncLeaveGuard() {
+    _leaveGuard?.bindEditor(
+      isDirty: _isDirty,
+      allowLeave: _allowLeave,
+      confirmLeave: _confirmLeave,
+    );
+  }
+
+  Future<void> _handlePopInvoked(bool didPop) async {
+    if (didPop || !_isDirty || _allowLeave) return;
+    if (await _confirmLeave()) {
+      if (!mounted) return;
+      context.pop();
     }
   }
 
@@ -424,6 +470,10 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     final palette = context.palette;
     final theme = Theme.of(context);
     final isEditing = widget.isEditing;
+
+    if (!_notAllowed) {
+      _syncLeaveGuard();
+    }
 
     return PopScope(
       canPop: !_isDirty || _allowLeave,

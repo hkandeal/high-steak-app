@@ -21,12 +21,17 @@ import '../theme/app_scroll_behavior.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/app_shell.dart';
+import '../navigation/post_editor_leave_guard.dart';
 import '../screens/forgot_password_screen.dart';
 import '../screens/reset_password_screen.dart';
 import '../navigation/deep_link_service.dart';
 import '../navigation/app_navigator.dart';
 import '../utils/feed_layout_controller.dart';
 import '../widgets/feed_layout_scope.dart';
+
+Future<bool> _confirmPostEditorRouteExit(BuildContext context, GoRouterState state) {
+  return confirmPostEditorLeave(context);
+}
 
 GoRouter createAppRouter({
   required AuthController auth,
@@ -162,6 +167,7 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: '/post/new',
+            onExit: _confirmPostEditorRouteExit,
             builder: (context, state) => CreatePostScreen(
               auth: auth,
               api: api,
@@ -178,6 +184,7 @@ GoRouter createAppRouter({
           ),
           GoRoute(
             path: '/posts/:postId/edit',
+            onExit: _confirmPostEditorRouteExit,
             builder: (context, state) => PostEditorScreen(
               postId: state.pathParameters['postId'],
               auth: auth,
@@ -218,6 +225,7 @@ class AuthBootstrap extends StatefulWidget {
 
 class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserver {
   GoRouter? _router;
+  final PostEditorLeaveGuard _leaveGuard = PostEditorLeaveGuard();
 
   @override
   void initState() {
@@ -257,14 +265,17 @@ class _AuthBootstrapState extends State<AuthBootstrap> with WidgetsBindingObserv
       );
     }
 
-    return FeedLayoutScope(
-      notifier: widget.feedLayout,
-      child: MaterialApp.router(
-        title: 'High Steaks',
-        debugShowCheckedModeBanner: false,
-        scrollBehavior: const AppScrollBehavior(),
-        theme: AppTheme.build(widget.theme.variant),
-        routerConfig: _router!,
+    return PostEditorLeaveScope(
+      notifier: _leaveGuard,
+      child: FeedLayoutScope(
+        notifier: widget.feedLayout,
+        child: MaterialApp.router(
+          title: 'High Steaks',
+          debugShowCheckedModeBanner: false,
+          scrollBehavior: const AppScrollBehavior(),
+          theme: AppTheme.build(widget.theme.variant),
+          routerConfig: _router!,
+        ),
       ),
     );
   }
