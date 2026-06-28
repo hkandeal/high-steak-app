@@ -8,6 +8,7 @@ import '../models/page_response.dart';
 import '../models/place.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/explore_location_service.dart';
 import '../utils/explore_location_store.dart';
@@ -72,6 +73,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   bool _loading = false;
   String? _error;
+  PostRefreshSubscription? _postRefresh;
 
   MapLatLng? get _browseCenter => _savedCenter ?? _userCoords;
 
@@ -86,6 +88,28 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void initState() {
     super.initState();
     unawaited(_bootstrap());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _postRefresh ??= PostRefreshSubscription(
+      context: context,
+      onStale: _reloadSelectedPlacePosts,
+    );
+    _postRefresh!.rebind(context);
+  }
+
+  @override
+  void dispose() {
+    _postRefresh?.dispose();
+    super.dispose();
+  }
+
+  void _reloadSelectedPlacePosts() {
+    final placeId = _selectedPlace?.id ?? widget.placeId;
+    if (placeId == null) return;
+    unawaited(_loadPlaceDetail(placeId));
   }
 
   Future<void> _bootstrap() async {

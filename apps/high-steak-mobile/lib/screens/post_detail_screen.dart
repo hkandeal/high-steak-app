@@ -6,6 +6,7 @@ import '../controllers/paginated_list_controller.dart';
 import '../models/post_comment.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/date_format.dart';
 import '../widgets/comment_tile.dart';
@@ -42,6 +43,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _bookmarked = false;
   bool _bookmarkBusy = false;
   bool _deleteBusy = false;
+  PostRefreshSubscription? _postRefresh;
 
   bool get _canComment => widget.auth.hasScope('comments:write');
   bool get _canBookmark => widget.auth.hasScope('bookmarks:write');
@@ -62,7 +64,18 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _postRefresh ??= PostRefreshSubscription(
+      context: context,
+      onStale: _loadPost,
+    );
+    _postRefresh!.rebind(context);
+  }
+
+  @override
   void dispose() {
+    _postRefresh?.dispose();
     _commentController.dispose();
     _comments.dispose();
     super.dispose();
@@ -120,6 +133,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       }
       if (!mounted) return;
       setState(() => _bookmarked = !_bookmarked);
+      markPostsStale(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,6 +169,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       await widget.api.deletePost(widget.postId);
       if (!mounted) return;
+      markPostsStale(context);
       context.pop();
     } catch (e) {
       if (!mounted) return;

@@ -5,6 +5,7 @@ import '../auth/auth_controller.dart';
 import '../controllers/paginated_list_controller.dart';
 import '../models/steak_post.dart';
 import '../services/api_service.dart';
+import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../widgets/feed_layout_scope.dart';
 import '../widgets/feed_layout_toggle.dart';
@@ -23,6 +24,7 @@ class BookmarksScreen extends StatefulWidget {
 
 class _BookmarksScreenState extends State<BookmarksScreen> {
   late final PaginatedListController<SteakPost> _controller;
+  PostRefreshSubscription? _postRefresh;
 
   @override
   void initState() {
@@ -34,9 +36,24 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _postRefresh ??= PostRefreshSubscription(
+      context: context,
+      onStale: _reloadBookmarks,
+    );
+    _postRefresh!.rebind(context);
+  }
+
+  @override
   void dispose() {
+    _postRefresh?.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _reloadBookmarks() {
+    _controller.reload();
   }
 
   @override
