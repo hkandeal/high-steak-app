@@ -20,6 +20,7 @@ import {
   type UserPublicProfile,
 } from '../api/client'
 import { AvatarCropModal } from '../components/AvatarCropModal'
+import { CachedImage } from '../components/CachedImage'
 import { EmailNotificationSettings } from '../components/EmailNotificationSettings'
 import { AuthorPostModerationNotice } from '../components/AuthorPostModerationNotice'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -417,7 +418,7 @@ export function ProfilePage() {
           <div className="profile-header-main">
             <div className="profile-avatar">
               {avatarSrc ? (
-                <img src={avatarSrc} alt="" />
+                <CachedImage src={avatarSrc} alt="" />
               ) : (
                 <span>{displayInitials(profile.displayName)}</span>
               )}
@@ -479,7 +480,7 @@ export function ProfilePage() {
             <label className="profile-photo-picker" aria-labelledby="profile-photo-label">
               <span className="profile-photo-preview">
                 {avatarSrc ? (
-                  <img src={avatarSrc} alt="" />
+                  <CachedImage src={avatarSrc} alt="" />
                 ) : (
                   <span className="profile-photo-initials">{displayInitials(displayName)}</span>
                 )}
@@ -626,10 +627,9 @@ export function ProfilePage() {
                     aria-label={`View photos for ${post.title}`}
                   >
                     <div className="post-image-wrap">
-                      <img
+                      <CachedImage
                         src={postImageUrl(primaryPostImage(post))}
                         alt={post.title}
-                        loading="lazy"
                       />
                       {post.imageUrls.length > 1 && (
                         <span className="photo-count">+{post.imageUrls.length - 1}</span>

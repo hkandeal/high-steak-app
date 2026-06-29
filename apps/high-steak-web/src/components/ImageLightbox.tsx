@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { CachedImage } from './CachedImage'
 import './ImageLightbox.css'
 
 export type ImageLightboxState = {
@@ -120,11 +121,12 @@ export function ImageLightbox({
             </button>
           )}
 
-          <img
+          <CachedImage
             key={currentSrc}
             src={currentSrc}
             alt={hasMultiple ? `${alt} (${index + 1} of ${images.length})` : alt}
             className="image-lightbox-image"
+            priority
           />
 
           {hasMultiple && (

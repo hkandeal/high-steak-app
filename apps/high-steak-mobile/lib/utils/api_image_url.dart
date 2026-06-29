@@ -15,7 +15,7 @@ String resolveApiImageUrl(String? path) {
   return '$base$normalized';
 }
 
-/// All image URLs for a post, resolved for [Image.network].
+/// All image URLs for a post, resolved for network image widgets.
 List<String> resolvePostImageUrls(Iterable<String> paths) {
   return paths
       .map(resolveApiImageUrl)

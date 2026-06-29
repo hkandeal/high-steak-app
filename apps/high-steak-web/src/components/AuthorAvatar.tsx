@@ -1,5 +1,6 @@
 import { postImageUrl } from '../api/client'
 import { displayInitials } from '../utils/displayInitials'
+import { CachedImage } from './CachedImage'
 import './AuthorAvatar.css'
 
 type AuthorAvatarProps = {
@@ -20,7 +21,7 @@ export function AuthorAvatar({
 
   return (
     <span className={`author-avatar author-avatar--${size}`} aria-hidden="true">
-      {src ? <img src={src} alt="" /> : <span>{displayInitials(displayName)}</span>}
+      {src ? <CachedImage src={src} alt="" /> : <span>{displayInitials(displayName)}</span>}
     </span>
   )
 }

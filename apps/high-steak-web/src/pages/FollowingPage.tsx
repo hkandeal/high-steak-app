@@ -8,6 +8,7 @@ import {
 } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { BackLink } from '../components/BackLink'
+import { CachedImage } from '../components/CachedImage'
 import { displayInitials } from '../utils/displayInitials'
 import { listItemBackState } from '../navigation'
 import './DiscoverPage.css'
@@ -71,7 +72,7 @@ export function FollowingPage() {
           <li key={user.id} className="discover-card">
             <div className="discover-avatar">
               {user.avatarUrl ? (
-                <img src={postImageUrl(user.avatarUrl)} alt="" />
+                <CachedImage src={postImageUrl(user.avatarUrl)} alt="" />
               ) : (
                 <span>{displayInitials(user.displayName)}</span>
               )}

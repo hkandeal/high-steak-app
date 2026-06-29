@@ -11,6 +11,7 @@ import {
   type SteakPost,
 } from '../api/client'
 import { PageBackLink } from '../components/BackLink'
+import { CachedImage } from '../components/CachedImage'
 import { DEFAULT_CENTER, ExploreMap } from '../components/ExploreMap'
 import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
 import { PostFeedLayout } from '../components/PostFeedLayout'
@@ -235,7 +236,7 @@ export function ExplorePage() {
               {posts.map((post) => (
                 <Link key={post.id} to={`/posts/${post.id}`} className="explore-post-card">
                   {primaryPostImage(post) && (
-                    <img src={postImageUrl(primaryPostImage(post)!)} alt="" />
+                    <CachedImage src={postImageUrl(primaryPostImage(post)!)} alt="" />
                   )}
                   <div>
                     <h3>{post.title}</h3>

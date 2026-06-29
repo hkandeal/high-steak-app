@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../theme/app_palette.dart';
-import '../utils/api_image_url.dart';
+import 'cached_api_image.dart';
 import '../utils/cyclic_index.dart';
 import '../utils/post_form_images.dart';
 import 'image_lightbox.dart';
@@ -281,12 +281,13 @@ class _EditorImagePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (image.isExisting) {
-      return Image.network(
-        resolveApiImageUrl(image.url!),
+      return CachedApiImage(
+        imageUrl: image.url!,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => Container(
+        cacheWidth: CachedApiImage.memCacheWidth(context, MediaQuery.sizeOf(context).width),
+        error: Container(
           color: context.palette.charcoalLight,
           alignment: Alignment.center,
           child: const Icon(Icons.image_not_supported_outlined),
