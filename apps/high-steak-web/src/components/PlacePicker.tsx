@@ -7,6 +7,7 @@ import {
   type PlaceSummary,
 } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { CachedImage } from './CachedImage'
 import './PlacePicker.css'
 
 type PlacePickerProps = {
@@ -29,7 +30,7 @@ function PlacePhotoPreview({
 }) {
   return (
     <div className={`place-picker-photo ${className ?? ''}`.trim()}>
-      <img src={postImageUrl(photoUrl)} alt={alt} />
+      <CachedImage src={postImageUrl(photoUrl)} alt={alt} />
       <span className="place-picker-photo-attribution">© Google</span>
     </div>
   )

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_palette.dart';
-import '../utils/api_image_url.dart';
 import '../utils/cyclic_index.dart';
+import 'cached_api_image.dart';
 import 'image_lightbox.dart';
 
 class PostPhotoGallery extends StatefulWidget {
@@ -66,7 +66,11 @@ class _PostPhotoGalleryState extends State<PostPhotoGallery> {
 
     final palette = context.palette;
     final hasMultiple = widget.imageUrls.length > 1;
-    final currentUrl = resolveApiImageUrl(widget.imageUrls[_activeIndex]);
+    final currentUrl = widget.imageUrls[_activeIndex];
+    final heroCacheWidth = CachedApiImage.memCacheWidth(
+      context,
+      MediaQuery.sizeOf(context).width,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,10 +84,11 @@ class _PostPhotoGalleryState extends State<PostPhotoGallery> {
               children: [
                 GestureDetector(
                   onTap: _openLightbox,
-                  child: Image.network(
-                    currentUrl,
+                  child: CachedApiImage(
+                    imageUrl: currentUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    cacheWidth: heroCacheWidth,
+                    error: Container(
                       color: palette.charcoalLight,
                       alignment: Alignment.center,
                       child: const Icon(Icons.image_not_supported_outlined),
@@ -178,11 +183,13 @@ class _PostPhotoGalleryState extends State<PostPhotoGallery> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        resolveApiImageUrl(widget.imageUrls[index]),
+                      child: CachedApiImage(
+                        imageUrl: widget.imageUrls[index],
                         width: 68,
                         height: 68,
                         fit: BoxFit.cover,
+                        cacheWidth: CachedApiImage.memCacheWidth(context, 68),
+                        cacheHeight: CachedApiImage.memCacheHeight(context, 68),
                       ),
                     ),
                   ),

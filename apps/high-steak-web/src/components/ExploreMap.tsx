@@ -4,6 +4,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import { Link } from 'react-router-dom'
 import type { PlaceNearbySummary } from '../api/client'
 import { postImageUrl } from '../api/client'
+import { CachedImage } from './CachedImage'
 import { StarRating } from './StarRating'
 import type { LatLng } from '../hooks/useUserLocation'
 import 'leaflet/dist/leaflet.css'
@@ -120,7 +121,7 @@ export function ExploreMap({
               <Popup>
                 <div className="explore-map-popup">
                   {place.coverImageUrl && (
-                    <img
+                    <CachedImage
                       src={postImageUrl(place.coverImageUrl)}
                       alt=""
                       className="explore-map-popup-cover"

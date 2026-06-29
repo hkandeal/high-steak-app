@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../navigation/post_refresh_notifier.dart';
 import '../theme/app_palette.dart';
 import '../utils/api_image_url.dart';
+import 'cached_api_image.dart';
 import '../utils/date_format.dart';
 import 'image_lightbox.dart';
 import 'post_venue.dart';
@@ -486,14 +487,19 @@ class _PostHeroImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final cacheWidth = CachedApiImage.memCacheWidth(
+      context,
+      MediaQuery.sizeOf(context).width,
+    );
 
     final image = Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(
-          imageUrl,
+        CachedApiImage(
+          imageUrl: imageUrl,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
+          cacheWidth: cacheWidth,
+          error: Container(
             color: palette.charcoalLight,
             alignment: Alignment.center,
             child: Icon(

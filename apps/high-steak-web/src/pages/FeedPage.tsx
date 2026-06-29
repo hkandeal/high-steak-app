@@ -22,6 +22,7 @@ import { PostBookmarkButton } from '../components/PostBookmarkButton'
 import { AuthorAvatar } from '../components/AuthorAvatar'
 import { AuthorFollowButton } from '../components/AuthorFollowButton'
 import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
+import { CachedImage } from '../components/CachedImage'
 import { PostFeedLayout } from '../components/PostFeedLayout'
 import { StarRating } from '../components/StarRating'
 import { ReviewTagChips } from '../components/ReviewTagChips'
@@ -312,10 +313,9 @@ export function FeedPage() {
                       aria-label={`View photos for ${post.title}`}
                     >
                       <div className="post-image-wrap">
-                        <img
+                        <CachedImage
                           src={postImageUrl(primaryPostImage(post))}
                           alt={post.title}
-                          loading="lazy"
                         />
                         {post.imageUrls.length > 1 && (
                           <span className="photo-count">+{post.imageUrls.length - 1}</span>

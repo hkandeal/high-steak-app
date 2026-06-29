@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { CachedImage } from './CachedImage'
 import './PhotoGallery.css'
 
 type PhotoGalleryProps = {
@@ -82,7 +83,7 @@ export function PhotoGallery({
           disabled={!onZoom}
           aria-label={onZoom ? 'View photo full size' : undefined}
         >
-          <img src={currentSrc} alt={alt} />
+          <CachedImage src={currentSrc} alt={alt} priority />
           {onZoom && <span className="photo-gallery-expand" aria-hidden="true">⤢</span>}
         </button>
 
@@ -119,7 +120,7 @@ export function PhotoGallery({
               aria-label={`Show photo ${index + 1}${index === coverIndex ? ' (cover)' : ''}`}
               aria-selected={index === safeIndex}
             >
-              <img src={src} alt="" />
+              <CachedImage src={src} alt="" />
               {index === coverIndex && <span className="photo-gallery-cover-badge">Cover</span>}
             </button>
           ))}

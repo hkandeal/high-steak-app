@@ -5,8 +5,8 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/place.dart';
 import '../theme/app_palette.dart';
-import '../utils/api_image_url.dart';
 import '../utils/explore_location_store.dart';
+import 'cached_api_image.dart';
 import 'star_rating.dart';
 
 /// Must match the app bundle id — OSM blocks generic/unknown user agents.
@@ -225,11 +225,13 @@ class _ExploreMapState extends State<ExploreMap> {
               if (place.coverImageUrl != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    resolveApiImageUrl(place.coverImageUrl!),
+                  child: CachedApiImage(
+                    imageUrl: place.coverImageUrl!,
                     height: 120,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    cacheWidth: CachedApiImage.memCacheWidth(context, MediaQuery.sizeOf(context).width),
+                    cacheHeight: CachedApiImage.memCacheHeight(context, 120),
                   ),
                 ),
               if (place.isGoogleCover)

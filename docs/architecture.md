@@ -95,12 +95,14 @@ JPA uses `ddl-auto: validate` — never rely on Hibernate to alter production sc
 - **Auth**: `AuthContext` — token in localStorage, user from JWT parse + optional `getMe()` refresh
 - **Gates**: `hasRole`, `hasScope`, `RoleGate`, `ProtectedRoute`
 - **API**: All HTTP via `src/api/client.ts`; base URL from `VITE_API_URL`
+- **Media**: API uploads use long-lived `Cache-Control` (ADR 013); `CachedImage` for lazy/async loading
 
 ## Mobile app
 
 - Flutter with `http` client
 - `apiBaseUrl` in `lib/config/api_config.dart` must end with `/api`
 - Paths are servlet-relative (`/auth/login`, `/posts`)
+- **Media**: `cached_network_image` via `CachedApiImage` (ADR 013)
 
 ## OpenAPI
 

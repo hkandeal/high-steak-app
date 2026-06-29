@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -279,14 +280,16 @@ class _LightboxImageContent extends StatelessWidget {
     final palette = context.palette;
     final url = item.url;
     if (url != null && url.isNotEmpty) {
-      return Image.network(
-        url,
+      return CachedNetworkImage(
+        imageUrl: url,
         fit: BoxFit.contain,
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
+        progressIndicatorBuilder: (_, __, progress) {
+          if (progress.progress == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
           return const Center(child: CircularProgressIndicator());
         },
-        errorBuilder: (_, __, ___) => Icon(
+        errorWidget: (_, __, ___) => Icon(
           Icons.broken_image_outlined,
           color: palette.creamMuted,
           size: 48,

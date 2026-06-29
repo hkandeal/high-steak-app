@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_palette.dart';
-import '../utils/api_image_url.dart';
+import 'cached_api_image.dart';
 
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
@@ -20,14 +20,20 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final resolved = resolveApiImageUrl(avatarThumbnailUrl ?? avatarUrl);
+    final resolved = avatarThumbnailUrl ?? avatarUrl ?? '';
     final initial = displayName.isNotEmpty ? displayName.characters.first.toUpperCase() : '?';
+    final diameter = radius * 2;
+    final provider = cachedApiImageProvider(
+      context,
+      imageUrl: resolved.isNotEmpty ? resolved : null,
+      logicalSize: diameter,
+    );
 
     return CircleAvatar(
       radius: radius,
       backgroundColor: palette.accentSelectedBg,
-      backgroundImage: resolved.isNotEmpty ? NetworkImage(resolved) : null,
-      child: resolved.isEmpty
+      backgroundImage: provider,
+      child: provider == null
           ? Text(
               initial,
               style: TextStyle(

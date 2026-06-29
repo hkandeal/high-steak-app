@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../models/place.dart';
 import '../services/api_service.dart';
 import '../theme/app_palette.dart';
-import '../utils/api_image_url.dart';
 import '../utils/explore_location_service.dart';
+import 'cached_api_image.dart';
 import '../utils/explore_location_store.dart';
 
 class PlacePicker extends StatefulWidget {
@@ -313,11 +313,13 @@ class _PlacePickerState extends State<PlacePicker> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            resolveApiImageUrl(photoUrl),
+          child: CachedApiImage(
+            imageUrl: photoUrl,
             width: size,
             height: size,
             fit: BoxFit.cover,
+            cacheWidth: CachedApiImage.memCacheWidth(context, size),
+            cacheHeight: CachedApiImage.memCacheHeight(context, size),
           ),
         ),
         Positioned(

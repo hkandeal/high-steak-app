@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { postImageUrl } from '../api/client'
+import { CachedImage } from './CachedImage'
 import { RoleGate } from './RoleGate'
 import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '../context/AuthContext'
@@ -83,7 +84,7 @@ export function UserMenu() {
         onClick={() => setOpen((current) => !current)}
       >
         <span className="user-menu-avatar" aria-hidden="true">
-          {avatarSrc ? <img src={avatarSrc} alt="" /> : initials}
+          {avatarSrc ? <CachedImage src={avatarSrc} alt="" /> : initials}
         </span>
         <span className="user-menu-name">{initials}</span>
         <span className="user-menu-chevron" aria-hidden="true">
@@ -95,7 +96,7 @@ export function UserMenu() {
         <div id={menuId} className="user-menu-panel" role="menu">
           <div className="user-menu-header">
             <span className="user-menu-avatar" aria-hidden="true">
-              {avatarSrc ? <img src={avatarSrc} alt="" /> : initials}
+              {avatarSrc ? <CachedImage src={avatarSrc} alt="" /> : initials}
             </span>
             <div className="user-menu-header-text">
               <strong>{user.displayName}</strong>

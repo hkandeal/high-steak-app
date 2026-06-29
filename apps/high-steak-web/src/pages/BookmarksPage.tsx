@@ -9,6 +9,7 @@ import {
   type SteakPost,
 } from '../api/client'
 import { BackLink } from '../components/BackLink'
+import { CachedImage } from '../components/CachedImage'
 import { AuthorAvatar } from '../components/AuthorAvatar'
 import { ImageLightbox } from '../components/ImageLightbox'
 import { FeedLayoutToggle } from '../components/FeedLayoutToggle'
@@ -116,10 +117,9 @@ export function BookmarksPage() {
                       aria-label={`View photos for ${post.title}`}
                     >
                       <div className="post-image-wrap">
-                        <img
+                        <CachedImage
                           src={postImageUrl(primaryPostImage(post))}
                           alt={post.title}
-                          loading="lazy"
                         />
                         {post.imageUrls.length > 1 && (
                           <span className="photo-count">+{post.imageUrls.length - 1}</span>
